@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -7,12 +7,11 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import re
 from abc import abstractmethod
-from typing import Union
+from typing import Union, Any
 import codecs
 
-from elementpath.helpers import collapse_white_spaces
+from elementpath.helpers import LazyPattern, collapse_white_spaces
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 
@@ -25,6 +24,26 @@ class AbstractBinary(AnyAtomicType):
     :param ordered: a boolean that enable total ordering for the instance, `False` for default.
     """
     value: bytes
+
+    @classmethod
+    def make(cls, value: Any, version: str = '2.0', xsd_version: str = '1.1') -> 'AnyAtomicType':
+        ordered: bool = version >= '3.1'
+
+        match value:
+            case x if isinstance(x, cls):
+                if value.ordered is ordered:
+                    return value
+                return cls(value.value, ordered=ordered)
+            case AbstractBinary():
+                return cls(cls.encoder(value.decode()), ordered)
+            case UntypedAtomic():
+                return cls(collapse_white_spaces(value.value), ordered=ordered)
+            case str():
+                return cls(collapse_white_spaces(value), ordered=ordered)
+            case bytes():
+                return cls(collapse_white_spaces(value.decode('utf-8')), ordered=ordered)
+            case _:
+                raise cls.invalid_type(value)  # noqa
 
     def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AbstractBinary'],
                  ordered: bool = False) -> None:
@@ -59,9 +78,8 @@ class AbstractBinary(AnyAtomicType):
     def validate(cls, value: object) -> None:
         raise NotImplementedError()
 
-    @staticmethod
-    @abstractmethod
-    def encoder(value: bytes) -> bytes:
+    @classmethod
+    def encoder(cls, value: bytes) -> bytes:
         raise NotImplementedError()
 
     @abstractmethod
@@ -117,7 +135,7 @@ class AbstractBinary(AnyAtomicType):
 
 class Base64Binary(AbstractBinary):
     name = 'base64Binary'
-    pattern = re.compile(
+    pattern = LazyPattern(
         r'((?:(?:[A-Za-z0-9+/] ?){4})*(?:(?:[A-Za-z0-9+/] ?){3}[A-Za-z0-9+/]|'
         r'(?:[A-Za-z0-9+/] ?){2}'
         r'[AEIMQUYcgkosw048] ?=|[A-Za-z0-9+/] ?[AQgw] ?= ?=))?'
@@ -154,8 +172,8 @@ class Base64Binary(AbstractBinary):
             return length // 4 * 3 - 1
         return length // 4 * 3
 
-    @staticmethod
-    def encoder(value: bytes) -> bytes:
+    @classmethod
+    def encoder(cls, value: bytes) -> bytes:
         return codecs.encode(value, 'base64').rstrip(b'\n')
 
     def decode(self) -> bytes:
@@ -164,7 +182,7 @@ class Base64Binary(AbstractBinary):
 
 class HexBinary(AbstractBinary):
     name = 'hexBinary'
-    pattern = re.compile(r'^([0-9a-fA-F]{2})*$')
+    pattern = LazyPattern(r'^([0-9a-fA-F]{2})*$')
 
     @classmethod
     def validate(cls, value: object) -> None:
@@ -179,8 +197,8 @@ class HexBinary(AbstractBinary):
         if cls.pattern.match(value) is None:
             raise cls.invalid_value(value)
 
-    @staticmethod
-    def encoder(value: bytes) -> bytes:
+    @classmethod
+    def encoder(cls, value: bytes) -> bytes:
         return codecs.encode(value, 'hex')
 
     def decode(self) -> bytes:

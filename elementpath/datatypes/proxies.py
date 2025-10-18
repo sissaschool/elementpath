@@ -7,12 +7,11 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import re
 import math
 from decimal import Decimal
 from typing import Any, Union, SupportsFloat
 
-from elementpath.helpers import BOOLEAN_VALUES, collapse_white_spaces, get_double
+from elementpath.helpers import BOOLEAN_VALUES, LazyPattern, collapse_white_spaces, get_double
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 from .numeric import Float10, Integer
@@ -27,7 +26,7 @@ FloatArgType = Union[SupportsFloat, str, bytes]
 
 class BooleanProxy(AnyAtomicType):
     name = 'boolean'
-    pattern = re.compile(r'^(?:true|false|1|0)$')
+    pattern = LazyPattern(r'^(?:true|false|1|0)$')
 
     def __new__(cls, value: object) -> bool:  # type: ignore[misc]
         if isinstance(value, bool):
@@ -65,7 +64,7 @@ class BooleanProxy(AnyAtomicType):
 
 class DecimalProxy(AnyAtomicType):
     name = 'decimal'
-    pattern = re.compile(r'^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$')
+    pattern = LazyPattern(r'^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$')
 
     def __new__(cls, value: Any) -> Decimal:  # type: ignore[misc]
         if isinstance(value, (str, UntypedAtomic)):
@@ -108,7 +107,7 @@ class DecimalProxy(AnyAtomicType):
 class DoubleProxy10(AnyAtomicType):
     name = 'double'
     xsd_version = '1.0'
-    pattern = re.compile(
+    pattern = LazyPattern(
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[+-]?INF|NaN)$'
     )
 

@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -9,10 +9,10 @@
 #
 from abc import ABCMeta, abstractmethod
 from types import MappingProxyType
-from typing import Any, Optional
-import re
+from typing import Any, Optional, TypeVar
 
-XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
+from elementpath.helpers import LazyPattern
+from elementpath.namespaces import XSD_NAMESPACE
 
 ###
 # Classes for XSD built-in atomic types. All defined classes use a
@@ -20,16 +20,16 @@ XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 # into a dictionary. Some classes of XSD primitive types are defined
 # as proxies of basic Python datatypes.
 
-_xsd_atomic_types: dict[str, dict[Optional[str], 'AtomicTypeMeta']] = {
-    '1.0': {},
-    '1.1': {}
-}
-"""Registry of builtin XSD 1.0/1.1 atomic types."""
+_builtin_atomic_types: dict[str, 'AtomicTypeMeta'] = {}
+builtin_atomic_types = MappingProxyType(_builtin_atomic_types)
+"""Registry of builtin atomic types."""
 
-xsd_atomic_types = MappingProxyType({
-    '1.0': MappingProxyType(_xsd_atomic_types['1.0']),
-    '1.1': MappingProxyType(_xsd_atomic_types['1.1']),
-})
+_atomic_sequence_types: dict[str, 'AtomicTypeMeta'] = {}
+atomic_sequence_types = MappingProxyType(_atomic_sequence_types)
+"""Registry of atomic sequence types."""
+
+
+AT = TypeVar('AT')
 
 
 class AtomicTypeMeta(ABCMeta):
@@ -39,8 +39,6 @@ class AtomicTypeMeta(ABCMeta):
     attribute is provided the class is registered into a global map
     of XSD atomic types and also the expanded name is added.
     """
-    xsd_version: str
-
     def __new__(mcs, class_name: str, bases: tuple[type[Any], ...], dict_: dict[str, Any]) \
             -> 'AtomicTypeMeta':
         try:
@@ -53,21 +51,40 @@ class AtomicTypeMeta(ABCMeta):
 
         cls = super(AtomicTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
 
-        # Register all the derived classes with a name
+        # Register all the derived classes with a valid name if not already registered
         if name:
-            for xsd_version, atomic_types in _xsd_atomic_types.items():
-                if cls.xsd_version <= xsd_version and (
-                    name not in atomic_types or atomic_types[name].xsd_version < cls.xsd_version
-                ):
-                    atomic_types[name] = cls
+            namespace: str | None = dict_.pop('namespace', XSD_NAMESPACE)
+            prefix: str | None =  dict_.pop('prefix', 'xs')
+
+            extended_name = f'{{{namespace}}}{name}' if namespace else name
+            prefixed_name = f'{prefix}:{name}' if prefix else name
+
+            if extended_name not in _builtin_atomic_types:
+                _builtin_atomic_types[extended_name] = cls
+            if prefixed_name not in _atomic_sequence_types:
+                _atomic_sequence_types[prefixed_name] = cls
 
         return cls
 
 
 class AnyAtomicType(metaclass=AtomicTypeMeta):
+
     name: Optional[str] = 'anyAtomicType'
     xsd_version: str = '1.0'
-    pattern: re.Pattern[str] = re.compile(r'^$')
+    pattern = LazyPattern(r'^$')
+
+    @classmethod
+    def make(cls, value: Any,
+             version: str = '2.0',
+             xsd_version: str = '1.1') -> 'AnyAtomicType':
+        """
+        Versioned factory method to create an atomic type.
+
+        :param value: the value to be converted to an atomic type.
+        :param version: the version of the XPath processor that create the atomic type.
+        :param xsd_version: the version of the XSD processor that create the atomic type.
+        """
+        return cls(value)
 
     @classmethod
     def validate(cls, value: object) -> None:
@@ -100,6 +117,7 @@ class AnyAtomicType(metaclass=AtomicTypeMeta):
             return ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
         return ValueError('invalid value {!r} for {!r}'.format(value, cls))
 
+    # noinspection PyAbstractClass
     @abstractmethod
     def __init__(self, value: Any) -> None:
         raise NotImplementedError()

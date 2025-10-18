@@ -9,8 +9,9 @@
 #
 import re
 import math
+import operator
 from calendar import isleap, leapdays
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from decimal import Decimal
 from operator import attrgetter
 from typing import Any, Optional, overload, SupportsFloat, Union
@@ -35,6 +36,8 @@ class LazyPattern:
     only when the descriptor attribute is accessed (e.g. a hasattr() call).
     """
     _compiled: re.Pattern[str]
+
+    __slots__ = ('_name', '_pattern', '_flags', '_compiled')
 
     def __init__(self, pattern: str, flags: Union[int, re.RegexFlag] = 0) -> None:
         self._pattern = pattern
@@ -113,7 +116,17 @@ def is_idrefs(value: Optional[str]) -> bool:
         all(Patterns.ncname.match(x) is not None for x in value.split())
 
 
-node_position = attrgetter('position')
+###
+# Operators
+node_position = operator.attrgetter('position')
+
+
+def reversed_sub(a: Any, b: Any) -> bool:
+    return operator.sub(b, a)
+
+
+def reversed_truediv(a: Any, b: Any) -> bool:
+    return operator.truediv(b, a)
 
 
 ###

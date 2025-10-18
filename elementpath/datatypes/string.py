@@ -7,16 +7,15 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import re
 from typing import Any
 
-from elementpath.helpers import collapse_white_spaces, Patterns
+from elementpath.helpers import collapse_white_spaces, Patterns, LazyPattern
 from .atomic_types import AnyAtomicType
 
 
 class NormalizedString(str, AnyAtomicType):
     name = 'normalizedString'
-    pattern = re.compile('^[^\t\r]*$')
+    pattern = LazyPattern('^[^\t\r]*$')
 
     def __new__(cls, obj: Any) -> 'NormalizedString':
         try:
@@ -30,7 +29,7 @@ class NormalizedString(str, AnyAtomicType):
 
 class XsdToken(NormalizedString):
     name = 'token'
-    pattern = re.compile(r'^[\S\xa0]*(?: [\S\xa0]+)*$')
+    pattern = LazyPattern(r'^[\S\xa0]*(?: [\S\xa0]+)*$')
 
     def __new__(cls, value: Any) -> 'XsdToken':
         if not isinstance(value, str):
@@ -46,7 +45,7 @@ class XsdToken(NormalizedString):
 
 class Language(XsdToken):
     name = 'language'
-    pattern = re.compile(r'^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$')
+    pattern = LazyPattern(r'^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$')
 
     def __new__(cls, value: Any) -> 'Language':
         if isinstance(value, bool):
@@ -64,12 +63,12 @@ class Language(XsdToken):
 
 class Name(XsdToken):
     name = 'Name'
-    pattern = re.compile(r'^(?:[^\d\W]|:)[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]*$')
+    pattern = LazyPattern(r'^(?:[^\d\W]|:)[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]*$')
 
 
 class NCName(Name):
     name = 'NCName'
-    pattern = re.compile(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
+    pattern = LazyPattern(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
 
 
 class Id(NCName):
@@ -86,4 +85,4 @@ class Entity(NCName):
 
 class NMToken(XsdToken):
     name = 'NMTOKEN'
-    pattern = re.compile(r'^[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]+$')
+    pattern = LazyPattern(r'^[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]+$')

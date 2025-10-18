@@ -15,7 +15,8 @@ exceptions in order to be reusable in other packages.
 from decimal import Decimal
 from typing import Union
 
-from .atomic_types import xsd_atomic_types, AtomicTypeMeta, AnyAtomicType
+from .atomic_types import builtin_atomic_types, atomic_sequence_types, \
+    AtomicTypeMeta, AnyAtomicType
 from .untyped import UntypedAtomic
 from .qname import AbstractQName, QName, Notation
 from .numeric import Float10, Float, Integer, Int, NegativeInteger, \
@@ -41,15 +42,15 @@ AtomicType = Union[str, int, float, Decimal, bool, AnyAtomicType]
 NumericType = Union[int, float, Decimal]
 ArithmeticType = Union[NumericType, AbstractDateTime, Duration, UntypedAtomic]
 
-__all__ = ['xsd_atomic_types', 'AtomicTypeMeta', 'AnyAtomicType', 'NumericProxy',
+__all__ = ['builtin_atomic_types', 'atomic_sequence_types', 'AtomicTypeMeta', 'AnyAtomicType',
            'ArithmeticProxy', 'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp',
            'Date10', 'Date', 'Time', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
            'GregorianYear10', 'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth',
            'Timezone', 'Duration', 'YearMonthDuration', 'DayTimeDuration', 'StringProxy',
            'NormalizedString', 'XsdToken', 'Language', 'Name', 'NCName', 'Id', 'Idref',
-           'Entity', 'NMToken', 'Base64Binary', 'HexBinary', 'Float10', 'Float',
-           'Integer', 'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int', 'Short',
-           'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
-           'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName', 'BooleanProxy',
+           'Entity', 'NMToken', 'Base64Binary', 'HexBinary', 'Float10', 'Float', 'Integer',
+           'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int', 'Byte', 'UnsignedByte',
+           'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt', 'Short',
+           'UnsignedShort', 'AnyURI', 'Notation', 'QName', 'NumericProxy', 'BooleanProxy',
            'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic', 'AbstractBinary',
            'AtomicType', 'OrderedDateTime', 'AbstractQName', 'NumericType', 'ArithmeticType']

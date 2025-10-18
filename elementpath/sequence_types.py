@@ -14,7 +14,8 @@ from elementpath.exceptions import ElementPathKeyError, xpath_error
 from elementpath.helpers import collapse_white_spaces, OCCURRENCE_INDICATORS, Patterns
 from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_ANY_SIMPLE_TYPE, XSD_NUMERIC, \
     get_expanded_name, XSD_UNTYPED, XSD_UNTYPED_ATOMIC
-from elementpath.datatypes import xsd_atomic_types, AnyAtomicType, QName, NumericProxy
+from elementpath.datatypes import builtin_atomic_types, atomic_sequence_types, \
+    AnyAtomicType, QName, NumericProxy
 from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
 from elementpath import xpath_tokens
 
@@ -22,24 +23,12 @@ if TYPE_CHECKING:
     from elementpath.xpath_tokens import XPathParserType
 
 XSD_EXTENDED_PREFIX = f'{{{XSD_NAMESPACE}}}'
-xsd11_atomic_types = xsd_atomic_types['1.1']
 
-COMMON_SEQUENCE_TYPES = {
-    'xs:anyType', 'xs:anySimpleType', 'xs:anyAtomicType',
-    'xs:boolean', 'xs:decimal', 'xs:double', 'xs:float', 'xs:string',
-    'xs:date', 'xs:dateTime', 'xs:gDay', 'xs:gMonth', 'xs:gMonthDay',
-    'xs:gYear', 'xs:gYearMonth', 'xs:time', 'xs:duration', 'xs:dayTimeDuration',
-    'xs:yearMonthDuration', 'xs:QName', 'xs:anyURI', 'xs:normalizedString',
-    'xs:token', 'xs:language', 'xs:Name', 'xs:NCName', 'xs:ID', 'xs:IDREF',
-    'xs:ENTITY', 'xs:NMTOKEN', 'xs:base64Binary', 'xs:hexBinary',
-    'xs:integer', 'xs:long', 'xs:int', 'xs:short', 'xs:byte',
-    'xs:positiveInteger', 'xs:negativeInteger', 'xs:numeric',
-    'xs:nonPositiveInteger', 'xs:nonNegativeInteger', 'xs:unsignedLong',
-    'xs:unsignedInt', 'xs:unsignedShort', 'xs:unsignedByte',
-    'xs:untyped', 'xs:untypedAtomic', 'attribute()', 'attribute(*)',
-    'element()', 'element(*)', 'text()', 'document-node()', 'comment()',
-    'processing-instruction()', 'item()', 'node()', 'numeric'
-}
+COMMON_SEQUENCE_TYPES = frozenset((
+    'xs:anyType', 'xs:anySimpleType', 'xs:numeric', 'xs:untyped', 'attribute()',
+    'attribute(*)', 'element()', 'element(*)', 'text()', 'document-node()',
+    'comment()', 'processing-instruction()', 'item()', 'node()', 'numeric'
+))
 
 
 ###
@@ -100,7 +89,7 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
         return False
     elif st1 == 'xs:anyAtomicType':
         try:
-            return issubclass(xsd11_atomic_types[st2[3:]], AnyAtomicType)
+            return issubclass(atomic_sequence_types[st2], AnyAtomicType)
         except KeyError:
             return False
     elif st1.startswith('xs:'):
@@ -108,7 +97,7 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
             return True
 
         try:
-            return issubclass(xsd11_atomic_types[st2[3:]], xsd11_atomic_types[st1[3:]])
+            return issubclass(atomic_sequence_types[st2], atomic_sequence_types[st1])
         except KeyError:
             return False
     elif not st1.startswith('function('):
@@ -133,7 +122,6 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
 
 def is_instance(obj: Any, type_qname: str, parser: Optional['XPathParserType'] = None) -> bool:
     """Checks an instance against an XSD type."""
-    xsd_version = getattr(parser, 'xsd_version', '1.0')
     if not type_qname.startswith('{'):
         if parser is not None:
             type_qname = get_expanded_name(type_qname, parser.namespaces)
@@ -141,8 +129,10 @@ def is_instance(obj: Any, type_qname: str, parser: Optional['XPathParserType'] =
             type_qname = type_qname.replace('xs:', XSD_EXTENDED_PREFIX, 1)
 
     if type_qname.startswith(XSD_EXTENDED_PREFIX):
+        if getattr(parser, 'xsd_version', '1.1') != '1.0' and type_qname == 'dateTimeStamp':
+            return False
         try:
-            return isinstance(obj, xsd_atomic_types[xsd_version][type_qname[34:]])
+            return isinstance(obj, builtin_atomic_types[type_qname])
         except KeyError:
             pass
 
@@ -176,6 +166,11 @@ def is_sequence_type(value: Any, parser: Optional['XPathParserType'] = None) -> 
             st = st[:-1]
 
         if st in COMMON_SEQUENCE_TYPES:
+            return True
+
+        elif st in atomic_sequence_types:
+            if st == 'xs:dateTimeStamp':
+                return getattr(parser, 'xsd_version', '1.1') != '1.0'
             return True
 
         elif st.startswith(('map(', 'array(')):

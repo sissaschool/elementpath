@@ -8,19 +8,25 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import math
-import re
 from typing import Any, Optional, SupportsFloat, SupportsInt, Union
 
-from elementpath.helpers import NUMERIC_INF_OR_NAN, INVALID_NUMERIC, collapse_white_spaces
+from elementpath.helpers import NUMERIC_INF_OR_NAN, INVALID_NUMERIC, \
+    LazyPattern, collapse_white_spaces
 from .atomic_types import AnyAtomicType
 
 
 class Float10(float, AnyAtomicType):
     name = 'float'
     xsd_version = '1.0'
-    pattern = re.compile(
+    pattern = LazyPattern(
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN)$'
     )
+
+    @classmethod
+    def make(cls, value: Any, version: str = '2.0', xsd_version: str = '1.1') -> 'AnyAtomicType':
+        if value == '+INF' and xsd_version == '1.0':
+            raise cls.invalid_value('+INF')
+        return cls(value)
 
     def __new__(cls, value: Union[str, SupportsFloat]) -> 'Float10':
         if isinstance(value, str):
@@ -154,7 +160,7 @@ float_nan = Float10('NaN')
 class Integer(int, AnyAtomicType):
     """A wrapper for emulating xs:integer and limited integer types."""
     name = 'integer'
-    pattern = re.compile(r'^[\-+]?[0-9]+$')
+    pattern = LazyPattern(r'^[\-+]?[0-9]+$')
 
     _lower_bound: Optional[int] = None
     _higher_bound: Optional[int] = None

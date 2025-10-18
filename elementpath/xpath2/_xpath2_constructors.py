@@ -16,7 +16,7 @@ from typing import cast, Optional, Union
 from elementpath.aliases import Emptiable
 from elementpath.exceptions import ElementPathError, ElementPathSyntaxError
 from elementpath.namespaces import XSD_NAMESPACE
-from elementpath.datatypes import xsd_atomic_types, \
+from elementpath.datatypes import builtin_atomic_types, \
     GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10, \
     GregorianYear, GregorianYearMonth10, GregorianYearMonth, Duration, \
     DayTimeDuration, YearMonthDuration, Date10, Date, DateTime10, DateTime, \
@@ -54,7 +54,7 @@ OtherDateTimeTypes = Union[
 def cast_string_based_types(self: XPathConstructor, value: AtomicType) \
         -> Union[str, AnyURI]:
     try:
-        result = xsd_atomic_types['1.0'][self.symbol](value)
+        result = builtin_atomic_types[f'{{{XSD_NAMESPACE}}}{self.symbol}'](value)
     except ValueError as err:
         raise self.error('FORG0001', err)
     else:
@@ -69,7 +69,9 @@ def cast_string_based_types(self: XPathConstructor, value: AtomicType) \
 @constructor('float')
 def cast_numeric_types(self: XPathConstructor, value: AtomicType) -> NumericType:
     try:
-        result = xsd_atomic_types[self.parser.xsd_version][self.symbol](value)
+        result = builtin_atomic_types[f'{{{XSD_NAMESPACE}}}{self.symbol}'].make(
+            value, xsd_version=self.parser.xsd_version
+        )
     except ValueError as err:
         if isinstance(value, (str, UntypedAtomic)):
             raise self.error('FORG0001', err)
@@ -96,7 +98,7 @@ def cast_numeric_types(self: XPathConstructor, value: AtomicType) -> NumericType
 @constructor('unsignedByte')
 def cast_integer_types(self: XPathConstructor, value: AtomicType) -> int:
     try:
-        result = xsd_atomic_types['1.0'][self.symbol](value)
+        result = builtin_atomic_types[f'{{{XSD_NAMESPACE}}}{self.symbol}'](value)
     except ValueError:
         msg = 'could not convert {!r} to xs:{}'.format(value, self.symbol)
         if isinstance(value, (str, bytes, int, UntypedAtomic)):

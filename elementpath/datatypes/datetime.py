@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -9,7 +9,6 @@
 #
 from abc import abstractmethod
 from collections.abc import Callable
-import re
 import math
 import operator
 import datetime
@@ -19,13 +18,12 @@ from typing import cast, Any, Optional, TypeVar, Union
 
 from elementpath.helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
     DAYS_IN_100Y, DAYS_IN_400Y, days_from_common_era, adjust_day, \
-    normalized_seconds, months2days, round_number
+    normalized_seconds, months2days, round_number, LazyPattern
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 
 ###
 # Constants for base delta operations
-#
 _ZERO_DELTA = datetime.timedelta(0)
 _1DAY_DELTA = datetime.timedelta(days=1)
 _REF_DATETIME = datetime.datetime(1, 1, 1)
@@ -146,7 +144,7 @@ class AbstractDateTime(AnyAtomicType):
     attribute and an integer attribute for processing BCE years or for years after 9999 CE.
     """
     xsd_version = '1.0'
-    pattern = re.compile(r'^$')
+    pattern = LazyPattern(r'^$')
 
     def __init__(self, year: int = 2000, month: int = 1, day: int = 1, hour: int = 0,
                  minute: int = 0, second: int = 0, microsecond: int = 0,
@@ -541,11 +539,12 @@ class AbstractDateTime(AnyAtomicType):
 class DateTime10(AbstractDateTime):
     """XSD 1.0 xs:dateTime builtin type"""
     name = 'dateTime'
-    pattern = re.compile(
+    pattern = LazyPattern(
         r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
         r'(T(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
         r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)'
-        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$'
+    )
 
     def __init__(self, year: int, month: int, day: int, hour: int = 0,
                  minute: int = 0, second: int = 0, microsecond: int = 0,
@@ -573,18 +572,32 @@ class DateTime(DateTime10):
 class DateTimeStamp(DateTime):
     """XSD 1.1 xs:dateTimeStamp builtin type"""
     name = 'dateTimeStamp'
-    pattern = re.compile(
+    pattern = LazyPattern(
         r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
         r'(T(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
         r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)'
-        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$')
+        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$'
+    )
+
+
+class DateTimeStamp10(DateTime10):
+    """XSD 1.1 xs:dateTimeStamp builtin type"""
+    name = 'dateTimeStamp'
+    pattern = LazyPattern(
+        r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
+        r'(T(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
+        r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)'
+        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$'
+    )
 
 
 class Date10(AbstractDateTime):
     """XSD 1.0 xs:date builtin type"""
     name = 'date'
-    pattern = re.compile(r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
-                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = LazyPattern(
+        r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
+        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$'
+    )
 
     def __init__(self, year: int, month: int, day: int,
                  tzinfo: Optional[datetime.tzinfo] = None) -> None:
@@ -605,8 +618,10 @@ class Date(Date10):
 class GregorianDay(AbstractDateTime):
     """XSD xs:gDay builtin type"""
     name = 'gDay'
-    pattern = re.compile(r'^---(?P<day>[0-9]{2})'
-                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = LazyPattern(
+        r'^---(?P<day>[0-9]{2})'
+        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$'
+    )
 
     def __init__(self, day: int, tzinfo: Optional[Timezone] = None) -> None:
         super().__init__(day=day, tzinfo=tzinfo)
@@ -618,8 +633,10 @@ class GregorianDay(AbstractDateTime):
 class GregorianMonth(AbstractDateTime):
     """XSD xs:gMonth builtin type"""
     name = 'gMonth'
-    pattern = re.compile(r'^--(?P<month>[0-9]{2})'
-                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = LazyPattern(
+        r'^--(?P<month>[0-9]{2})'
+        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$'
+    )
 
     def __init__(self, month: int, tzinfo: Optional[Timezone] = None) -> None:
         super().__init__(month=month, tzinfo=tzinfo)
@@ -631,8 +648,10 @@ class GregorianMonth(AbstractDateTime):
 class GregorianMonthDay(AbstractDateTime):
     """XSD xs:gMonthDay builtin type"""
     name = 'gMonthDay'
-    pattern = re.compile(r'^--(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
-                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = LazyPattern(
+        r'^--(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
+        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$'
+    )
 
     def __init__(self, month: int, day: int, tzinfo: Optional[Timezone] = None) -> None:
         super().__init__(month=month, day=day, tzinfo=tzinfo)
@@ -644,8 +663,10 @@ class GregorianMonthDay(AbstractDateTime):
 class GregorianYear10(AbstractDateTime):
     """XSD 1.0 xs:gYear builtin type"""
     name = 'gYear'
-    pattern = re.compile(r'^(?P<year>-?[0-9]*[0-9]{4})'
-                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = LazyPattern(
+        r'^(?P<year>-?[0-9]*[0-9]{4})'
+        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$'
+    )
 
     def __init__(self, year: int, tzinfo: Optional[Timezone] = None) -> None:
         super().__init__(year, tzinfo=tzinfo)
@@ -663,8 +684,10 @@ class GregorianYear(GregorianYear10):
 class GregorianYearMonth10(AbstractDateTime):
     """XSD 1.0 xs:gYearMonth builtin type"""
     name = 'gYearMonth'
-    pattern = re.compile(r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})'
-                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = LazyPattern(
+        r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})'
+        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$'
+    )
 
     def __init__(self, year: int, month: int, tzinfo: Optional[Timezone] = None) -> None:
         super().__init__(year, month, tzinfo=tzinfo)
@@ -682,10 +705,11 @@ class GregorianYearMonth(GregorianYearMonth10):
 class Time(AbstractDateTime):
     """XSD xs:time builtin type"""
     name = 'time'
-    pattern = re.compile(
+    pattern = LazyPattern(
         r'^(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
         r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?'
-        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+        r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$'
+    )
 
     def __init__(self, hour: int = 0, minute: int = 0,
                  second: int = 0, microsecond: int = 0,
@@ -742,7 +766,7 @@ class Duration(AnyAtomicType):
     days, hours, minutes, seconds and fractions of seconds.
     """
     name = 'duration'
-    pattern = re.compile(
+    pattern = LazyPattern(
         r'^(-)?P(?=[0-9]|T)(?:([0-9]+)Y)?(?:([0-9]+)M)?(?:([0-9]+)D)?'
         r'(?:T(?=[0-9])(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+(?:\.[0-9]+)?)S)?)?$'
     )
@@ -896,7 +920,6 @@ class Duration(AnyAtomicType):
 
 
 class YearMonthDuration(Duration):
-
     name = 'yearMonthDuration'
 
     def __init__(self, months: int = 0) -> None:
@@ -946,7 +969,6 @@ class YearMonthDuration(Duration):
 
 
 class DayTimeDuration(Duration):
-
     name = 'dayTimeDuration'
 
     def __init__(self, seconds: Union[Decimal, int] = 0) -> None:

@@ -8,11 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import operator
+from collections.abc import Callable
 from decimal import Decimal
-from typing import Any, Optional, Union
+from typing import Any, Optional, TYPE_CHECKING, Union
 
-from elementpath.helpers import BOOLEAN_VALUES, get_double
+from elementpath.helpers import reversed_sub, reversed_truediv, BOOLEAN_VALUES, get_double
 from .atomic_types import AnyAtomicType
+
+if TYPE_CHECKING:
+    from elementpath.datatypes import AbstractBinary
 
 
 class UntypedAtomic(AnyAtomicType):
@@ -53,7 +57,8 @@ class UntypedAtomic(AnyAtomicType):
     def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
-    def _get_operands(self, other: Any, force_float: bool = True) -> tuple[Any, Any]:
+    def _operator(self, op: Callable[[Any, Any], bool],
+                  other: object, force_float: bool = True) -> bool:
         """
         Returns a couple of operands, applying a cast to the instance value based on
         the type of the *other* argument.
@@ -65,66 +70,68 @@ class UntypedAtomic(AnyAtomicType):
         match other:
             case UntypedAtomic():
                 if force_float:
-                    return get_double(self.value), get_double(other.value)
-                return self.value, other.value
+                    return op(get_double(self.value), get_double(other.value))
+                return op(self.value, other.value)
             case bool():
                 # Cast to xs:boolean
                 value = self.value.strip()
                 if value not in BOOLEAN_VALUES:
                     raise ValueError("{!r} cannot be cast to xs:boolean".format(self.value))
-                return value in ('1', 'true'), other
+                return op(value in ('1', 'true'), other)
             case int():
-                return get_double(self.value), other
+                return op(get_double(self.value), other)
             case None | str() | list():
-                return self.value, other
-
-        if hasattr(other, 'fromstring'):
-            return type(other).fromstring(self.value), other
-        elif hasattr(other, 'ordered'):
-            return type(other)(self.value, other.ordered), other
-        else:
-            return type(other)(self.value), other
+                return op(self.value, other)
+            case AnyAtomicType():
+                if hasattr(other, 'fromstring'):
+                    return op(type(other).fromstring(self.value), other)
+                elif hasattr(other, 'ordered'):
+                    return op(type(other)(self.value, other.ordered), other)
+                else:
+                    return op(type(other)(self.value), other)
+            case _:
+                return NotImplemented
 
     def __hash__(self) -> int:
         return hash(self.value)
 
-    def __eq__(self, other: Any) -> Any:
-        return operator.eq(*self._get_operands(other, force_float=False))
+    def __eq__(self, other: Any) -> bool:
+        return self._operator(operator.eq, other, force_float=False)
 
     def __ne__(self, other: Any) -> Any:
-        return not operator.eq(*self._get_operands(other, force_float=False))
+        return not self._operator(operator.eq, other, force_float=False)
 
     def __lt__(self, other: Any) -> Any:
-        return operator.lt(*self._get_operands(other))
+        return self._operator(operator.lt, other)
 
     def __le__(self, other: Any) -> Any:
-        return operator.le(*self._get_operands(other))
+        return self._operator(operator.le, other)
 
     def __gt__(self, other: Any) -> Any:
-        return operator.gt(*self._get_operands(other))
+        return self._operator(operator.gt, other)
 
     def __ge__(self, other: Any) -> Any:
-        return operator.ge(*self._get_operands(other))
+        return self._operator(operator.ge, other)
 
     def __add__(self, other: Any) -> Any:
-        return operator.add(*self._get_operands(other))
+        return self._operator(operator.add, other)
     __radd__ = __add__
 
     def __sub__(self, other: Any) -> Any:
-        return operator.sub(*self._get_operands(other))
+        return self._operator(operator.sub, other)
 
     def __rsub__(self, other: Any) -> Any:
-        return operator.sub(*reversed(self._get_operands(other)))
+        return self._operator(reversed_sub, other)
 
     def __mul__(self, other: Any) -> Any:
-        return operator.mul(*self._get_operands(other))
+        return self._operator(operator.mul, other)
     __rmul__ = __mul__
 
     def __truediv__(self, other: Any) -> Any:
-        return operator.truediv(*self._get_operands(other))
+        return self._operator(operator.truediv, other)
 
     def __rtruediv__(self, other: Any) -> Any:
-        return operator.truediv(*reversed(self._get_operands(other)))
+        return self._operator(reversed_truediv, other)
 
     def __int__(self) -> int:
         return int(self.value)
@@ -139,7 +146,7 @@ class UntypedAtomic(AnyAtomicType):
         return abs(Decimal(self.value))
 
     def __mod__(self, other: Any) -> Any:
-        return operator.mod(*self._get_operands(other))
+        return self._operator(operator.mod, other)
 
     def __round__(self, n: Optional[int] = None) -> float:
         return round(float(self.value), ndigits=n)
