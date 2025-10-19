@@ -15,6 +15,8 @@ from elementpath.helpers import LazyPattern, collapse_white_spaces
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 
+__all__ = ['AbstractBinary', 'Base64Binary', 'HexBinary']
+
 
 class AbstractBinary(AnyAtomicType):
     """

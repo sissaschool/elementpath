@@ -35,7 +35,7 @@ from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode
 from elementpath.datatypes import DecimalProxy, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
-    Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType
+    Integer, QName, AtomicType, AnyAtomicType
 from elementpath.sequence_types import is_sequence_type_restriction, match_sequence_type
 from elementpath.tdop import Token, MultiLabel
 from elementpath.xpath_context import ContextType, ItemType, ValueType, ItemArgType, \
@@ -823,9 +823,7 @@ class XPathToken(Token[XPathTokenType]):
     def cast_to_double(self, value: Union[SupportsFloat, str]) -> float:
         """Cast a value to xs:double."""
         try:
-            if self.parser.xsd_version == '1.0':
-                return cast(float, DoubleProxy10(value))
-            return cast(float, DoubleProxy(value))
+            return get_double(value, self.parser.xsd_version)
         except ValueError as err:
             raise self.error('FORG0001', str(err))  # str or UntypedAtomic
 

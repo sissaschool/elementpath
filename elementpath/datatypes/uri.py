@@ -16,6 +16,8 @@ from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 from .numeric import Integer
 
+__all__ = ['AnyURI']
+
 
 class AnyURI(AnyAtomicType):
     """
@@ -32,10 +34,10 @@ class AnyURI(AnyAtomicType):
                 self.value = collapse_white_spaces(value)
             case bytes():
                 self.value = collapse_white_spaces(value.decode('utf-8'))
-            case AnyURI():
-                self.value = value.value
             case UntypedAtomic():
                 self.value = collapse_white_spaces(value.value)
+            case AnyURI():
+                self.value = value.value
             case _:
                 raise TypeError('the argument has an invalid type %r' % type(value))
 

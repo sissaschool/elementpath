@@ -12,6 +12,9 @@ from typing import Any
 from elementpath.helpers import collapse_white_spaces, Patterns, LazyPattern
 from .atomic_types import AnyAtomicType
 
+__all__ = ['NormalizedString', 'XsdToken', 'Name', 'NCName',
+           'NMToken', 'Id', 'Idref', 'Language', 'Entity']
+
 
 class NormalizedString(str, AnyAtomicType):
     name = 'normalizedString'

@@ -13,6 +13,8 @@ from elementpath.helpers import LazyPattern
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 
+__all__ = ['AbstractQName', 'QName', 'Notation']
+
 
 class AbstractQName(AnyAtomicType):
     """
@@ -91,3 +93,5 @@ class QName(AbstractQName):
 
 class Notation(AbstractQName):
     name = 'NOTATION'
+
+

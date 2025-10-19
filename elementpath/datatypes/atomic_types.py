@@ -11,7 +11,7 @@ from abc import ABCMeta, abstractmethod
 from types import MappingProxyType
 from typing import Any, Optional, TypeVar
 
-from elementpath.helpers import LazyPattern
+from elementpath.helpers import Property, LazyPattern
 from elementpath.namespaces import XSD_NAMESPACE
 
 ###
@@ -46,13 +46,16 @@ class AtomicTypeMeta(ABCMeta):
         except KeyError:
             name = dict_['name'] = None  # do not inherit name
 
-        if name is not None and not isinstance(name, str):
+        if name is not None and not isinstance(name, (str, Property)):
             raise TypeError("attribute 'name' must be a string or None")
 
         cls = super(AtomicTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
 
         # Register all the derived classes with a valid name if not already registered
         if name:
+            if isinstance(name, Property):
+                name = name.value
+
             namespace: str | None = dict_.pop('namespace', XSD_NAMESPACE)
             prefix: str | None =  dict_.pop('prefix', 'xs')
 
@@ -66,12 +69,20 @@ class AtomicTypeMeta(ABCMeta):
 
         return cls
 
+    def __repr__(self) -> str:
+        if self.__qualname__.startswith('elementpath.datatypes._'):
+            return f"<class 'elementpath.datatypes.{self.__name__}'>"
+        return super().__repr__()
+
 
 class AnyAtomicType(metaclass=AtomicTypeMeta):
 
-    name: Optional[str] = 'anyAtomicType'
+    name: Optional[str] = Property[str]('anyAtomicType')
+
     xsd_version: str = '1.0'
     pattern = LazyPattern(r'^$')
+
+    __slots__ = ()
 
     @classmethod
     def make(cls, value: Any,

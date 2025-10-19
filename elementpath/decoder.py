@@ -34,7 +34,7 @@ ATOMIC_VALUES: dict[str, dict[str, dt.AtomicType]] = {'1.0': {
     f'{{{XSD_NAMESPACE}}}boolean': True,
     f'{{{XSD_NAMESPACE}}}decimal': Decimal('1.0'),
     f'{{{XSD_NAMESPACE}}}double': float('1.0'),
-    f'{{{XSD_NAMESPACE}}}float': dt.Float10('1.0'),
+    f'{{{XSD_NAMESPACE}}}float': dt.Float('1.0'),
     f'{{{XSD_NAMESPACE}}}string': '  alpha\t',
     f'{{{XSD_NAMESPACE}}}date': dt.Date10.fromstring('2000-01-01'),
     f'{{{XSD_NAMESPACE}}}dateTime': dt.DateTime10.fromstring('2000-01-01T12:00:00'),
@@ -78,7 +78,6 @@ ATOMIC_VALUES: dict[str, dict[str, dt.AtomicType]] = {'1.0': {
 
 ATOMIC_VALUES['1.1'] = ATOMIC_VALUES['1.0'].copy()
 ATOMIC_VALUES['1.1'].update({
-    f'{{{XSD_NAMESPACE}}}float': dt.Float('1.0'),
     f'{{{XSD_NAMESPACE}}}date': dt.Date.fromstring('2000-01-01'),
     f'{{{XSD_NAMESPACE}}}dateTime': dt.DateTime.fromstring('2000-01-01T12:00:00'),
     f'{{{XSD_NAMESPACE}}}gYear': dt.GregorianYear.fromstring('1999'),

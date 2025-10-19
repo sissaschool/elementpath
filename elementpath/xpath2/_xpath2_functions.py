@@ -27,7 +27,7 @@ from elementpath.aliases import Emptiable, AnyNsmapType
 from elementpath.exceptions import ElementPathValueError
 from elementpath.helpers import Patterns, is_idrefs, is_xml_codepoint, round_number
 from elementpath.datatypes import AtomicType, DateTime10, DateTime, Date10, Date, \
-    Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
+    Float, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy, NumericType
 from elementpath.namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_ID, XML_LANG
@@ -370,8 +370,8 @@ def evaluate_round_half_to_even_function(self: XPathFunction, context: ContextTy
             return round(item, precision)  # type: ignore[arg-type]
         elif isinstance(item, Decimal):
             return round(item, precision)  # type: ignore[arg-type]
-        elif isinstance(item, Float10):
-            return Float10(round(item, precision))  # type: ignore[arg-type]
+        elif isinstance(item, Float):
+            return Float(round(item, precision))  # type: ignore[arg-type]
         return float(round(Decimal.from_float(item), precision))   # type: ignore[arg-type]
     except TypeError as err:
         if isinstance(context, XPathSchemaContext):
@@ -445,7 +445,7 @@ def evaluate_avg_function(self: XPathFunction, context: ContextType = None) \
     elif all(not isinstance(x, DoubleProxy) for x in values):
         try:
             return sum(
-                Float10(x) if isinstance(x, Decimal) else x for x in values  # type: ignore[misc]
+                Float(x) if isinstance(x, Decimal) else x for x in values  # type: ignore[misc]
             ) / len(values)
         except TypeError as err:
             if isinstance(context, XPathSchemaContext):
@@ -493,7 +493,7 @@ def evaluate_max_min_functions(self: XPathFunction, context: ContextType = None)
         return aggregate_func(values)  # type: ignore[type-var]
 
     values: list[AtomicType] = []
-    float_class: Union[type[Float10], type[float]] = Float10
+    float_class: Union[type[Float], type[float]] = Float
     to_any_uri = None
     aggregate_func = max if self.symbol == 'max' else min
 
@@ -506,7 +506,7 @@ def evaluate_max_min_functions(self: XPathFunction, context: ContextType = None)
             float_class = float
         elif isinstance(item, float):
             values.append(item)
-            if float_class is Float10 and not isinstance(item, Float10):
+            if float_class is Float and not isinstance(item, Float):
                 float_class = float
         elif isinstance(item, AnyURI):
             values.append(item.value)

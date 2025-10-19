@@ -13,18 +13,47 @@ import operator
 from calendar import isleap, leapdays
 from collections.abc import Callable, Iterator
 from decimal import Decimal
-from operator import attrgetter
-from typing import Any, Optional, overload, SupportsFloat, Union
+from typing import Any, Generic, Optional, SupportsFloat, TypeVar, Union
 from urllib.parse import urlsplit
 
 ###
 # Common sets constants
 OCCURRENCE_INDICATORS = frozenset(('?', '*', '+'))
 BOOLEAN_VALUES = frozenset(('true', 'false', '1', '0'))
-NUMERIC_INF_OR_NAN = frozenset(('INF', '-INF', 'NaN'))
+NUMERIC_INF_OR_NAN = frozenset(('INF', '-INF', '+INF', 'NaN'))
 INVALID_NUMERIC = frozenset(
     ('inf', '+inf', '-inf', 'nan', 'infinity', '+infinity', '-infinity')
 )
+
+FloatArgType = Union[SupportsFloat, str, bytes]
+T = TypeVar('T')
+
+
+class Property(Generic[T]):
+    """A descriptor for managing protected class properties."""
+    __slots__ = ('_name', '_value')
+
+    def __init__(self, value: T) -> None:
+        self._value = value
+
+    def __set_name__(self, owner: type[Any], name: str) -> None:
+        self._name = name
+
+    def __get__(self, instance: Any, owner: type[Any]) -> T:
+        return self._value
+
+    def __set__(self, instance: Any, value: Any) -> None:
+        raise AttributeError("Can't set attribute {}".format(self._name))
+
+    def __delete__(self, instance: Any) -> None:
+        raise AttributeError("Can't delete attribute {}".format(self._name))
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}({self._value!r})'
+
+    @property
+    def value(self) -> T:
+        return self._value
 
 
 ###
@@ -45,12 +74,6 @@ class LazyPattern:
 
     def __set_name__(self, owner: type[Any], name: str) -> None:
         self._name = name
-
-    @overload
-    def __get__(self, instance: None, owner: type[Any]) -> re.Pattern[str]: ...
-
-    @overload
-    def __get__(self, instance: Any, owner: type[Any]) -> re.Pattern[str]: ...
 
     def __get__(self, instance: Optional[Any], owner: type[Any]) -> re.Pattern[str]:
         try:
@@ -234,10 +257,10 @@ def ordinal(n: int) -> str:
             return '%dth' % n
 
 
-def get_double(value: Union[SupportsFloat, str], xsd_version: str = '1.0') -> float:
+def get_double(value: Union[SupportsFloat, str], xsd_version: str = '1.1') -> float:
     if isinstance(value, str):
         value = collapse_white_spaces(value)
-        if value in NUMERIC_INF_OR_NAN or xsd_version != '1.0' and value == '+INF':
+        if value in NUMERIC_INF_OR_NAN and (xsd_version != '1.0' or value != '+INF'):
             if value == 'NaN':
                 return math.nan  # for NaN use the predefined instance to keep identity
         elif value.lower() in INVALID_NUMERIC:

@@ -18,6 +18,10 @@ from .atomic_types import AnyAtomicType
 if TYPE_CHECKING:
     from elementpath.datatypes import AbstractBinary
 
+UntypedArgType = Union[str, bytes, bool, float, Decimal, 'UntypedAtomic', AnyAtomicType]
+
+__all__ = ['UntypedAtomic']
+
 
 class UntypedAtomic(AnyAtomicType):
     """
@@ -28,14 +32,15 @@ class UntypedAtomic(AnyAtomicType):
     """
     name = 'untypedAtomic'
     value: str
+    xsd_version: str
 
     @classmethod
     def validate(cls, value: object) -> None:
         if not isinstance(value, cls):
             raise cls.invalid_type(value)
 
-    def __init__(self, value: Union[str, bytes, bool, float, Decimal,
-                                    'UntypedAtomic', AnyAtomicType]) -> None:
+    def __init__(self, value: UntypedArgType, xsd_version: str = '1.1') -> None:
+        self.xsd_version = xsd_version
         match value:
             case str():
                 self.value = value
@@ -70,7 +75,8 @@ class UntypedAtomic(AnyAtomicType):
         match other:
             case UntypedAtomic():
                 if force_float:
-                    return op(get_double(self.value), get_double(other.value))
+                    return op(get_double(self.value, self.xsd_version),
+                              get_double(other.value, self.xsd_version))
                 return op(self.value, other.value)
             case bool():
                 # Cast to xs:boolean
@@ -79,7 +85,7 @@ class UntypedAtomic(AnyAtomicType):
                     raise ValueError("{!r} cannot be cast to xs:boolean".format(self.value))
                 return op(value in ('1', 'true'), other)
             case int():
-                return op(get_double(self.value), other)
+                return op(get_double(self.value, self.xsd_version), other)
             case None | str() | list():
                 return op(self.value, other)
             case AnyAtomicType():
@@ -137,7 +143,7 @@ class UntypedAtomic(AnyAtomicType):
         return int(self.value)
 
     def __float__(self) -> float:
-        return get_double(self.value, xsd_version='1.1')
+        return get_double(self.value, self.xsd_version)
 
     def __bool__(self) -> bool:
         return bool(self.value)  # For effective boolean value, not for cast to xs:boolean.

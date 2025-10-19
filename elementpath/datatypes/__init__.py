@@ -12,45 +12,34 @@ XSD atomic datatypes subpackage. Includes a class for UntypedAtomic data and
 classes for other XSD built-in types. This subpackage raises only built-in
 exceptions in order to be reusable in other packages.
 """
-from decimal import Decimal
-from typing import Union
+from decimal import Decimal as _Decimal
+from typing import Union as _Union
 
 from .atomic_types import builtin_atomic_types, atomic_sequence_types, \
     AtomicTypeMeta, AnyAtomicType
+from .numeric import Float, Float10, Integer, Int, Long, \
+    NegativeInteger, PositiveInteger, NonNegativeInteger, \
+    NonPositiveInteger, Short, Byte, UnsignedByte, UnsignedInt, \
+    UnsignedLong, UnsignedShort
 from .untyped import UntypedAtomic
 from .qname import AbstractQName, QName, Notation
-from .numeric import Float10, Float, Integer, Int, NegativeInteger, \
-    PositiveInteger, NonNegativeInteger, NonPositiveInteger, Long, \
-    Short, Byte, UnsignedByte, UnsignedInt, UnsignedLong, UnsignedShort
-from .string import NormalizedString, XsdToken, Name, NCName, NMToken, Id, \
-    Idref, Language, Entity
+from .string import NormalizedString, XsdToken, Name, NCName, \
+    NMToken, Id, Idref, Language, Entity
 from .uri import AnyURI
 from .binary import AbstractBinary, Base64Binary, HexBinary
 from .datetime import AbstractDateTime, DateTime10, DateTime, DateTimeStamp, \
     Date10, Date, GregorianDay, GregorianMonth, GregorianYear, GregorianYear10, \
     GregorianMonthDay, GregorianYearMonth, GregorianYearMonth10, Time, Timezone, \
     Duration, DayTimeDuration, YearMonthDuration
-from .proxies import BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, \
-    StringProxy, NumericProxy, ArithmeticProxy
-
-OrderedDateTime = AbstractDateTime
-# Kept for backward compatibility, will be removed in v6.0
+from .proxies import BooleanProxy, DecimalProxy, DoubleProxy, DoubleProxy10, StringProxy, \
+    NumericProxy, ArithmeticProxy
 
 ###
 # Aliases for type annotations
-AtomicType = Union[str, int, float, Decimal, bool, AnyAtomicType]
-NumericType = Union[int, float, Decimal]
-ArithmeticType = Union[NumericType, AbstractDateTime, Duration, UntypedAtomic]
+AtomicType = _Union[str, int, float, _Decimal, bool, AnyAtomicType]
+NumericType = _Union[int, float, _Decimal]
+ArithmeticType = _Union[NumericType, AbstractDateTime, Duration, UntypedAtomic]
 
-__all__ = ['builtin_atomic_types', 'atomic_sequence_types', 'AtomicTypeMeta', 'AnyAtomicType',
-           'ArithmeticProxy', 'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp',
-           'Date10', 'Date', 'Time', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
-           'GregorianYear10', 'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth',
-           'Timezone', 'Duration', 'YearMonthDuration', 'DayTimeDuration', 'StringProxy',
-           'NormalizedString', 'XsdToken', 'Language', 'Name', 'NCName', 'Id', 'Idref',
-           'Entity', 'NMToken', 'Base64Binary', 'HexBinary', 'Float10', 'Float', 'Integer',
-           'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int', 'Byte', 'UnsignedByte',
-           'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt', 'Short',
-           'UnsignedShort', 'AnyURI', 'Notation', 'QName', 'NumericProxy', 'BooleanProxy',
-           'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic', 'AbstractBinary',
-           'AtomicType', 'OrderedDateTime', 'AbstractQName', 'NumericType', 'ArithmeticType']
+###
+# Alias kept for backward compatibility, will be removed in v6.0.
+OrderedDateTime = AbstractDateTime

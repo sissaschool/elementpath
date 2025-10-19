@@ -10,35 +10,44 @@
 import math
 from typing import Any, Optional, SupportsFloat, SupportsInt, Union
 
-from elementpath.helpers import NUMERIC_INF_OR_NAN, INVALID_NUMERIC, \
+from elementpath.helpers import FloatArgType, NUMERIC_INF_OR_NAN, INVALID_NUMERIC, \
     LazyPattern, collapse_white_spaces
 from .atomic_types import AnyAtomicType
 
+__all__ = ['Float', 'Float10', 'Integer', 'Int', 'Long',
+           'NegativeInteger', 'PositiveInteger', 'NonNegativeInteger',
+           'NonPositiveInteger', 'Short', 'Byte', 'UnsignedByte',
+           'UnsignedInt', 'UnsignedLong', 'UnsignedShort']
 
-class Float10(float, AnyAtomicType):
+
+class Float(float, AnyAtomicType):
     name = 'float'
-    xsd_version = '1.0'
+    xsd_version = '1.1'
     pattern = LazyPattern(
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN)$'
     )
 
+    __slots__ = ()
+
     @classmethod
-    def make(cls, value: Any, version: str = '2.0', xsd_version: str = '1.1') -> 'AnyAtomicType':
+    def make(cls, value: Union[str, SupportsFloat], version: str = '2.0', xsd_version: str = '1.1') -> 'AnyAtomicType':
         if value == '+INF' and xsd_version == '1.0':
             raise cls.invalid_value('+INF')
-        return cls(value)
+        return cls(value, xsd_version)
 
-    def __new__(cls, value: Union[str, SupportsFloat]) -> 'Float10':
+    def __new__(cls, value: FloatArgType, xsd_version: str = '1.1') -> 'Float':
         if isinstance(value, str):
             value = collapse_white_spaces(value)
-            if value in NUMERIC_INF_OR_NAN or cls.xsd_version != '1.0' and value == '+INF':
-                if value == 'NaN':
+            if value in NUMERIC_INF_OR_NAN:
+                if xsd_version == '1.0' and value == '+INF':
+                    raise cls.invalid_value(value)
+                elif value == 'NaN':
                     try:
                         return float_nan
                     except NameError:
                         pass
             elif value.lower() in INVALID_NUMERIC:
-                raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+                raise cls.invalid_value(value)
         elif math.isnan(value):
             try:
                 return float_nan
@@ -54,7 +63,7 @@ class Float10(float, AnyAtomicType):
             return super().__new__(cls, -0.0 if str(_value).startswith('-') else 0.0)
         return _value
 
-    def __init__(self, value: Union[str, SupportsFloat]) -> None:
+    def __init__(self, value: FloatArgType, xsd_version: str = '1.1') -> None:
         float.__init__(self)
 
     def __hash__(self) -> int:
@@ -74,87 +83,89 @@ class Float10(float, AnyAtomicType):
             return not math.isclose(self, other, rel_tol=1e-7, abs_tol=0.0)
         return super().__ne__(other)
 
-    def __add__(self, other: object) -> Union[float, 'Float10', 'Float']:
+    def __add__(self, other: object) -> Union[float, 'Float', 'Float10']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super().__add__(other))
         elif isinstance(other, float):
             return super().__add__(other)
         return NotImplemented
 
-    def __radd__(self, other: object) -> Union[float, 'Float10', 'Float']:
+    def __radd__(self, other: object) -> Union[float, 'Float', 'Float10']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super().__radd__(other))
         elif isinstance(other, float):
             return super().__radd__(other)
         return NotImplemented
 
-    def __sub__(self, other: object) -> Union[float, 'Float10', 'Float']:
+    def __sub__(self, other: object) -> Union[float, 'Float', 'Float10']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super().__sub__(other))
         elif isinstance(other, float):
             return super().__sub__(other)
         return NotImplemented
 
-    def __rsub__(self, other: object) -> Union[float, 'Float10', 'Float']:
+    def __rsub__(self, other: object) -> Union[float, 'Float', 'Float10']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super().__rsub__(other))
         elif isinstance(other, float):
             return super().__rsub__(other)
         return NotImplemented
 
-    def __mul__(self, other: object) -> Union[float, 'Float10', 'Float']:
+    def __mul__(self, other: object) -> Union[float, 'Float', 'Float10']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super().__mul__(other))
         elif isinstance(other, float):
             return super().__mul__(other)
         return NotImplemented
 
-    def __rmul__(self, other: object) -> Union[float, 'Float10', 'Float']:
+    def __rmul__(self, other: object) -> Union[float, 'Float', 'Float10']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super().__rmul__(other))
         elif isinstance(other, float):
             return super().__rmul__(other)
         return NotImplemented
 
-    def __truediv__(self, other: object) -> Union[float, 'Float10', 'Float']:
+    def __truediv__(self, other: object) -> Union[float, 'Float', 'Float10']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super().__truediv__(other))
         elif isinstance(other, float):
             return super().__truediv__(other)
         return NotImplemented
 
-    def __rtruediv__(self, other: object) -> Union[float, 'Float10', 'Float']:
+    def __rtruediv__(self, other: object) -> Union[float, 'Float', 'Float10']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super().__rtruediv__(other))
         elif isinstance(other, float):
             return super().__rtruediv__(other)
         return NotImplemented
 
-    def __mod__(self, other: object) -> Union[float, 'Float10', 'Float']:
+    def __mod__(self, other: object) -> Union[float, 'Float', 'Float10']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super().__mod__(other))
         elif isinstance(other, float):
             return super().__mod__(other)
         return NotImplemented
 
-    def __rmod__(self, other: object) -> Union[float, 'Float10', 'Float']:
+    def __rmod__(self, other: object) -> Union[float, 'Float', 'Float10']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super().__rmod__(other))
         elif isinstance(other, float):
             return super().__rmod__(other)
         return NotImplemented
 
-    def __abs__(self) -> Union['Float10', 'Float']:
+    def __abs__(self) -> Union['Float', 'Float10']:
         return self.__class__(super().__abs__())
 
 
-class Float(Float10):
+class Float10(Float):
     name = 'float'
-    xsd_version = '1.1'
+
+    def __new__(cls, value: FloatArgType, xsd_version: str = '1.0') -> 'Float':
+        return super().__new__(cls, value, xsd_version)
 
 
 # The instance used for xs:float NaN values in order to keep identity
-float_nan = Float10('NaN')
+float_nan = Float('NaN')
 
 
 class Integer(int, AnyAtomicType):

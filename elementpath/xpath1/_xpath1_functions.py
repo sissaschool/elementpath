@@ -18,7 +18,7 @@ from typing import Any, Union
 from elementpath.aliases import Emptiable
 from elementpath.helpers import get_double
 from elementpath.datatypes import Duration, DayTimeDuration, YearMonthDuration, \
-    StringProxy, AnyURI, Float10, AnyAtomicType, AtomicType, NumericType
+    StringProxy, AnyURI, Float, AnyAtomicType, AtomicType, NumericType
 from elementpath.namespaces import XML_ID, XML_LANG
 from elementpath.xpath_nodes import XPathNode, ElementNode, TextNode, CommentNode, \
     ProcessingInstructionNode, DocumentNode, EtreeElementNode
@@ -447,7 +447,7 @@ def evaluate_sum_function(self: XPathFunction, context: ContextType = None) \
         raise self.error('FORG0006', 'cannot apply fn:sum() to string-based types')
     elif any(isinstance(x, float) and math.isnan(x) for x in values):
         return math.nan
-    elif all(isinstance(x, Float10) for x in values):
+    elif all(isinstance(x, Float) for x in values):
         result = sum(values)
     else:
         try:

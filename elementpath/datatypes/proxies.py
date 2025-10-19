@@ -9,20 +9,22 @@
 #
 import math
 from decimal import Decimal
-from typing import Any, Union, SupportsFloat
+from typing import Any
 
-from elementpath.helpers import BOOLEAN_VALUES, LazyPattern, collapse_white_spaces, get_double
+from elementpath.helpers import BOOLEAN_VALUES, NUMERIC_INF_OR_NAN, INVALID_NUMERIC, \
+    FloatArgType, LazyPattern, collapse_white_spaces
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
-from .numeric import Float10, Integer
+from .numeric import Float, Integer
 from .datetime import AbstractDateTime, Duration
 
-FloatArgType = Union[SupportsFloat, str, bytes]
+__all__ = ['BooleanProxy', 'DecimalProxy', 'DoubleProxy', 'DoubleProxy10', 'StringProxy',
+           'NumericProxy', 'ArithmeticProxy']
+
 
 ####
 # type proxies for basic Python datatypes: a proxy class creates
 # and validates its Python datatype and virtual registered types.
-
 
 class BooleanProxy(AnyAtomicType):
     name = 'boolean'
@@ -71,7 +73,7 @@ class DecimalProxy(AnyAtomicType):
             value = collapse_white_spaces(str(value)).replace(' ', '')
             if cls.pattern.match(value) is None:
                 raise cls.invalid_value(value)
-        elif isinstance(value, (float, Float10, Decimal)):
+        elif isinstance(value, (float, Float, Decimal)):
             if math.isinf(value) or math.isnan(value):
                 raise cls.invalid_value(value)
         try:
@@ -104,26 +106,37 @@ class DecimalProxy(AnyAtomicType):
                 raise cls.invalid_type(value)
 
 
-class DoubleProxy10(AnyAtomicType):
+class DoubleProxy(AnyAtomicType):
     name = 'double'
-    xsd_version = '1.0'
     pattern = LazyPattern(
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[+-]?INF|NaN)$'
     )
 
-    def __new__(cls, value: Union[SupportsFloat, str]) -> float:  # type: ignore[misc]
-        return get_double(value, cls.xsd_version)
+    def __new__(cls, value: FloatArgType, xsd_version: str = '1.1') -> float:
+        if isinstance(value, str):
+            value = collapse_white_spaces(value)
+            if value in NUMERIC_INF_OR_NAN:
+                if xsd_version == '1.0' and value == '+INF':
+                    raise cls.invalid_value(value)
+                elif value == 'NaN':
+                    return math.nan
+            elif value.lower() in INVALID_NUMERIC:
+                raise cls.invalid_value(value)
+        elif math.isnan(value):
+            return math.nan
 
-    def __init__(self, value: Union[SupportsFloat, str]) -> None:
+        return float(value)
+
+    def __init__(self, value: FloatArgType, xsd_version: str = '1.1') -> None:
         float.__init__(self)
 
     @classmethod
     def __subclasshook__(cls, subclass: type) -> bool:
-        return issubclass(subclass, float) and not issubclass(subclass, Float10)
+        return issubclass(subclass, float) and not issubclass(subclass, Float)
 
     @classmethod
     def validate(cls, value: object) -> None:
-        if isinstance(value, float) and not isinstance(value, Float10):
+        if isinstance(value, float) and not isinstance(value, Float):
             return
         elif isinstance(value, str):
             if cls.pattern.match(value) is None:
@@ -132,9 +145,11 @@ class DoubleProxy10(AnyAtomicType):
             raise cls.invalid_type(value)
 
 
-class DoubleProxy(DoubleProxy10):
+class DoubleProxy10(DoubleProxy):
     name = 'double'
-    xsd_version = '1.1'
+
+    def __new__(cls, value: FloatArgType, xsd_version: str = '1.0') -> float:  # type: ignore[misc]
+        return super().__new__(cls, value, xsd_version)
 
 
 class StringProxy(AnyAtomicType):

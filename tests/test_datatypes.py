@@ -32,10 +32,9 @@ from elementpath.datatypes import AnyAtomicType, DateTime, DateTime10, Date, Dat
     GregorianYear, GregorianYear10, GregorianYearMonth, GregorianYearMonth10, \
     GregorianMonthDay, GregorianMonth, GregorianDay, AbstractDateTime, NumericProxy, \
     ArithmeticProxy, Id, Notation, QName, Base64Binary, HexBinary, NormalizedString, \
-    XsdToken, Language, Float, Float10, Integer, Short, NegativeInteger, AnyURI, \
+    XsdToken, Language, Float10, Float, Integer, Short, NegativeInteger, AnyURI, \
     BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, StringProxy, \
-    builtin_atomic_types, OrderedDateTime
-from elementpath.datatypes.atomic_types import AtomicTypeMeta
+    builtin_atomic_types, OrderedDateTime, AtomicTypeMeta
 from elementpath.decoder import get_atomic_sequence
 
 
@@ -164,102 +163,105 @@ class StringTypesTest(unittest.TestCase):
 class FloatTypesTest(unittest.TestCase):
 
     def test_init(self):
-        self.assertEqual(Float10(10), 10.0)
-
-        self.assertTrue(math.isnan(Float10('NaN')))
-        self.assertTrue(math.isinf(Float10('INF')))
-        self.assertTrue(math.isinf(Float10('-INF')))
-        with self.assertRaises(ValueError):
-            Float10('+INF')
+        self.assertEqual(Float(10), 10.0)
 
         self.assertTrue(math.isnan(Float('NaN')))
         self.assertTrue(math.isinf(Float('INF')))
         self.assertTrue(math.isinf(Float('-INF')))
         self.assertTrue(math.isinf(Float('+INF')))
+        with self.assertRaises(ValueError):
+            Float.make('+INF', xsd_version='1.0')
+
+        self.assertTrue(math.isnan(Float10('NaN')))
+        self.assertTrue(math.isinf(Float10('INF')))
+        self.assertTrue(math.isinf(Float10('-INF')))
 
         with self.assertRaises(ValueError):
-            Float10('nan')
+            Float10('+INF')
 
         with self.assertRaises(ValueError):
-            Float10('inf')
+            Float('nan')
+
+        with self.assertRaises(ValueError):
+            Float('inf')
 
     def test_hash(self):
-        self.assertEqual(hash(Float10(892.1)), hash(892.1))
+        self.assertEqual(hash(Float(892.1)), hash(892.1))
 
     def test_equivalence(self):
-        self.assertEqual(Float10('10.1'), Float10('10.1'))
-        self.assertEqual(Float10('10.1'), Float('10.1'))
-        self.assertNotEqual(Float10('10.1001'), Float10('10.1'))
-        self.assertFalse(Float10('10.1001') == Float10('10.1'))
-        self.assertNotEqual(Float10('10.1001'), Float('10.1'))
-        self.assertFalse(Float10('10.1') != Float10('10.1'))
-        self.assertEqual(Float10('10.0'), 10)
-        self.assertNotEqual(Float10('10.0'), 11)
+        self.assertEqual(Float('10.1'), Float('10.1'))
+        self.assertEqual(Float('10.1'), Float10('10.1'))
+        self.assertNotEqual(Float('10.1001'), Float('10.1'))
+        self.assertFalse(Float('10.1001') == Float('10.1'))
+        self.assertNotEqual(Float('10.1001'), Float10('10.1'))
+        self.assertFalse(Float('10.1') != Float('10.1'))
+        self.assertEqual(Float('10.0'), 10)
+        self.assertNotEqual(Float('10.0'), 11)
 
     def test_addition(self):
-        self.assertEqual(Float10('10.1') + Float10('10.1'), 20.2)
-        self.assertEqual(Float('10.1') + Float10('10.1'), 20.2)
-        self.assertEqual(10.1 + Float10('10.1'), 20.2)
+        self.assertEqual(Float('10.1') + Float('10.1'), 20.2)
+        self.assertEqual(Float10('10.1') + Float('10.1'), 20.2)
+        self.assertEqual(10.1 + Float('10.1'), 20.2)
 
         with self.assertRaises(TypeError):
-            '10.1' + Float10('10.1')
+            '10.1' + Float('10.1')
 
         with self.assertRaises(TypeError):
-            Float10('10.1') + '10.1'
+            Float('10.1') + '10.1'
 
     def test_subtraction(self):
-        self.assertEqual(Float10('10.1') - Float10('1.1'), 9.0)
-        self.assertEqual(Float('10.1') - Float10('1.1'), 9.0)
-        self.assertEqual(10.1 - Float10('1.1'), 9.0)
-        self.assertEqual(10 - Float10('1.1'), 8.9)
+        self.assertEqual(Float('10.1') - Float('1.1'), 9.0)
+        self.assertEqual(Float10('10.1') - Float('1.1'), 9.0)
+        self.assertEqual(10.1 - Float('1.1'), 9.0)
+        self.assertEqual(10 - Float('1.1'), 8.9)
 
         with self.assertRaises(TypeError):
-            '10.1' - Float10('10.1')
+            '10.1' - Float('10.1')
 
         with self.assertRaises(TypeError):
-            Float10('10.1') - '10.1'
+            Float('10.1') - '10.1'
 
     def test_multiplication(self):
-        self.assertEqual(Float10('10.1') * 2, 20.2)
-        self.assertEqual(Float('10.1') * 2.0, 20.2)
-        self.assertEqual(2 * Float10('10.1'), 20.2)
-        self.assertEqual(2.0 * Float('10.1'), 20.2)
+        self.assertEqual(Float('10.1') * 2, 20.2)
+        self.assertEqual(Float10('10.1') * 2.0, 20.2)
+        self.assertEqual(2 * Float('10.1'), 20.2)
+        self.assertEqual(2.0 * Float10('10.1'), 20.2)
 
         with self.assertRaises(TypeError):
-            Float10('10.1') * '2.0'
+            Float('10.1') * '2.0'
 
         with self.assertRaises(TypeError):
-            '10.1' * Float10('2.0')
+            '10.1' * Float('2.0')
 
     def test_division(self):
-        self.assertEqual(Float10('20.2') / 2, 10.1)
-        self.assertEqual(Float('20.2') / 2.0, 10.1)
-        self.assertEqual(20.2 / Float10('2'), 10.1)
-        self.assertEqual(20 / Float('2'), 10.0)
+        self.assertEqual(Float('20.2') / 2, 10.1)
+        self.assertEqual(Float10('20.2') / 2.0, 10.1)
+        self.assertEqual(20.2 / Float('2'), 10.1)
+        self.assertEqual(20 / Float10('2'), 10.0)
 
         with self.assertRaises(TypeError):
-            Float10('10.1') / '2.0'
+            Float('10.1') / '2.0'
 
         with self.assertRaises(TypeError):
-            '10.1' / Float10('2.0')
+            '10.1' / Float('2.0')
 
     def test_module(self):
-        self.assertEqual(Float10('20.2') % 3, 20.2 % 3)
-        self.assertEqual(Float('20.2') % 3.0, 20.2 % 3.0)
-        self.assertEqual(20.2 % Float10('3'), 20.2 % 3)
-        self.assertEqual(20 % Float('3.0'), 20 % 3.0)
+        self.assertEqual(Float('20.2') % 3, 20.2 % 3)
+        self.assertEqual(Float10('20.2') % 3.0, 20.2 % 3.0)
+        self.assertEqual(20.2 % Float('3'), 20.2 % 3)
+        self.assertEqual(20 % Float10('3.0'), 20 % 3.0)
 
         with self.assertRaises(TypeError):
-            Float10('20.2') % '3.0'
+            Float('20.2') % '3.0'
 
         with self.assertRaises(TypeError):
-            True % Float10('3.0')
+            True % Float('3.0')
 
         with self.assertRaises(TypeError):
-            () % Float10('3.0')
+            () % Float('3.0')
 
     def test_abs(self):
-        self.assertEqual(abs(Float10('-20.2')), 20.2)
+        self.assertEqual(abs(Float('-20.2')), 20.2)
 
     def test_nan(self):
         self.assertNotEqual(math.nan, math.nan)  # NaN is not equal to itself!
@@ -271,36 +273,36 @@ class FloatTypesTest(unittest.TestCase):
         else:
             self.assertIsNot(float('nan'), float('nan'))
 
-        self.assertTrue(math.isnan(Float10('NaN')))
-        self.assertTrue(math.isnan(Float10(math.nan)))
+        self.assertTrue(math.isnan(Float('NaN')))
+        self.assertTrue(math.isnan(Float(math.nan)))
 
-        self.assertNotEqual(Float10('NaN'), Float10('NaN'))
-        self.assertIs(Float10('NaN'), Float10('NaN'))
-        self.assertIs(Float10('NaN'), Float('NaN'))
-        self.assertIs(Float10(math.nan), Float10('NaN'))
-        self.assertIsNot(Float10(math.nan), math.nan)
+        self.assertNotEqual(Float('NaN'), Float('NaN'))
+        self.assertIs(Float('NaN'), Float('NaN'))
+        self.assertIs(Float('NaN'), Float10('NaN'))
+        self.assertIs(Float(math.nan), Float('NaN'))
+        self.assertIsNot(Float(math.nan), math.nan)
 
-        self.assertIsNot(Float10('NaN'), DoubleProxy10('NaN'))
+        self.assertIsNot(Float('NaN'), DoubleProxy10('NaN'))
 
         # Invalid values for constructor function
-        self.assertRaises(ValueError, Float10, 'NAN')
+        self.assertRaises(ValueError, Float, 'NAN')
         with self.assertRaises(ValueError) as ctx:
-            Float10('nan')
+            Float('nan')
         self.assertEqual(str(ctx.exception), "invalid value 'nan' for xs:float")
 
     def test_isinstance(self):
-        value = Float10(1.0)
-        self.assertIsInstance(value, Float10)
+        value = Float(1.0)
+        self.assertIsInstance(value, Float)
         self.assertNotIsInstance(value, int)
         self.assertIsInstance(value, AnyAtomicType)
         self.assertNotIsInstance(value, Short)
         self.assertIsInstance(value, float)
-        self.assertNotIsInstance(value, Float)
+        self.assertNotIsInstance(value, Float10)
 
     def test_issubclass(self):
-        self.assertTrue(issubclass(Float10, AnyAtomicType))
         self.assertTrue(issubclass(Float, AnyAtomicType))
-        self.assertTrue(issubclass(Float10, float))
+        self.assertTrue(issubclass(Float10, AnyAtomicType))
+        self.assertTrue(issubclass(Float, float))
 
 
 class IntegerTypesTest(unittest.TestCase):
@@ -323,7 +325,7 @@ class IntegerTypesTest(unittest.TestCase):
         self.assertIsInstance(value, AnyAtomicType)
         self.assertNotIsInstance(value, Short)
         self.assertNotIsInstance(value, float)
-        self.assertNotIsInstance(value, Float10)
+        self.assertNotIsInstance(value, Float)
 
     def test_issubclass(self):
         self.assertTrue(issubclass(Integer, AnyAtomicType))
@@ -1220,13 +1222,17 @@ class DurationTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             _ = year_month_duration('P2Y') + daytime_duration('P1D')
-        self.assertIn("cannot add <class 'elementpath.datatypes.datetime.DayTimeDuration'",
-                      str(err.exception))
+        self.assertIn(
+            "cannot add <class 'elementpath.datatypes.datetime.DayTimeDuration'",
+            str(err.exception)
+        )
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P1D') + year_month_duration('P2Y')
-        self.assertIn("cannot add <class 'elementpath.datatypes.datetime.YearMonthDuration'",
-                      str(err.exception))
+        self.assertIn(
+            "cannot add <class 'elementpath.datatypes.datetime.YearMonthDuration'",
+            str(err.exception)
+        )
 
     def test_sub_operator(self):
         daytime_duration = DayTimeDuration.fromstring
@@ -1240,13 +1246,17 @@ class DurationTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             _ = year_month_duration('P2Y') - daytime_duration('P1D')
-        self.assertIn("cannot subtract <class 'elementpath.datatypes.datetime.DayTimeDuration'",
-                      str(err.exception))
+        self.assertIn(
+            "cannot subtract <class 'elementpath.datatypes.datetime.DayTimeDuration'",
+            str(err.exception)
+        )
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P1D') - year_month_duration('P2Y')
-        self.assertIn("cannot subtract <class 'elementpath.datatypes.datetime.YearMonthDuration'",
-                      str(err.exception))
+        self.assertIn(
+            "cannot subtract <class 'elementpath.datatypes.datetime.YearMonthDuration'",
+            str(err.exception)
+        )
 
     def test_mul_operator(self):
         daytime_duration = DayTimeDuration.fromstring
@@ -1896,7 +1906,7 @@ class TypeProxiesTest(unittest.TestCase):
         self.assertIsNone(DoubleProxy10.validate('1.9'))
 
         with self.assertRaises(TypeError):
-            DoubleProxy10.validate(Float10('1.9'))
+            DoubleProxy10.validate(Float('1.9'))
         with self.assertRaises(ValueError):
             DoubleProxy10.validate('six')
 
@@ -1910,6 +1920,19 @@ class TypeProxiesTest(unittest.TestCase):
 
         self.assertTrue(issubclass(DoubleProxy10, AnyAtomicType))
         self.assertFalse(issubclass(DoubleProxy10, float))
+
+
+    def _test_get_double_function(self):
+        self.assertEqual(get_double(1), 1.0)
+        self.assertEqual(get_double(1.0), 1.0)
+
+        self.assertIs(get_double('NaN'), math.nan)
+        self.assertIs(get_double(float('nan')), math.nan)
+        self.assertTrue(math.isinf(get_double('INF')))
+
+        self.assertRaises(ValueError, get_double, 'nan')
+        self.assertRaises(ValueError, get_double, 'Inf')
+        self.assertRaises(ValueError, get_double, 'alfa')
 
     def test_string_proxy(self):
         self.assertIsInstance(StringProxy(20), str)
