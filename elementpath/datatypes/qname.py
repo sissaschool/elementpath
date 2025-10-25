@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -10,7 +10,7 @@
 from typing import Any, Optional
 
 from elementpath.helpers import LazyPattern
-from .atomic_types import AnyAtomicType
+from .any_types import AnyAtomicType
 from .untyped import UntypedAtomic
 
 __all__ = ['AbstractQName', 'QName', 'Notation']

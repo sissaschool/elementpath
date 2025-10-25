@@ -81,6 +81,7 @@ class XPathToken(Token[XPathTokenType]):
     parser: XPathParserType
     value: ValueType
 
+    name: str = ''  # for storing the qualified name of a function
     namespace: Optional[str] = None  # for namespace binding of names and wildcards
     occurrence: Optional[str] = None  # occurrence indicator for item types
     concatenated = False  # a flag for infix operators that can be concatenated
@@ -195,22 +196,6 @@ class XPathToken(Token[XPathTokenType]):
         elif symbol in ('-', '+') and len(self) == 1:
             return symbol + self[0].source
         return super(XPathToken, self).source
-
-    @property
-    def name(self) -> str:
-        if self.symbol == '@':
-            return self[0].name
-        if self.symbol != '(name)':
-            return ''
-
-        local_name = self.value
-        assert isinstance(local_name, str)
-        if self.namespace:
-            return f'{{{self.namespace}}}{local_name}'
-        elif namespace := self.parser.default_namespace:
-            return f'{{{namespace}}}{local_name}'
-        else:
-            return local_name
 
     @property
     def child_axis(self) -> bool:
@@ -750,6 +735,7 @@ class XPathToken(Token[XPathTokenType]):
             raise self.wrong_syntax(msg, code='XPST0017')
 
         self.namespace = namespace
+        self.name = f'{{{namespace}}}{self.value}'
 
     def adjust_datetime(self, context: ContextType, cls: type[AbstractDateTime]) \
             -> Emptiable[Union[AbstractDateTime, DayTimeDuration]]:
@@ -1192,11 +1178,10 @@ class XPathFunction(XPathToken):
 
         if self.label == 'partial function':
             for arg, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
-                if isinstance(arg, XPathToken) and not isinstance(arg, XPathFunction):
-                    tk.value = arg.evaluate(context)
-                else:
+                if isinstance(arg, XPathFunction) or not isinstance(arg, XPathToken):
                     tk.value = self.validated_argument(arg, context)
-
+                else:
+                    tk.value = arg.evaluate(context)
         else:
             self.clear()
             for arg in args:
@@ -1507,9 +1492,51 @@ class XPathConstructor(XPathFunction):
     """
     A token for processing XPath 2.0+ constructors.
     """
+    type_class: type[AnyAtomicType]
+
     @staticmethod
     def cast(value: Any) -> AtomicType:
         raise NotImplementedError()
+
+    def nud(self) -> 'XPathConstructor':
+        if not self.parser.parse_arguments:
+            return self
+
+        try:
+            self.parser.advance('(')
+            self[0:] = self.parser.expression(5),
+            if self.parser.next_token.symbol == ',':
+                msg = 'Too many arguments: expected at most 1 argument'
+                raise self.error('XPST0017', msg)
+            self.parser.advance(')')
+        except SyntaxError:
+            raise self.error('XPST0017') from None
+        else:
+            if self[0].symbol == '?':
+                self.to_partial_function()
+            return self
+
+    def evaluate(self, context: Optional[XPathContext] = None) \
+            -> Union[list[None], AtomicType]:
+        if self.context is not None:
+            context = self.context
+
+        arg = self.data_value(self.get_argument(context))
+        if arg is None:
+            return []
+        elif arg == '?' and self[0].symbol == '?':
+            raise self.error('XPTY0004', "cannot evaluate a partial function")
+
+        try:
+            if isinstance(arg, UntypedAtomic):
+                return self.cast(arg.value)
+            return self.cast(arg)
+        except ElementPathError:
+            raise
+        except (TypeError, ValueError) as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
+            raise self.error('FORG0001', err) from None
 
 
 class XPathMap(XPathFunction):

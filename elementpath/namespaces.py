@@ -53,6 +53,7 @@ XSD_STRING = '{%s}string' % XSD_NAMESPACE
 XSD_FLOAT = '{%s}float' % XSD_NAMESPACE
 XSD_DOUBLE = '{%s}double' % XSD_NAMESPACE
 XSD_DECIMAL = '{%s}decimal' % XSD_NAMESPACE
+XSD_DATETIME_STAMP = '{%s}dateTimeStamp' % XSD_NAMESPACE
 
 # XPath type labels defined in XSD namespace that are not XSD builtin types
 XSD_UNTYPED = '{%s}untyped' % XSD_NAMESPACE

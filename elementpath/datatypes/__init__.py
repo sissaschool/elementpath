@@ -15,8 +15,9 @@ exceptions in order to be reusable in other packages.
 from decimal import Decimal as _Decimal
 from typing import Union as _Union
 
-from .atomic_types import builtin_atomic_types, atomic_sequence_types, \
-    AtomicTypeMeta, AnyAtomicType
+from .any_types import builtin_xsd_types, atomic_sequence_types, \
+    BuiltinTypeMeta, AnyAtomicType
+from .empty import EmptySequenceType, EmptySequence
 from .numeric import Float, Float10, Integer, Int, Long, \
     NegativeInteger, PositiveInteger, NonNegativeInteger, \
     NonPositiveInteger, Short, Byte, UnsignedByte, UnsignedInt, \
@@ -25,14 +26,15 @@ from .untyped import UntypedAtomic
 from .qname import AbstractQName, QName, Notation
 from .string import NormalizedString, XsdToken, Name, NCName, \
     NMToken, Id, Idref, Language, Entity
+from .lists import AbstractListType, NMTokens, Idrefs, Entities
 from .uri import AnyURI
 from .binary import AbstractBinary, Base64Binary, HexBinary
 from .datetime import AbstractDateTime, DateTime10, DateTime, DateTimeStamp, \
     Date10, Date, GregorianDay, GregorianMonth, GregorianYear, GregorianYear10, \
     GregorianMonthDay, GregorianYearMonth, GregorianYearMonth10, Time, Timezone, \
     Duration, DayTimeDuration, YearMonthDuration
-from .proxies import BooleanProxy, DecimalProxy, DoubleProxy, DoubleProxy10, StringProxy, \
-    NumericProxy, ArithmeticProxy
+from .proxies import ErrorProxy, BooleanProxy, DecimalProxy, DoubleProxy, \
+    DoubleProxy10, StringProxy, NumericProxy, ArithmeticProxy
 
 ###
 # Aliases for type annotations
@@ -43,3 +45,4 @@ ArithmeticType = _Union[NumericType, AbstractDateTime, Duration, UntypedAtomic]
 ###
 # Alias kept for backward compatibility, will be removed in v6.0.
 OrderedDateTime = AbstractDateTime
+AtomicTypeMeta = BuiltinTypeMeta

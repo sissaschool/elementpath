@@ -34,14 +34,14 @@ from elementpath.datatypes import AnyAtomicType, DateTime, DateTime10, Date, Dat
     ArithmeticProxy, Id, Notation, QName, Base64Binary, HexBinary, NormalizedString, \
     XsdToken, Language, Float10, Float, Integer, Short, NegativeInteger, AnyURI, \
     BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, StringProxy, \
-    builtin_atomic_types, OrderedDateTime, AtomicTypeMeta
+    builtin_xsd_types, OrderedDateTime, BuiltinTypeMeta
 from elementpath.decoder import get_atomic_sequence
 
 
 class AtomicTypesTest(unittest.TestCase):
 
     def test_xsd_atomic_types_maps(self):
-        self.assertEqual(len(builtin_atomic_types), 46)
+        self.assertEqual(len(builtin_xsd_types), 50)
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_get_atomic_value(self):
@@ -105,7 +105,7 @@ class AnyAtomicTypeTest(unittest.TestCase):
     def test_invalid_type_name(self):
 
         with self.assertRaises(TypeError):
-            class InvalidAtomicType(metaclass=AtomicTypeMeta):
+            class InvalidAtomicType(metaclass=BuiltinTypeMeta):
                 name = b'invalid'
 
     def test_validation(self):

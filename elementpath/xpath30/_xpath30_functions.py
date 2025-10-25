@@ -30,9 +30,9 @@ from elementpath.tdop import MultiLabel
 from elementpath.helpers import OCCURRENCE_INDICATORS, Patterns, \
     is_xml_codepoint, node_position
 from elementpath.namespaces import get_expanded_name, split_expanded_name, \
-    XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
+    XPATH_FUNCTIONS_NAMESPACE
 from elementpath.datatypes import NumericProxy, QName, Date10, DateTime10, Time, \
-    AnyURI, UntypedAtomic, AtomicType, NumericType, NMToken, Idref, Entity
+    AnyURI, AtomicType, NumericType
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.etree import defuse_xml
 from elementpath.xpath_nodes import XPathNode, ElementNode, NamespaceNode, \
@@ -1835,119 +1835,3 @@ def evaluate_round_function(self: XPathFunction, context: ContextType = None) \
         if isinstance(context, XPathSchemaContext):
             return []
         raise self.error('FOCA0002', err) from None
-
-
-#
-# XSD list-based constructors
-
-@XPath30Parser.constructor('NMTOKENS', sequence_types=('xs:NMTOKEN*',))
-def cast_nmtokens_list_type(self: XPathConstructor, value: AtomicType) -> list[NMToken]:
-    if isinstance(value, UntypedAtomic):
-        values = value.value.split() or [value.value]
-    elif hasattr(value, 'split'):
-        values = value.split() or [value]
-    else:
-        raise self.error('FORG0001')
-
-    try:
-        return [NMToken(x) for x in values]
-    except ValueError as err:
-        raise self.error('FORG0001', err) from None
-
-
-@XPath30Parser.constructor('IDREFS', sequence_types=('xs:IDREF*',))
-def cast_idrefs_list_type(self: XPathConstructor, value: AtomicType) -> list[Idref]:
-    if isinstance(value, UntypedAtomic):
-        values = value.value.split() or [value.value]
-    elif hasattr(value, 'split'):
-        values = value.split() or [value]
-    else:
-        raise self.error('FORG0001')
-
-    try:
-        return [Idref(x) for x in values]
-    except ValueError as err:
-        raise self.error('FORG0001', err) from None
-
-
-@XPath30Parser.constructor('ENTITIES', sequence_types=('xs:ENTITY*',))
-def cast_entities_list_type(self: XPathConstructor, value: AtomicType) -> list[Entity]:
-    if isinstance(value, UntypedAtomic):
-        values = value.value.split() or [value.value]
-    elif hasattr(value, 'split'):
-        values = value.split() or [value]
-    else:
-        raise self.error('FORG0001')
-
-    try:
-        return [Entity(x) for x in values]
-    except ValueError as err:
-        raise self.error('FORG0001', err) from None
-
-
-###
-# In XPath 3.0+ the 'error' keyword has to be used both for fn:error() and xs:error()
-XPath30Parser.unregister('error')
-
-
-# TODO: apply sequence_types=('xs:anyAtomicType?', 'xs:error?') for xs:error
-@XPath30Parser.constructor('error', bp=90, label=('function', 'constructor function'),
-                           nargs=(0, 3),
-                           sequence_types=('xs:QName?', 'xs:string', 'item()*', 'none'))
-def cast_error_type(self: XPathConstructor, value: AtomicType) -> Emptiable[None]:
-    if value is None or value == []:
-        return []
-    msg = f"Cast {value!r} to xs:error is not possible"
-    raise self.error('FORG0001', msg)
-
-
-@method('error')
-def nud_error_type_and_function(self: XPathConstructor) -> XPathConstructor:
-    self.clear()
-    if not self.parser.parse_arguments:
-        return self
-
-    try:
-        self.parser.advance('(')
-        if self.namespace == XSD_NAMESPACE:
-            self.label = 'constructor function'
-            self.nargs = 1
-            if self.parser.xsd_version == '1.0':
-                raise self.error('XPST0051', 'xs:error is not defined with XSD 1.0')
-            self.append(self.parser.expression(5))
-        else:
-            self.label = 'function'
-            for k in range(3):
-                if self.parser.next_token.symbol == ')':
-                    break
-                self.append(self.parser.expression(5))
-                if self.parser.next_token.symbol == ')':
-                    break
-                self.parser.advance(',')
-        self.parser.advance(')')
-    except SyntaxError:
-        raise self.error('XPST0017') from None
-    else:
-        return self
-
-
-@method('error')
-def evaluate_error_type_and_function(self: XPathConstructor, context: ContextType = None) \
-        -> Emptiable[ElementPathError]:
-    if self.context is not None:
-        context = self.context
-
-    error: Optional[QName]
-    if self.label == 'constructor function':
-        return cast(ElementPathError, self.cast(self.get_argument(context)))
-    elif not self:
-        raise self.error('FOER0000')
-    elif len(self) == 1:
-        error = self.get_argument(context, cls=QName)
-        if error is None and self.parser.version == '3.0':
-            raise self.error('XPTY0004', "an xs:QName expected")
-        raise self.error(error or 'FOER0000')
-    else:
-        error = self.get_argument(context, cls=QName)
-        description: Optional[str] = self.get_argument(context, index=1, cls=str)
-        raise self.error(error or 'FOER0000', description)

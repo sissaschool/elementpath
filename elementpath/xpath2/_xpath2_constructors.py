@@ -16,12 +16,13 @@ from typing import cast, Optional, Union
 from elementpath.aliases import Emptiable
 from elementpath.exceptions import ElementPathError, ElementPathSyntaxError
 from elementpath.namespaces import XSD_NAMESPACE
-from elementpath.datatypes import builtin_atomic_types, \
+from elementpath.datatypes import builtin_xsd_types, \
     GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10, \
     GregorianYear, GregorianYearMonth10, GregorianYearMonth, Duration, \
     DayTimeDuration, YearMonthDuration, Date10, Date, DateTime10, DateTime, \
     DateTimeStamp, Time, UntypedAtomic, QName, HexBinary, Base64Binary, \
-    BooleanProxy, AnyURI, AtomicType, NumericType, Notation
+    BooleanProxy, AnyURI, AtomicType, NumericType, Notation, NMToken, \
+    Idref, Entity
 from elementpath.xpath_context import ContextType, XPathSchemaContext
 from elementpath.xpath_tokens import XPathConstructor
 
@@ -54,7 +55,7 @@ OtherDateTimeTypes = Union[
 def cast_string_based_types(self: XPathConstructor, value: AtomicType) \
         -> Union[str, AnyURI]:
     try:
-        result = builtin_atomic_types[f'{{{XSD_NAMESPACE}}}{self.symbol}'](value)
+        result = self.type_class(value)
     except ValueError as err:
         raise self.error('FORG0001', err)
     else:
@@ -69,7 +70,7 @@ def cast_string_based_types(self: XPathConstructor, value: AtomicType) \
 @constructor('float')
 def cast_numeric_types(self: XPathConstructor, value: AtomicType) -> NumericType:
     try:
-        result = builtin_atomic_types[f'{{{XSD_NAMESPACE}}}{self.symbol}'].make(
+        result = builtin_xsd_types[self.name].make(
             value, xsd_version=self.parser.xsd_version
         )
     except ValueError as err:
@@ -98,7 +99,7 @@ def cast_numeric_types(self: XPathConstructor, value: AtomicType) -> NumericType
 @constructor('unsignedByte')
 def cast_integer_types(self: XPathConstructor, value: AtomicType) -> int:
     try:
-        result = builtin_atomic_types[f'{{{XSD_NAMESPACE}}}{self.symbol}'](value)
+        result = builtin_xsd_types[f'{{{XSD_NAMESPACE}}}{self.symbol}'](value)
     except ValueError:
         msg = 'could not convert {!r} to xs:{}'.format(value, self.symbol)
         if isinstance(value, (str, bytes, int, UntypedAtomic)):
@@ -696,3 +697,121 @@ def evaluate_untyped_atomic(self: XPathConstructor, context: ContextType = None)
         arg = self.cast(arg)
         assert isinstance(arg, UntypedAtomic)
         return arg
+
+
+###
+# The fn:error function and the xs:error constructor.
+#
+# https://www.w3.org/TR/2010/REC-xpath-functions-20101214/#func-error
+# https://www.w3.org/TR/xpath-functions/#func-error
+#
+#
+
+# TODO: apply sequence_types=('xs:anyAtomicType?', 'xs:error?') for xs:error
+@constructor('error', bp=90, label=('function', 'constructor function'),
+                           nargs=(0, 3),
+                           sequence_types=('xs:QName?', 'xs:string', 'item()*', 'none'))
+def cast_error_type(self: XPathConstructor, value: AtomicType) -> Emptiable[None]:
+    try:
+        return self.type_class(value)
+    except (TypeError, ValueError) as err:
+        raise self.error('FORG0001', msg)
+
+
+@method('error')
+def nud_error_type_and_function(self: XPathConstructor) -> XPathConstructor:
+    self.clear()
+    if not self.parser.parse_arguments:
+        return self
+
+    try:
+        self.parser.advance('(')
+        if self.namespace == XSD_NAMESPACE:
+            self.label = 'constructor function'
+            self.nargs = 1
+            if self.parser.xsd_version == '1.0':
+                raise self.error('XPST0051', 'xs:error is not defined with XSD 1.0')
+            self.append(self.parser.expression(5))
+        else:
+            self.label = 'function'
+            for k in range(3):
+                if self.parser.next_token.symbol == ')':
+                    break
+                self.append(self.parser.expression(5))
+                if self.parser.next_token.symbol == ')':
+                    break
+                self.parser.advance(',')
+        self.parser.advance(')')
+    except SyntaxError:
+        raise self.error('XPST0017') from None
+    else:
+        return self
+
+
+@method('error')
+def evaluate_error_type_and_function(self: XPathConstructor, context: ContextType = None) -> None:
+    if self.context is not None:
+        context = self.context
+
+    error: Optional[QName]
+    if self.label == 'constructor function':
+        self.cast(self.get_argument(context))
+    elif not self:
+        raise self.error('FOER0000')
+    elif len(self) == 1:
+        error = self.get_argument(context, cls=QName)
+        if error is None and self.parser.version == '3.0':
+            raise self.error('XPTY0004', "an xs:QName expected")
+        raise self.error(error or 'FOER0000')
+    else:
+        error = self.get_argument(context, cls=QName)
+        description: Optional[str] = self.get_argument(context, index=1, cls=str)
+        raise self.error(error or 'FOER0000', description)
+
+
+###
+# XSD list-based constructors
+
+@constructor('NMTOKENS', sequence_types=('xs:NMTOKEN*',))
+def cast_nmtokens_list_type(self: XPathConstructor, value: AtomicType) -> list[NMToken]:
+    if isinstance(value, UntypedAtomic):
+        values = value.value.split() or [value.value]
+    elif hasattr(value, 'split'):
+        values = value.split() or [value]
+    else:
+        raise self.error('FORG0001')
+
+    try:
+        return [NMToken(x) for x in values]
+    except ValueError as err:
+        raise self.error('FORG0001', err) from None
+
+
+@constructor('IDREFS', sequence_types=('xs:IDREF*',))
+def cast_idrefs_list_type(self: XPathConstructor, value: AtomicType) -> list[Idref]:
+    if isinstance(value, UntypedAtomic):
+        values = value.value.split() or [value.value]
+    elif hasattr(value, 'split'):
+        values = value.split() or [value]
+    else:
+        raise self.error('FORG0001')
+
+    try:
+        return [Idref(x) for x in values]
+    except ValueError as err:
+        raise self.error('FORG0001', err) from None
+
+
+@constructor('ENTITIES', sequence_types=('xs:ENTITY*',))
+def cast_entities_list_type(self: XPathConstructor, value: AtomicType) -> list[Entity]:
+    if isinstance(value, UntypedAtomic):
+        values = value.value.split() or [value.value]
+    elif hasattr(value, 'split'):
+        values = value.split() or [value]
+    else:
+        raise self.error('FORG0001')
+
+    try:
+        return [Entity(x) for x in values]
+    except ValueError as err:
+        raise self.error('FORG0001', err) from None

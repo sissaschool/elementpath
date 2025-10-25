@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any, Optional, TYPE_CHECKING, Union
 
 from elementpath.helpers import reversed_sub, reversed_truediv, BOOLEAN_VALUES, get_double
-from .atomic_types import AnyAtomicType
+from .any_types import AnyAtomicType
 
 if TYPE_CHECKING:
     from elementpath.datatypes import AbstractBinary
@@ -33,6 +33,8 @@ class UntypedAtomic(AnyAtomicType):
     name = 'untypedAtomic'
     value: str
     xsd_version: str
+
+    __slots__ = ('value', 'xsd_version')
 
     @classmethod
     def validate(cls, value: object) -> None:
@@ -54,6 +56,8 @@ class UntypedAtomic(AnyAtomicType):
                 self.value = str(value.normalize())
             case UntypedAtomic():
                 self.value = value.value
+            case None:
+                raise TypeError("{!r} is not an atomic value".format(value))
             case AnyAtomicType():
                 self.value = str(value)
             case _:

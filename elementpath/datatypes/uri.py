@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 from typing import Union
 
 from elementpath.helpers import collapse_white_spaces, Patterns
-from .atomic_types import AnyAtomicType
+from .any_types import AnyAtomicType
 from .untyped import UntypedAtomic
 from .numeric import Integer
 
@@ -27,6 +27,7 @@ class AnyURI(AnyAtomicType):
     """
     value: str
     name = 'anyURI'
+    __slots__ = ('value',)
 
     def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AnyURI']) -> None:
         match value:

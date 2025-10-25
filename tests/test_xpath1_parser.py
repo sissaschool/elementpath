@@ -1610,9 +1610,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         if self.parser.version == '1.0':
             self.assertEqual(len(self.parser.function_signatures), 36)
         elif self.parser.version == '2.0':
-            self.assertEqual(len(self.parser.function_signatures), 151)
+            self.assertEqual(len(self.parser.function_signatures), 147)
         elif self.parser.version == '3.0':
-            self.assertEqual(len(self.parser.function_signatures), 221)
+            self.assertEqual(len(self.parser.function_signatures), 217)
 
         for key, value in self.parser.function_signatures.items():
             self.assertIsInstance(key, tuple)

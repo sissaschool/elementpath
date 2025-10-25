@@ -12,7 +12,7 @@ from typing import Any, Optional, SupportsFloat, SupportsInt, Union
 
 from elementpath.helpers import FloatArgType, NUMERIC_INF_OR_NAN, INVALID_NUMERIC, \
     LazyPattern, collapse_white_spaces
-from .atomic_types import AnyAtomicType
+from .any_types import AnyAtomicType
 
 __all__ = ['Float', 'Float10', 'Integer', 'Int', 'Long',
            'NegativeInteger', 'PositiveInteger', 'NonNegativeInteger',

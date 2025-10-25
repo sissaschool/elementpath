@@ -24,7 +24,7 @@ from elementpath.helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_no
     node_position, get_double
 from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED, get_namespace, get_expanded_name
-from elementpath.datatypes import UntypedAtomic, QName, AnyURI, \
+from elementpath.datatypes import builtin_xsd_types, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10, AtomicType, NumericType
 from elementpath.decoder import get_atomic_sequence
 from elementpath.xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
@@ -379,6 +379,117 @@ def evaluate_treat_expression(self: XPathToken, context: ContextType = None) \
 
 ###
 # Simple type based
+class _CastableOperator(XPathToken):
+
+    symbol = lookup_name = 'castable'
+    lbp = 62
+    rbp = 62
+    value: str
+    constructor: XPathConstructor | None = None
+
+    def led(self, left: XPathToken) -> XPathToken:
+        self.parser.advance('as')
+        self.parser.expected_next('(name)', ':', 'Q{', message='an EQName expected')
+        self[:] = left, self.parser.expression(rbp=85)
+        if self.parser.next_token.symbol == '?':
+            self[1].occurrence = '?'
+            self.parser.advance()
+
+        type_name = self[1][1].name if self[1].symbol == ':' else self[1].name
+        if type_name in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
+            raise self.error('XPST0080')
+        elif type_name in builtin_xsd_types:
+            builtin_type = builtin_xsd_types[type_name]
+            token_class = self.parser.symbol_table.get(builtin_type.name)
+            if issubclass(token_class, XPathConstructor):
+                self.constructor = token_class(self.parser)
+                self.constructor.name = type_name
+            else:
+                msg = f"token {token_class!r} is not a constructor"
+                raise self.error('XPST0051', msg)
+
+        elif self.parser.schema is None or self.parser.schema.get_type(type_name) is None:
+            msg = f"atomic type {type_name!r} not found in the in-scope schema types"
+            raise self.error('XPST0051', msg)
+        else:
+            self.constructor = None
+
+        return self
+
+    def evaluate(self, context: ContextType = None) -> Emptiable[AtomicType]:
+        result = [res for res in self[0].select(context)]
+        if len(result) > 1:
+            return False
+        elif not result:
+            return self[1].occurrence == '?'
+
+        arg = self.data_value(result[0])
+        value: Emptiable[AtomicType]
+        try:
+            if hasattr(self.constructor, 'cast'):
+                if self.constructor.symbol == 'QName':
+                    if isinstance(arg, QName):
+                        pass
+                    elif self.parser.version < '3.0' and self[0].symbol != '(string)':
+                        raise self.error('XPTY0004', "Non literal string to QName cast")
+                self.constructor.cast(arg)
+            elif self.parser.schema is not None:
+                type_name = self[1].name
+                self.parser.schema.cast_as(self.string_value(arg), type_name)
+        except (TypeError, ValueError, ElementPathError):
+            return False
+        else:
+            return True
+
+
+class _CastOperator(_CastableOperator):
+    symbol = lookup_name = 'cast'
+    lbp = 63
+    rbp = 63
+
+    def evaluate(self, context: ContextType = None) -> Emptiable[AtomicType]:
+        result = [res for res in self[0].select(context)]
+        if len(result) > 1:
+            raise self.error('XPTY0004', "more than one value in expression")
+        elif not result:
+            if self[1].occurrence == '?':
+                return []
+            raise self.error('XPTY0004', "an atomic value is required")
+
+        arg = self.data_value(result[0])
+        value: Emptiable[AtomicType]
+        try:
+            if hasattr(self.constructor, 'cast'):
+                if self.constructor.symbol == 'QName':
+                    if isinstance(arg, QName):
+                        pass
+                    elif self.parser.version < '3.0' and self[0].symbol != '(string)':
+                        raise self.error('XPTY0004', "Non literal string to QName cast")
+                value = self.constructor.cast(arg)
+            elif self.parser.schema is not None:
+                type_name = self[1].name
+                value = self.parser.schema.cast_as(self.string_value(arg), type_name)
+            else:
+                value = []
+
+        except ElementPathError:
+            if isinstance(context, XPathSchemaContext):
+                return UntypedAtomic('1')
+            raise
+        except (TypeError, ValueError) as err:
+            if isinstance(context, XPathSchemaContext):
+                return UntypedAtomic('1')
+            elif isinstance(arg, (UntypedAtomic, str)):
+                raise self.error('FORG0001', err) from None
+            raise self.error('XPTY0004', err) from None
+        else:
+            return value
+
+
+#XPath2Parser.symbol_table['castable'] = _CastableOperator
+#XPath2Parser.symbol_table['cast'] = _CastOperator
+
+
 @method('castable', bp=62)
 @method('cast', bp=63)
 def led_cast_expressions(self: XPathToken, left: XPathToken) -> XPathToken:

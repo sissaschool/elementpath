@@ -19,13 +19,13 @@ from typing import cast, Any, ClassVar, Optional, Union
 
 from elementpath.aliases import NamespacesType, NargsType
 from elementpath.helpers import upper_camel_case, is_ncname, ordinal
-from elementpath.exceptions import ElementPathError, ElementPathTypeError, \
+from elementpath.exceptions import ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
 from elementpath.namespaces import XSD_NAMESPACE, XML_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
 from elementpath.collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
-from elementpath.datatypes import UntypedAtomic, AtomicType, QName
+from elementpath.datatypes import builtin_xsd_types, AtomicType, QName
 from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathConstructor
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
@@ -249,58 +249,27 @@ class XPath2Parser(XPath1Parser):
         Statically creates a constructor token class, that is registered in the globals
         of the module where the method is called.
         """
-        def nud_(self: XPathConstructor) -> XPathConstructor:
-            if not self.parser.parse_arguments:
-                return self
-
-            try:
-                self.parser.advance('(')
-                self[0:] = self.parser.expression(5),
-                if self.parser.next_token.symbol == ',':
-                    msg = 'Too many arguments: expected at most 1 argument'
-                    raise self.error('XPST0017', msg)
-                self.parser.advance(')')
-            except SyntaxError:
-                raise self.error('XPST0017') from None
-            else:
-                if self[0].symbol == '?':
-                    self.to_partial_function()
-                return self
-
-        def evaluate_(self: XPathConstructor, context: Optional[XPathContext] = None) \
-                -> Union[list[None], AtomicType]:
-            if self.context is not None:
-                context = self.context
-
-            arg = self.data_value(self.get_argument(context))
-            if arg is None:
-                return []
-            elif arg == '?' and self[0].symbol == '?':
-                raise self.error('XPTY0004', "cannot evaluate a partial function")
-
-            try:
-                if isinstance(arg, UntypedAtomic):
-                    return self.cast(arg.value)
-                return self.cast(arg)
-            except ElementPathError:
-                raise
-            except (TypeError, ValueError) as err:
-                if isinstance(context, XPathSchemaContext):
-                    return []
-                raise self.error('FORG0001', err) from None
-
         if not sequence_types:
             assert nargs == 1
             sequence_types = ('xs:anyAtomicType?', 'xs:%s?' % symbol)
 
-        token_class = cls.register(symbol, nargs=nargs, sequence_types=sequence_types,
-                                   label=label, bases=(XPathConstructor,), lbp=bp, rbp=bp,
-                                   nud=nud_, evaluate=evaluate_)
+        type_name = f'{{{XSD_NAMESPACE}}}{symbol}'
+        kwargs = {
+            'bases': (XPathConstructor,),
+            'label': label,
+            'nargs': nargs,
+            'lbp': bp,
+            'rbp': bp,
+            'sequence_types': sequence_types,
+            'name': type_name,
+            'type_class': builtin_xsd_types.get(type_name),
+        }
+        token_class = cls.register(symbol, **kwargs)
 
         def bind(func: Callable[..., Any]) -> Callable[..., Any]:
             method_name = func.__name__.partition('_')[0]
             if method_name != 'cast':
-                raise ValueError("The function name must be 'cast' or starts with 'cast_'")
+                raise ValueError("The function name must be 'cast' or starting with 'cast_'")
             setattr(token_class, method_name, func)
             return func
         return bind

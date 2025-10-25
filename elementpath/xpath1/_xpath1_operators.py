@@ -119,15 +119,6 @@ class _PrefixedReferenceToken(XPathToken):
         else:
             return ':'.join(tk.source for tk in self)
 
-    @property
-    def name(self) -> str:
-        prefix = self[0].value
-        assert isinstance(prefix, str)
-        if prefix == '*':
-            return '{*}%s' % self[1].value
-        else:
-            return f'{{{self.get_namespace(prefix)}}}{self[1].value}'
-
     def led(self: XPathToken, left: XPathToken) -> XPathToken:
         version = self.parser.version
         if self.is_spaced():
@@ -157,9 +148,12 @@ class _PrefixedReferenceToken(XPathToken):
                 self.parser.next_token.bind_namespace(namespace)
         elif self.parser.next_token.symbol != '(name)':
             raise self.wrong_syntax()
+        else:
+            self.parser.next_token.bind_namespace('*')
 
         self[:] = left, self.parser.expression(95)
 
+        self.name = self[1].name
         if self[1].label.endswith('function'):
             self.value = f'{self[0].value}:{self[1].symbol}'
         else:
@@ -225,11 +219,11 @@ def nud_namespace_uri(self: XPathToken) -> XPathToken:
     self[:] = cls(self.parser, namespace), self.parser.expression(90)
 
     if self[0].value:
-        self.value = f'{{{self[0].value}}}{self[1].value}'
+        self.name = self[1].name = self.value = f'{{{self[0].value}}}{self[1].value}'
     elif self[1].value == '*':
-        self.value = '{}*'
+        self.name = self[1].name = self.value = '{}*'
     else:
-        self.value = self[1].value
+        self.name = self[1].name = self.value = self[1].value
     return self
 
 
@@ -251,7 +245,7 @@ def select_namespace_uri(self: XPathToken, context: ContextType = None) \
         raise self.missing_context()
 
     if isinstance(self.value, str):
-        yield from context.iter_matching_nodes(self.value)
+        yield from context.iter_matching_nodes(self.name)
 
 
 ###

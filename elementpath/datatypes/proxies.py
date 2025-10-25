@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -13,13 +13,14 @@ from typing import Any
 
 from elementpath.helpers import BOOLEAN_VALUES, NUMERIC_INF_OR_NAN, INVALID_NUMERIC, \
     FloatArgType, LazyPattern, collapse_white_spaces
-from .atomic_types import AnyAtomicType
+from .any_types import AnyAtomicType
+from .empty import EmptySequenceType
 from .untyped import UntypedAtomic
 from .numeric import Float, Integer
 from .datetime import AbstractDateTime, Duration
 
-__all__ = ['BooleanProxy', 'DecimalProxy', 'DoubleProxy', 'DoubleProxy10', 'StringProxy',
-           'NumericProxy', 'ArithmeticProxy']
+__all__ = ['BooleanProxy', 'DecimalProxy', 'DoubleProxy', 'DoubleProxy10',
+           'StringProxy', 'NumericProxy', 'ArithmeticProxy', 'ErrorProxy']
 
 
 ####
@@ -214,3 +215,19 @@ class ArithmeticProxy(metaclass=ArithmeticTypeMeta):
 
     def __new__(cls, *args: FloatArgType, **kwargs: FloatArgType) -> float:  # type: ignore[misc]
         return float(*args, **kwargs)
+
+
+class ErrorProxy(AnyAtomicType):
+    name = 'error'
+
+    def __new__(cls, value: Any) -> EmptySequenceType:
+        if isinstance(value, EmptySequenceType) or value is None or value == []:
+            return EmptySequenceType()
+        msg = f"Cast {value!r} to xs:error is not possible"
+        if isinstance(value, list):
+            raise cls.invalid_value(msg)
+        raise cls.invalid_type(msg)
+
+    @classmethod
+    def __subclasshook__(cls, subclass: type) -> bool:
+        return issubclass(subclass, (EmptySequenceType, type(None)))

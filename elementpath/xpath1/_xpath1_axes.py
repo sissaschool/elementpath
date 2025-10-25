@@ -31,6 +31,7 @@ def nud_attribute_reference(self: XPathAxis) -> XPathAxis:
     self.parser.expected_next(
         '*', '(name)', ':', '{', 'Q{', message="invalid attribute specification")
     self[:] = self.parser.expression(rbp=80),
+    self.name = self[0].name
     return self
 
 

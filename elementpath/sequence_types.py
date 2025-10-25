@@ -12,18 +12,20 @@ from typing import TYPE_CHECKING, cast, Any, Optional
 
 from elementpath.exceptions import ElementPathKeyError, xpath_error
 from elementpath.helpers import collapse_white_spaces, OCCURRENCE_INDICATORS, Patterns
-from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_ANY_SIMPLE_TYPE, XSD_NUMERIC, \
-    get_expanded_name, XSD_UNTYPED, XSD_UNTYPED_ATOMIC
-from elementpath.datatypes import builtin_atomic_types, atomic_sequence_types, \
+from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_ANY_SIMPLE_TYPE, \
+    XSD_NUMERIC, get_expanded_name, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, XSD_DATETIME_STAMP
+from elementpath.datatypes import builtin_xsd_types, atomic_sequence_types, \
     AnyAtomicType, QName, NumericProxy
 from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
 from elementpath import xpath_tokens
 
 if TYPE_CHECKING:
-    from elementpath.xpath_tokens import XPathParserType
+    from elementpath.xpath_tokens import XPathParserType  # noqa: F401
 
 XSD_EXTENDED_PREFIX = f'{{{XSD_NAMESPACE}}}'
-
+XSD_10_UNSUPPORTED = frozenset(
+    ('xs:error', 'xs:dateTimeStamp', XSD_ERROR, XSD_DATETIME_STAMP)
+)
 COMMON_SEQUENCE_TYPES = frozenset((
     'xs:anyType', 'xs:anySimpleType', 'xs:numeric', 'xs:untyped', 'attribute()',
     'attribute(*)', 'element()', 'element(*)', 'text()', 'document-node()',
@@ -122,30 +124,23 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
 
 def is_instance(obj: Any, type_qname: str, parser: Optional['XPathParserType'] = None) -> bool:
     """Checks an instance against an XSD type."""
-    if not type_qname.startswith('{'):
-        if parser is not None:
-            type_qname = get_expanded_name(type_qname, parser.namespaces)
-        elif type_qname.startswith('xs:'):
-            type_qname = type_qname.replace('xs:', XSD_EXTENDED_PREFIX, 1)
+    if type_qname in atomic_sequence_types:
+        if type_qname in ('xs:error', 'xs:dateTimeStamp'):
+            if parser is not None and parser.xsd_version == '1.0':
+                return False
+        return isinstance(obj, atomic_sequence_types[type_qname])
 
-    if type_qname.startswith(XSD_EXTENDED_PREFIX):
-        if getattr(parser, 'xsd_version', '1.1') != '1.0' and type_qname == 'dateTimeStamp':
-            return False
-        try:
-            return isinstance(obj, builtin_atomic_types[type_qname])
-        except KeyError:
-            pass
+    elif type_qname in builtin_xsd_types:
+        if type_qname in (XSD_ERROR, XSD_DATETIME_STAMP):
+            if parser is not None and parser.xsd_version == '1.0':
+                return False
+        return isinstance(obj, builtin_xsd_types[type_qname])
 
-        if type_qname == XSD_ERROR:
-            return obj is None or obj == []
-        elif type_qname == XSD_ANY_SIMPLE_TYPE:
-            return isinstance(obj, AnyAtomicType) or \
-                isinstance(obj, list) and \
-                all(isinstance(x, AnyAtomicType) for x in obj)
-        elif type_qname in ('numeric', XSD_NUMERIC):
-            return isinstance(obj, NumericProxy)
+    elif type_qname in (XSD_NUMERIC, 'xs:numeric', 'numeric'):
+        return isinstance(obj, NumericProxy)
 
-    if parser is not None and parser.schema is not None:
+    elif parser is not None and parser.schema is not None:
+        type_qname = get_expanded_name(type_qname, parser.namespaces)
         try:
             return parser.schema.is_instance(obj, type_qname)
         except KeyError:
@@ -169,7 +164,7 @@ def is_sequence_type(value: Any, parser: Optional['XPathParserType'] = None) -> 
             return True
 
         elif st in atomic_sequence_types:
-            if st == 'xs:dateTimeStamp':
+            if st in ('xs:dateTimeStamp', 'xs:error'):
                 return getattr(parser, 'xsd_version', '1.1') != '1.0'
             return True
 
@@ -247,14 +242,12 @@ def is_sequence_type(value: Any, parser: Optional['XPathParserType'] = None) -> 
 
         try:
             is_instance(None, st, parser)
-        except (KeyError, ValueError):
+        except (KeyError, ValueError) as err:
             return False
         else:
             return True
 
-    if not isinstance(value, str):
-        return False
-    return is_st(normalize_sequence_type(value))
+    return isinstance(value, str) and is_st(normalize_sequence_type(value))
 
 
 def match_sequence_type(value: Any,
@@ -366,14 +359,12 @@ def match_sequence_type(value: Any,
 
         if name == '*':
             return True
-
-        try:
-            exp_name = get_expanded_name(name, parser.namespaces)  # type: ignore[union-attr]
-        except (KeyError, ValueError):
-            return False
-        except AttributeError:
-            return True if v.name == name else False
+        elif parser is None:
+            return v.name == name
         else:
-            return True if v.name == exp_name else False
+            try:
+                return v.name == get_expanded_name(name, parser.namespaces)
+            except (KeyError, ValueError):
+                return False
 
     return match_st(value, normalize_sequence_type(sequence_type))

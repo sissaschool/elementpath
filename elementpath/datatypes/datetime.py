@@ -19,7 +19,7 @@ from typing import cast, Any, Optional, TypeVar, Union
 from elementpath.helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
     DAYS_IN_100Y, DAYS_IN_400Y, days_from_common_era, adjust_day, \
     normalized_seconds, months2days, round_number, LazyPattern
-from .atomic_types import AnyAtomicType
+from .any_types import AnyAtomicType
 from .untyped import UntypedAtomic
 
 ###
@@ -152,6 +152,8 @@ class AbstractDateTime(AnyAtomicType):
     """
     xsd_version = '1.0'
     pattern = LazyPattern(r'^$')
+
+    __slots__ = ('_dt', '_year')
 
     def __init__(self, year: int = 2000, month: int = 1, day: int = 1, hour: int = 0,
                  minute: int = 0, second: int = 0, microsecond: int = 0,
@@ -777,6 +779,7 @@ class Duration(AnyAtomicType):
         r'^(-)?P(?=[0-9]|T)(?:([0-9]+)Y)?(?:([0-9]+)M)?(?:([0-9]+)D)?'
         r'(?:T(?=[0-9])(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+(?:\.[0-9]+)?)S)?)?$'
     )
+    __slots__ = ('months', 'seconds')
 
     def __init__(self, months: int = 0, seconds: Union[Decimal, int] = 0) -> None:
         if seconds < 0 < months or months < 0 < seconds:

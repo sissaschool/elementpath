@@ -1700,32 +1700,6 @@ def evaluate_collection_function(self: XPathFunction, context: ContextType = Non
 
     return collection
 
-
-###
-# The error function
-#
-# https://www.w3.org/TR/2010/REC-xpath-functions-20101214/#func-error
-# https://www.w3.org/TR/xpath-functions/#func-error
-#
-@method(function('error', nargs=(0, 3),
-                 sequence_types=('xs:QName?', 'xs:string', 'item()*', 'none')))
-def evaluate_error_function(self: XPathFunction, context: ContextType = None) -> None:
-    if self.context is not None:
-        context = self.context
-
-    if not self:
-        raise self.error('FOER0000')
-    elif len(self) == 1:
-        error = self.get_argument(context, cls=QName)
-        if error is None:
-            raise self.error('XPTY0004', "an xs:QName expected")
-        raise self.error(error or 'FOER0000')
-    else:
-        error = self.get_argument(context, cls=QName)
-        description = self.get_argument(context, index=1, cls=str)
-        raise self.error(error or 'FOER0000', description)
-
-
 ###
 # The trace function
 #
