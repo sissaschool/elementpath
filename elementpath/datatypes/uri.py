@@ -27,6 +27,7 @@ class AnyURI(AnyAtomicType):
     """
     value: str
     name = 'anyURI'
+
     __slots__ = ('value',)
 
     def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AnyURI']) -> None:

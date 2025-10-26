@@ -15,14 +15,14 @@ import decimal
 from collections.abc import Iterator
 from typing import Any, Union
 
-from elementpath.aliases import Emptiable
+from elementpath.aliases import AtomicType, NumericType, Emptiable, ContextType
 from elementpath.helpers import get_double
 from elementpath.datatypes import Duration, DayTimeDuration, YearMonthDuration, \
-    StringProxy, AnyURI, Float, AnyAtomicType, AtomicType, NumericType
+    StringProxy, AnyURI, Float, AnyAtomicType
 from elementpath.namespaces import XML_ID, XML_LANG
 from elementpath.xpath_nodes import XPathNode, ElementNode, TextNode, CommentNode, \
     ProcessingInstructionNode, DocumentNode, EtreeElementNode
-from elementpath.xpath_context import ContextType, XPathSchemaContext
+from elementpath.xpath_context import XPathSchemaContext
 from elementpath.xpath_tokens import XPathFunction
 
 from ._xpath1_operators import XPath1Parser

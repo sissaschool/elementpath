@@ -13,7 +13,7 @@ XPath 2.0 implementation - part 4 (XSD constructors)
 import decimal
 from typing import cast, Optional, Union
 
-from elementpath.aliases import Emptiable
+from elementpath.aliases import Emptiable, AtomicType, NumericType, ContextType
 from elementpath.exceptions import ElementPathError, ElementPathSyntaxError
 from elementpath.namespaces import XSD_NAMESPACE
 from elementpath.datatypes import builtin_xsd_types, \
@@ -21,9 +21,9 @@ from elementpath.datatypes import builtin_xsd_types, \
     GregorianYear, GregorianYearMonth10, GregorianYearMonth, Duration, \
     DayTimeDuration, YearMonthDuration, Date10, Date, DateTime10, DateTime, \
     DateTimeStamp, Time, UntypedAtomic, QName, HexBinary, Base64Binary, \
-    BooleanProxy, AnyURI, AtomicType, NumericType, Notation, NMToken, \
+    BooleanProxy, AnyURI, Notation, NMToken, \
     Idref, Entity
-from elementpath.xpath_context import ContextType, XPathSchemaContext
+from elementpath.xpath_context import XPathSchemaContext
 from elementpath.xpath_tokens import XPathConstructor
 
 from ._xpath2_functions import XPath2Parser
@@ -708,14 +708,13 @@ def evaluate_untyped_atomic(self: XPathConstructor, context: ContextType = None)
 #
 
 # TODO: apply sequence_types=('xs:anyAtomicType?', 'xs:error?') for xs:error
-@constructor('error', bp=90, label=('function', 'constructor function'),
-                           nargs=(0, 3),
-                           sequence_types=('xs:QName?', 'xs:string', 'item()*', 'none'))
+@constructor('error', bp=90, label=('function', 'constructor function'), nargs=(0, 3),
+             sequence_types=('xs:QName?', 'xs:string', 'item()*', 'none'))
 def cast_error_type(self: XPathConstructor, value: AtomicType) -> Emptiable[None]:
     try:
         return self.type_class(value)
     except (TypeError, ValueError) as err:
-        raise self.error('FORG0001', msg)
+        raise self.error('FORG0001', str(err)) from None
 
 
 @method('error')

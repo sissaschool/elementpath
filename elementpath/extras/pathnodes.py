@@ -14,12 +14,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from elementpath.aliases import AtomicType, ParentNodeType, ChildNodeType
 from elementpath.protocols import XsdElementProtocol
-from elementpath.xpath_nodes import ParentNodeType, ChildNodeType, \
-    XPathNodeTree, AttributeNode, DocumentNode, ElementNode
+from elementpath.xpath_nodes import XPathNodeTree, AttributeNode, DocumentNode, ElementNode
 from elementpath.helpers import match_wildcard
 from elementpath.namespaces import XSD_NAMESPACE
-from elementpath.datatypes import DateTime, AtomicType
+from elementpath.datatypes import DateTime
 
 
 class PathElementNode(ElementNode):

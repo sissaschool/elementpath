@@ -13,13 +13,12 @@ XPath 3.1 implementation - part 2 (operators and constructors)
 from collections.abc import Iterator, Iterable
 from typing import cast, Optional, Union
 
-from elementpath.aliases import SequenceType
+from elementpath.aliases import AtomicType, SequenceType, XPathParserType, \
+    ContextType, ItemType, ValueType
 from elementpath.helpers import iter_sequence
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
-from elementpath.xpath_tokens import XPathParserType, XPathToken, ProxyToken, \
+from elementpath.xpath_tokens import XPathToken, ProxyToken, \
     XPathFunction, XPathMap, XPathArray
-from elementpath.datatypes import AtomicType
-from elementpath.xpath_context import ContextType, ItemType, ValueType
 
 from .xpath31_parser import XPath31Parser
 

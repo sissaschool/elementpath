@@ -779,6 +779,7 @@ class Duration(AnyAtomicType):
         r'^(-)?P(?=[0-9]|T)(?:([0-9]+)Y)?(?:([0-9]+)M)?(?:([0-9]+)D)?'
         r'(?:T(?=[0-9])(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+(?:\.[0-9]+)?)S)?)?$'
     )
+
     __slots__ = ('months', 'seconds')
 
     def __init__(self, months: int = 0, seconds: Union[Decimal, int] = 0) -> None:

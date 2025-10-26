@@ -14,11 +14,10 @@ from copy import copy
 from collections.abc import Iterator
 from typing import Any, cast, Union
 
-from elementpath.aliases import InputType
+from elementpath.aliases import InputType, ContextType, ItemType
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, \
     XPathMap, XPathArray
-from elementpath.xpath_context import ContextType, ItemType
 from elementpath.datatypes import QName
 
 from .xpath30_parser import XPath30Parser

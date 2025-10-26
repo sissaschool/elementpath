@@ -9,7 +9,7 @@
 #
 from abc import ABCMeta, abstractmethod
 from types import MappingProxyType
-from typing import Any, Optional, TypeVar
+from typing import Any
 
 from elementpath.helpers import Property, LazyPattern
 from elementpath.namespaces import XSD_NAMESPACE
@@ -25,10 +25,8 @@ builtin_xsd_types = MappingProxyType(_builtin_xsd_types)
 """Registry of builtin XSD types by expanded name."""
 
 _builtin_sequence_types: dict[str, 'BuiltinTypeMeta'] = {}
-atomic_sequence_types = MappingProxyType(_builtin_sequence_types)
+builtin_sequence_types = MappingProxyType(_builtin_sequence_types)
 """Registry of builtin XSD types by sequence type."""
-
-AT = TypeVar('AT')
 
 
 class BuiltinTypeMeta(ABCMeta):
@@ -38,8 +36,8 @@ class BuiltinTypeMeta(ABCMeta):
     attribute is provided the class is registered into a global map
     of XSD atomic types and also the expanded name is added.
     """
-    def __new__(mcs, class_name: str, bases: tuple[type[Any], ...], dict_: dict[str, Any]) \
-            -> 'BuiltinTypeMeta':
+    def __new__(mcs, class_name: str, bases: tuple[type[Any], ...],
+                dict_: dict[str, Any]) -> 'BuiltinTypeMeta':
         try:
             name = dict_['name']
         except KeyError:
@@ -49,13 +47,14 @@ class BuiltinTypeMeta(ABCMeta):
             raise TypeError("attribute 'name' must be a string or None")
 
         if '__slots__' not in dict_:
-            dict_['__slots__'] = ()
+            dict_['__slots__'] = ()  # Avoids __dict__ creation
+
         cls = super(BuiltinTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
 
         # Register all the derived classes with a valid name if not already registered
         if name:
             namespace: str | None = dict_.pop('namespace', XSD_NAMESPACE)
-            prefix: str | None =  dict_.pop('prefix', 'xs')
+            prefix: str | None = dict_.pop('prefix', 'xs')
 
             extended_name = f'{{{namespace}}}{name}' if namespace else name
             prefixed_name = f'{prefix}:{name}' if prefix else name
@@ -73,8 +72,6 @@ class AnyType(metaclass=BuiltinTypeMeta):
     name: str
     namespace: str | None = None
     prefix: str | None = None
-
-    __slots__ = ()
 
     @abstractmethod
     def __init__(self, obj: Any) -> None:
@@ -121,15 +118,15 @@ class AnyType(metaclass=BuiltinTypeMeta):
 
 
 class AnySimpleType(AnyType):
-    """Un"""
-    __slots__ = ()
+    """
+    The base type of all XSD simple types (atomic types, union types and list types).
+    Only for reproducing the XSD type hierarchy, not applicable as a real type by XPath.
+    """
 
 
 class AnyAtomicType(AnySimpleType):
     name = 'anyAtomicType'
     pattern = LazyPattern(r'^$')
-
-    __slots__ = ()
 
     @abstractmethod
     def __init__(self, value: Any) -> None:

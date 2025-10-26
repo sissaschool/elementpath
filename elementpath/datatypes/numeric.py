@@ -30,7 +30,8 @@ class Float(float, AnyAtomicType):
     __slots__ = ()
 
     @classmethod
-    def make(cls, value: Union[str, SupportsFloat], version: str = '2.0', xsd_version: str = '1.1') -> 'AnyAtomicType':
+    def make(cls, value: Union[str, SupportsFloat],
+             version: str = '2.0', xsd_version: str = '1.1') -> 'AnyAtomicType':
         if value == '+INF' and xsd_version == '1.0':
             raise cls.invalid_value('+INF')
         return cls(value, xsd_version)

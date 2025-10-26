@@ -15,34 +15,22 @@ from functools import cached_property
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
 
-from elementpath.aliases import NamespacesType, SequenceType, InputType
+from elementpath.aliases import ChildNodeType, RootNodeType, RootArgType, ItemType, \
+    ValueType, ItemArgType, FunctionArgType, CollectionArgType, NamespacesType, InputType
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.tdop import Token
-from elementpath.datatypes import AnyAtomicType, AtomicType, Timezone, Language
+from elementpath.datatypes import AnyAtomicType, Timezone, Language
 from elementpath.etree import is_etree_element, is_etree_element_instance, is_etree_document
-from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
-    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, RootNodeType, \
-    RootArgType
+from elementpath.xpath_nodes import XPathNode, AttributeNode, NamespaceNode, \
+    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode
 from elementpath.tree_builders import get_node_tree
 
 if TYPE_CHECKING:
-    from elementpath.schema_proxy import AbstractSchemaProxy
-    from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction  # noqa
+    from elementpath.xpath_tokens import XPathToken, XPathAxis  # noqa: F401
+    from elementpath.schema_proxy import AbstractSchemaProxy  # noqa: F401
 
-__all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType',
-           'ValueType', 'ItemArgType', 'FunctionArgType']
-
-###
-# type annotations aliases for context and tokens classes
-ContextType = Union['XPathContext', 'XPathSchemaContext', None]
-ItemType = Union[XPathNode, AtomicType, 'XPathFunction']
-ValueType = SequenceType[ItemType]
-ItemArgType = Union[ItemType, ElementProtocol, DocumentProtocol]
-FunctionArgType = Union[InputType[ItemArgType], ValueType]
-
-NodeArgType = Union[XPathNode, ElementProtocol, DocumentProtocol]
-CollectionArgType = Optional[InputType[NodeArgType]]
+__all__ = ['XPathContext', 'XPathSchemaContext']
 
 
 class XPathContext:

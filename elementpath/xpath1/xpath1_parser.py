@@ -15,7 +15,7 @@ from abc import ABCMeta
 from collections.abc import Callable, MutableMapping, Sequence
 from typing import cast, Any, ClassVar, Optional, Union
 
-from elementpath.aliases import NamespacesType, NargsType
+from elementpath.aliases import NamespacesType, NargsType, ContextType, XPathTokenType
 from elementpath.exceptions import xpath_error, UnsupportedFeatureError, \
     ElementPathValueError, ElementPathNameError, ElementPathKeyError, MissingContextError
 from elementpath.helpers import upper_camel_case
@@ -25,8 +25,7 @@ from elementpath.tdop import Parser
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.sequence_types import match_sequence_type
 from elementpath.schema_proxy import AbstractSchemaProxy
-from elementpath.xpath_context import ContextType
-from elementpath.xpath_tokens import XPathTokenType, XPathToken, XPathAxis, \
+from elementpath.xpath_tokens import XPathToken, XPathAxis, \
     XPathFunction, ProxyToken
 
 

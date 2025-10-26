@@ -10,13 +10,10 @@
 import operator
 from collections.abc import Callable
 from decimal import Decimal
-from typing import Any, Optional, TYPE_CHECKING, Union
+from typing import Any, Union
 
 from elementpath.helpers import reversed_sub, reversed_truediv, BOOLEAN_VALUES, get_double
 from .any_types import AnyAtomicType
-
-if TYPE_CHECKING:
-    from elementpath.datatypes import AbstractBinary
 
 UntypedArgType = Union[str, bytes, bool, float, Decimal, 'UntypedAtomic', AnyAtomicType]
 
@@ -158,7 +155,7 @@ class UntypedAtomic(AnyAtomicType):
     def __mod__(self, other: Any) -> Any:
         return self._operator(operator.mod, other)
 
-    def __round__(self, n: Optional[int] = None) -> float:
+    def __round__(self, n: int | None = None) -> float:
         return round(float(self.value), ndigits=n)
 
     def __str__(self) -> str:

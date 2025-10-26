@@ -11,7 +11,7 @@ import re
 import math
 import operator
 from calendar import isleap, leapdays
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from decimal import Decimal
 from typing import Any, Generic, Optional, SupportsFloat, TypeVar, Union
 from urllib.parse import urlsplit
@@ -144,11 +144,11 @@ def is_idrefs(value: Optional[str]) -> bool:
 node_position = operator.attrgetter('position')
 
 
-def reversed_sub(a: Any, b: Any) -> bool:
+def reversed_sub(a: Any, b: Any) -> Any:
     return operator.sub(b, a)
 
 
-def reversed_truediv(a: Any, b: Any) -> bool:
+def reversed_truediv(a: Any, b: Any) -> Any:
     return operator.truediv(b, a)
 
 

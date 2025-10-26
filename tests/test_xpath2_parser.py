@@ -29,7 +29,7 @@ import xml.etree.ElementTree as ET
 
 from elementpath import XPath2Parser, XPathContext, XPathSchemaContext, \
     MissingContextError, ElementNode, select, iter_select, get_node_tree
-from elementpath.datatypes import atomic_sequence_types, DateTime, Date, Date10, \
+from elementpath.datatypes import builtin_sequence_types, DateTime, Date, Date10, \
     Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.collations import get_locale_category
@@ -82,7 +82,7 @@ def get_sequence_type(value, xsd_version='1.0'):
             return 'xs:QName'
 
         if xsd_version == '1.1':
-            if atomic_sequence_types['xs:dateTimeStamp'].is_valid(value):
+            if builtin_sequence_types['xs:dateTimeStamp'].is_valid(value):
                 return 'xs:dateTimeStamp'
 
         for st in ['xs:string', 'xs:boolean', 'xs:decimal', 'xs:float', 'xs:double',
@@ -90,7 +90,7 @@ def get_sequence_type(value, xsd_version='1.0'):
                    'xs:anyURI', 'xs:gYear', 'xs:gYearMonth', 'xs:time', 'xs:duration',
                    'xs:dayTimeDuration', 'xs:yearMonthDuration', 'xs:base64Binary',
                    'xs:hexBinary']:
-            if atomic_sequence_types[st].is_valid(value):
+            if builtin_sequence_types[st].is_valid(value):
                 return st
 
     raise ValueError("Inconsistent sequence type for {!r}".format(value))

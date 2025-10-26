@@ -16,8 +16,9 @@ from xml.etree import ElementTree
 
 from elementpath.exceptions import ElementPathRuntimeError, \
     ElementPathValueError, ElementPathKeyError
-from elementpath.aliases import NamespacesType, NsmapType, SequenceType
-from elementpath.datatypes import UntypedAtomic, AtomicType, AnyURI, QName
+from elementpath.aliases import AtomicType, NamespacesType, NsmapType, SequenceType, \
+    TaggedNodeType, ParentNodeType, ChildNodeType, ElementMapType
+from elementpath.datatypes import UntypedAtomic, AnyURI, QName
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_TYPE, \
     XML_ID, XSD_IDREF, XSD_IDREFS, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, \
@@ -30,25 +31,16 @@ from elementpath.decoder import get_atomic_sequence
 from elementpath.etree import etree_iter_strings, is_etree_element_instance
 
 if TYPE_CHECKING:
-    from elementpath.schema_proxy import AbstractSchemaProxy
+    from elementpath.schema_proxy import AbstractSchemaProxy  # noqa: F401
 
-__all__ = ['TypedNodeType', 'ParentNodeType', 'ChildNodeType', 'ElementMapType',
-           'XPathNodeTree', 'XPathNode', 'NamespaceNode', 'AttributeNode', 'TextAttributeNode',
+__all__ = ['XPathNodeTree', 'XPathNode', 'NamespaceNode', 'AttributeNode', 'TextAttributeNode',
            'SchemaAttributeNode', 'TextNode', 'CommentNode', 'ProcessingInstructionNode',
            'ElementNode', 'EtreeElementNode', 'LazyElementNode', 'SchemaElementNode',
-           'DocumentNode', 'EtreeDocumentNode', 'RootNodeType', 'RootArgType']
+           'DocumentNode', 'EtreeDocumentNode']
 
 _EMPTY_NAME_PATH = f'*[Q{{{XPATH_FUNCTIONS_NAMESPACE}}}local-name()=""]'
 
 _XSD_SPECIAL_TYPES = frozenset((XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE))
-
-TypedNodeType = Union['AttributeNode', 'ElementNode']
-TaggedNodeType = Union['ElementNode', 'CommentNode', 'ProcessingInstructionNode']
-ParentNodeType = Union['DocumentNode', 'ElementNode']
-ChildNodeType = Union['TextNode', TaggedNodeType]
-ElementMapType = dict[object, TaggedNodeType]
-FindAttrType = Optional[XsdAttributeProtocol]
-FindElemType = Optional[XsdElementProtocol]
 
 
 class XPathNodeTree:
@@ -1807,11 +1799,3 @@ class EtreeDocumentNode(DocumentNode):
             return True
         else:
             return sum(isinstance(x, ElementNode) for x in root) != 1
-
-
-###
-# type annotation aliases
-XPathNodeType = Union[DocumentNode, NamespaceNode, AttributeNode, TextNode,
-                      ElementNode, CommentNode, ProcessingInstructionNode]
-RootNodeType = Union[DocumentNode, ElementNode]
-RootArgType = Union[DocumentType, ElementType, SchemaElemType, RootNodeType]

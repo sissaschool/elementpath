@@ -12,19 +12,18 @@ import warnings
 from collections.abc import Iterator
 from typing import Any, Optional, Union
 
-from elementpath.aliases import NamespacesType, InputType
-from elementpath.xpath_nodes import RootArgType
-from elementpath.xpath_context import ItemArgType, XPathContext
+from elementpath.aliases import NamespacesType, InputType, ParserClassType, \
+    RootArgType, ItemArgType
+from elementpath.xpath_context import XPathContext
 from elementpath.xpath2 import XPath2Parser
 from elementpath.datatypes import Timezone
 from elementpath.schema_proxy import AbstractSchemaProxy
-from elementpath.xpath_tokens import ParserClassType
 
 
 def select(root: Optional[RootArgType],
            path: str,
            namespaces: Optional[NamespacesType] = None,
-           parser: Optional['ParserClassType'] = None,
+           parser: Optional[ParserClassType] = None,
            uri: Optional[str] = None,
            fragment: Optional[bool] = None,
            item: Optional[ItemArgType] = None,
@@ -81,7 +80,7 @@ def select(root: Optional[RootArgType],
 def iter_select(root: Optional[RootArgType],
                 path: str,
                 namespaces: Optional[NamespacesType] = None,
-                parser: Optional['ParserClassType'] = None,
+                parser: Optional[ParserClassType] = None,
                 uri: Optional[str] = None,
                 fragment: Optional[bool] = None,
                 item: Optional[ItemArgType] = None,
@@ -154,7 +153,7 @@ class Selector(object):
     """
     def __init__(self, path: str,
                  namespaces: Optional[NamespacesType] = None,
-                 parser: Optional['ParserClassType'] = None,
+                 parser: Optional[ParserClassType] = None,
                  **kwargs: Any) -> None:
 
         if 'variables' in kwargs:

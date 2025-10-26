@@ -20,12 +20,14 @@ from typing import Any, cast, NoReturn, Optional, Union
 from elementpath.exceptions import ElementPathKeyError, ElementPathTypeError
 from elementpath.helpers import collapse_white_spaces, node_position
 from elementpath.datatypes import AbstractDateTime, AnyURI, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericProxy, ArithmeticProxy, NumericType, ArithmeticType
-from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
+    YearMonthDuration, NumericProxy, ArithmeticProxy
+from elementpath.aliases import NumericType, ArithmeticType, XPathParserType, \
+    ParentNodeType, ContextType, ItemType, XPathTokenType
+from elementpath.xpath_context import XPathSchemaContext
 from elementpath.namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
-from elementpath.xpath_nodes import ParentNodeType, XPathNode, \
+from elementpath.xpath_nodes import XPathNode, \
     ElementNode, AttributeNode, DocumentNode
-from elementpath.xpath_tokens import XPathParserType, XPathToken, XPathTokenType
+from elementpath.xpath_tokens import XPathToken
 
 from .xpath1_parser import XPath1Parser
 

@@ -25,7 +25,8 @@ from elementpath.namespaces import XSD_NAMESPACE, XML_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
 from elementpath.collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
-from elementpath.datatypes import builtin_xsd_types, AtomicType, QName
+from elementpath.datatypes import builtin_xsd_types, QName
+from elementpath.aliases import AtomicType
 from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathConstructor
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.sequence_types import is_sequence_type, match_sequence_type

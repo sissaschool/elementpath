@@ -24,7 +24,7 @@ from urllib.parse import urlsplit
 from urllib.request import urlopen
 from urllib.error import URLError
 
-from elementpath.aliases import Emptiable
+from elementpath.aliases import Emptiable, ContextType, ItemType, FunctionArgType
 from elementpath.exceptions import ElementPathError
 from elementpath.tdop import MultiLabel
 from elementpath.helpers import OCCURRENCE_INDICATORS, Patterns, \
@@ -32,17 +32,17 @@ from elementpath.helpers import OCCURRENCE_INDICATORS, Patterns, \
 from elementpath.namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE
 from elementpath.datatypes import NumericProxy, QName, Date10, DateTime10, Time, \
-    AnyURI, AtomicType, NumericType
+    AnyURI
+from elementpath.aliases import AtomicType, NumericType
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.etree import defuse_xml
 from elementpath.xpath_nodes import XPathNode, ElementNode, NamespaceNode, \
     DocumentNode, EtreeElementNode, SchemaElementNode
 from elementpath.tree_builders import get_node_tree
-from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, XPathConstructor
+from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction
 from elementpath.serialization import get_serialization_params, serialize_to_xml, \
     serialize_to_json
-from elementpath.xpath_context import ContextType, ItemType, FunctionArgType, \
-    XPathContext, XPathSchemaContext
+from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.regex import translate_pattern, RegexError
 
 from ._xpath30_operators import XPath30Parser

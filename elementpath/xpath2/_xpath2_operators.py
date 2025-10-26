@@ -17,7 +17,8 @@ from collections.abc import Iterator
 from decimal import Decimal, DivisionByZero
 from typing import cast, Union
 
-from elementpath.aliases import Emptiable, SequenceType
+from elementpath.aliases import AtomicType, NumericType, Emptiable, SequenceType, \
+    ContextType, ItemType
 from elementpath.protocols import XsdAttributeProtocol
 from elementpath.exceptions import ElementPathError
 from elementpath.helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal, \
@@ -25,18 +26,18 @@ from elementpath.helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_no
 from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED, get_namespace, get_expanded_name
 from elementpath.datatypes import builtin_xsd_types, UntypedAtomic, QName, AnyURI, \
-    Duration, Integer, DoubleProxy10, AtomicType, NumericType
+    Duration, Integer, DoubleProxy10
 from elementpath.decoder import get_atomic_sequence
 from elementpath.xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
 from elementpath.sequence_types import is_instance
-from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
+from elementpath.xpath_context import XPathSchemaContext
 from elementpath.xpath_tokens import XPathToken, XPathFunction, XPathConstructor
 
 from .xpath2_parser import XPath2Parser
 
 __all__ = ['XPath2Parser']
 
-COMPARISON_OPERATORS = {'eq', 'ne', 'lt', 'le', 'gt', 'ge'}
+COMPARISON_OPERATORS = frozenset(('eq', 'ne', 'lt', 'le', 'gt', 'ge'))
 
 register = XPath2Parser.register
 infix = XPath2Parser.infix
@@ -424,7 +425,6 @@ class _CastableOperator(XPathToken):
             return self[1].occurrence == '?'
 
         arg = self.data_value(result[0])
-        value: Emptiable[AtomicType]
         try:
             if hasattr(self.constructor, 'cast'):
                 if self.constructor.symbol == 'QName':
@@ -486,9 +486,8 @@ class _CastOperator(_CastableOperator):
             return value
 
 
-#XPath2Parser.symbol_table['castable'] = _CastableOperator
-#XPath2Parser.symbol_table['cast'] = _CastOperator
-
+# XPath2Parser.symbol_table['castable'] = _CastableOperator
+# XPath2Parser.symbol_table['cast'] = _CastOperator
 
 @method('castable', bp=62)
 @method('cast', bp=63)
@@ -589,7 +588,7 @@ def evaluate_comma_operator(self: XPathToken, context: ContextType = None) \
     results = []
     for op in self:
         result = op.evaluate(context)
-        if isinstance(result, list):
+        if isinstance(result, (list, tuple)):
             results.extend(result)
         elif result is not None:
             results.append(result)

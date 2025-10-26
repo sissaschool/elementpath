@@ -93,5 +93,3 @@ class QName(AbstractQName):
 
 class Notation(AbstractQName):
     name = 'NOTATION'
-
-

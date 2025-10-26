@@ -23,17 +23,18 @@ from string import ascii_letters
 from typing import cast, Optional, Union
 from urllib.parse import urlsplit, quote as urllib_quote
 
-from elementpath.aliases import Emptiable, AnyNsmapType
+from elementpath.aliases import Emptiable, AnyNsmapType, ContextType, ItemType
 from elementpath.exceptions import ElementPathValueError
 from elementpath.helpers import Patterns, is_idrefs, is_xml_codepoint, round_number
-from elementpath.datatypes import AtomicType, DateTime10, DateTime, Date10, Date, \
+from elementpath.datatypes import DateTime10, DateTime, Date10, Date, \
     Float, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
-    UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy, NumericType
+    UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
+from elementpath.aliases import AtomicType, NumericType
 from elementpath.namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_ID, XML_LANG
 from elementpath.compare import deep_equal
 from elementpath.sequence_types import match_sequence_type
-from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
+from elementpath.xpath_context import XPathSchemaContext
 from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, EtreeElementNode
 from elementpath.xpath_tokens import XPathFunction
 from elementpath.regex import RegexError, translate_pattern
@@ -1699,6 +1700,7 @@ def evaluate_collection_function(self: XPathFunction, context: ContextType = Non
         raise self.error('XPDY0050', msg)
 
     return collection
+
 
 ###
 # The trace function

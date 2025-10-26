@@ -9,10 +9,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from timeit import timeit
-from memory_profiler import profile
-
-from elementpath import XPath1Parser
-from elementpath.xpath_tokens import ValueToken
+from elementpath.datatypes.sequences import EmptySequenceType, EmptySequence
+from elementpath.datatypes.sequences import XPathSequence
 
 
 def run_timeit(stmt='pass', setup='pass', number=1000):
@@ -20,22 +18,8 @@ def run_timeit(stmt='pass', setup='pass', number=1000):
     print("{}: {}s".format(stmt, seconds))
 
 
-@profile
-def xpath_none_null_values():
-    null_values = [None for _ in range(50000)]
-    return null_values
-
-
-@profile
-def xpath_list_null_values():
-    null_values = [[] for _ in range(50000)]
-    return null_values
-
-
-@profile
-def xpath_tuple_null_values():
-    null_values = [() for _ in range(50000)]
-    return null_values
+def fg():
+    yield from range(10000)
 
 
 def is_empty_sequence(s):
@@ -49,21 +33,32 @@ if __name__ == '__main__':
     print()
 
     NUMBER = 1000
-    SETUP = 'from __main__ import obj1, obj2, is_empty_sequence'
+    SETUP = 'from __main__ import fg, obj1, obj2, t1, t2, t3, is_empty_sequence, EmptySequence, XPathSequence'
     obj1 = []
     obj2 = ['foo', 'bar']
+    t1 = (9, 8)
+    t2 = ()
+    t3 = ()
 
     print("*** Profile evaluation ***\n")
 
-    run_timeit('[None for _ in range(10000)]', number=NUMBER)
-    run_timeit('[[] for _ in range(10000)]', number=NUMBER)
-    run_timeit('[() for _ in range(10000)]', number=NUMBER)
+    run_timeit('[None for _ in range(10000)]', SETUP, NUMBER)
+    run_timeit('[EmptySequence for _ in range(10000)]', SETUP, NUMBER)
+    run_timeit('[[] for _ in range(10000)]', SETUP, NUMBER)
+    run_timeit('[() for _ in range(10000)]', SETUP, NUMBER)
+    run_timeit('[XPathSequence() for _ in range(10000)]', SETUP, NUMBER)
 
     print()
 
     run_timeit('for _ in range(10000): obj1 is None', SETUP, NUMBER)
+    run_timeit('for _ in range(10000): obj1 is EmptySequence', SETUP, NUMBER)
     run_timeit('for _ in range(10000): obj1 == []', SETUP, NUMBER)
     run_timeit('for _ in range(10000): obj1 == ()', SETUP, NUMBER)
+    run_timeit('for _ in range(10000): t1 == t2', SETUP, NUMBER)
+    run_timeit('for _ in range(10000): t1 is t2', SETUP, NUMBER)
+    run_timeit('for _ in range(10000): t2 == t3', SETUP, NUMBER)
+    run_timeit('for _ in range(10000): t2 is t3', SETUP, NUMBER)
+
     run_timeit('for _ in range(10000): not obj1 and isinstance(obj1, list)', SETUP, NUMBER)
     run_timeit('for _ in range(10000): not obj1 and isinstance(obj1, tuple)', SETUP, NUMBER)
     run_timeit('for _ in range(10000): is_empty_sequence(obj1)', SETUP, NUMBER)
@@ -75,11 +70,21 @@ if __name__ == '__main__':
     run_timeit('for _ in range(10000): obj2 == ()', SETUP, NUMBER)
     run_timeit('for _ in range(10000): not obj2 and isinstance(obj2, list)', SETUP, NUMBER)
     run_timeit('for _ in range(10000): not obj2 and isinstance(obj2, tuple)', SETUP, NUMBER)
+    run_timeit('for _ in range(10000): not obj2 and isinstance(obj2, (list, tuple))', SETUP, NUMBER)
     run_timeit('for _ in range(10000): is_empty_sequence(obj2)', SETUP, NUMBER)
 
     print()
-    print("*** Profile memory ***\n")
 
-    xpath_none_null_values()
-    xpath_list_null_values()
-    xpath_tuple_null_values()
+    run_timeit('tuple(x for x in range(10000))', SETUP, NUMBER)
+    run_timeit('tuple(range(10000))', SETUP, NUMBER)
+    run_timeit('list(x for x in range(10000))', SETUP, NUMBER)
+    run_timeit('list(range(10000))', SETUP, NUMBER)
+    run_timeit('[x for x in range(10000)]', SETUP, NUMBER)
+    run_timeit('tuple([x for x in range(10000)])', SETUP, NUMBER)
+    run_timeit('tuple((x for x in range(10000)))', SETUP, NUMBER)
+
+    run_timeit('tuple(fg())', SETUP, NUMBER)
+    run_timeit('list(fg())', SETUP, NUMBER)
+    run_timeit('[x for x in fg()]', SETUP, NUMBER)
+    run_timeit('tuple([x for x in fg()])', SETUP, NUMBER)
+    run_timeit('tuple((x for x in fg()))', SETUP, NUMBER)

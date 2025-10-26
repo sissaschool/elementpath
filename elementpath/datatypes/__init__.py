@@ -12,12 +12,9 @@ XSD atomic datatypes subpackage. Includes a class for UntypedAtomic data and
 classes for other XSD built-in types. This subpackage raises only built-in
 exceptions in order to be reusable in other packages.
 """
-from decimal import Decimal as _Decimal
-from typing import Union as _Union
-
-from .any_types import builtin_xsd_types, atomic_sequence_types, \
+from .any_types import builtin_xsd_types, builtin_sequence_types, \
     BuiltinTypeMeta, AnyAtomicType
-from .empty import EmptySequenceType, EmptySequence
+from .sequences import XPathSequence, EmptySequence
 from .numeric import Float, Float10, Integer, Int, Long, \
     NegativeInteger, PositiveInteger, NonNegativeInteger, \
     NonPositiveInteger, Short, Byte, UnsignedByte, UnsignedInt, \
@@ -37,12 +34,21 @@ from .proxies import ErrorProxy, BooleanProxy, DecimalProxy, DoubleProxy, \
     DoubleProxy10, StringProxy, NumericProxy, ArithmeticProxy
 
 ###
-# Aliases for type annotations
-AtomicType = _Union[str, int, float, _Decimal, bool, AnyAtomicType]
-NumericType = _Union[int, float, _Decimal]
-ArithmeticType = _Union[NumericType, AbstractDateTime, Duration, UntypedAtomic]
-
-###
 # Alias kept for backward compatibility, will be removed in v6.0.
 OrderedDateTime = AbstractDateTime
 AtomicTypeMeta = BuiltinTypeMeta
+
+__all__ = ['AbstractBinary', 'AbstractDateTime', 'AbstractListType', 'AbstractQName',
+           'AnyAtomicType', 'AnyURI', 'ArithmeticProxy', 'AtomicTypeMeta', 'Base64Binary',
+           'BooleanProxy', 'BuiltinTypeMeta', 'Byte', 'Date', 'Date10', 'DateTime',
+           'DateTime10', 'DateTimeStamp', 'DayTimeDuration', 'DecimalProxy', 'DoubleProxy',
+           'DoubleProxy10', 'Duration', 'EmptySequence', 'Entities', 'Entity', 'ErrorProxy',
+           'Float', 'Float10', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
+           'GregorianYear', 'GregorianYear10', 'GregorianYearMonth', 'GregorianYearMonth10',
+           'HexBinary', 'Id', 'Idref', 'Idrefs', 'Int', 'Integer', 'Language', 'Long',
+           'NCName', 'NMToken', 'NMTokens', 'Name', 'NegativeInteger', 'NonNegativeInteger',
+           'NonPositiveInteger', 'NormalizedString', 'Notation', 'NumericProxy',
+           'OrderedDateTime', 'PositiveInteger', 'QName', 'Short', 'StringProxy', 'Time',
+           'Timezone', 'UnsignedByte', 'UnsignedInt', 'UnsignedLong', 'UnsignedShort',
+           'UntypedAtomic', 'XPathSequence', 'XsdToken', 'YearMonthDuration',
+           'builtin_sequence_types', 'builtin_xsd_types']

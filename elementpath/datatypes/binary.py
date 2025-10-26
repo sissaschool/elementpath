@@ -26,6 +26,7 @@ class AbstractBinary(AnyAtomicType):
     :param ordered: a boolean that enable total ordering for the instance, `False` for default.
     """
     value: bytes
+
     __slots__ = ('value', 'ordered')
 
     @classmethod

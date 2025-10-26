@@ -13,9 +13,10 @@ XPath 1.0 implementation - part 4 (axes)
 from collections.abc import Iterator
 from typing import cast
 
-from elementpath.xpath_nodes import ChildNodeType, AttributeNode, ElementNode, \
-    NamespaceNode, XPathNode, ParentNodeType
-from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
+from elementpath.aliases import ParentNodeType, ChildNodeType, ContextType, ItemType
+from elementpath.xpath_nodes import AttributeNode, ElementNode, \
+    NamespaceNode, XPathNode
+from elementpath.xpath_context import XPathSchemaContext
 from elementpath.xpath_tokens import XPathAxis
 
 from ._xpath1_functions import XPath1Parser

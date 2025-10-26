@@ -24,11 +24,12 @@ from typing import Any, cast, Optional
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
-from elementpath.aliases import SequenceType, Emptiable
+from elementpath.aliases import SequenceType, Emptiable, AtomicType, NumericType, \
+    ContextType, ItemType, FunctionArgType
 from elementpath.protocols import ElementProtocol, EtreeElementProtocol
 from elementpath.datatypes import AnyAtomicType, AbstractBinary, AbstractDateTime, \
     DateTime, Timezone, Duration, BooleanProxy, DoubleProxy, DoubleProxy10, \
-    NumericProxy, UntypedAtomic, Base64Binary, Language, AtomicType, NumericType
+    NumericProxy, UntypedAtomic, Base64Binary, Language
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.helpers import collapse_white_spaces, is_xml_codepoint, \
     escape_json_string, unescape_json_string, not_equal
@@ -39,7 +40,7 @@ from elementpath.compare import get_key_function, same_key
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, DocumentNode, EtreeElementNode
 from elementpath.xpath_tokens import XPathFunction, XPathConstructor, XPathMap, XPathArray
-from elementpath.xpath_context import ContextType, ItemType, FunctionArgType, XPathSchemaContext
+from elementpath.xpath_context import XPathSchemaContext
 from elementpath.validators import validate_json_to_xml
 
 from ._xpath31_operators import XPath31Parser

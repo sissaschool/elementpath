@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2022, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,14 +11,13 @@ from collections import deque
 from collections.abc import Iterator
 from typing import cast, Any, Optional, Union
 
-from elementpath.aliases import NamespacesType
+import elementpath.aliases as ta
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.protocols import LxmlElementProtocol, DocumentProtocol, \
     LxmlDocumentProtocol, XsdElementProtocol, DocumentType, ElementType, \
     SchemaElemType
 from elementpath.etree import is_etree_document, is_etree_element, is_etree_element_instance
-from elementpath.xpath_nodes import ChildNodeType, ElementMapType, TextNode, \
-    ElementNode, SchemaElementNode, DocumentNode, RootNodeType, RootArgType, \
+from elementpath.xpath_nodes import TextNode, ElementNode, SchemaElementNode, DocumentNode, \
     EtreeElementNode, EtreeDocumentNode, CommentNode, ProcessingInstructionNode
 
 __all__ = ['get_node_tree', 'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree']
@@ -31,10 +30,10 @@ def is_schema(obj: Any) -> bool:
     return hasattr(obj, 'xsd_version') and hasattr(obj, 'maps') and not hasattr(obj, 'parent')
 
 
-def get_node_tree(root: RootArgType,
-                  namespaces: Optional[NamespacesType] = None,
+def get_node_tree(root: ta.RootArgType,
+                  namespaces: Optional[ta.NamespacesType] = None,
                   uri: Optional[str] = None,
-                  fragment: Optional[bool] = None) -> RootNodeType:
+                  fragment: Optional[bool] = None) -> ta.RootNodeType:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.
 
@@ -80,9 +79,9 @@ def get_node_tree(root: RootArgType,
 
 
 def build_node_tree(root: ElementTreeRootType,
-                    namespaces: Optional[NamespacesType] = None,
+                    namespaces: Optional[ta.NamespacesType] = None,
                     uri: Optional[str] = None,
-                    fragment: Optional[bool] = None) -> RootNodeType:
+                    fragment: Optional[bool] = None) -> ta.RootNodeType:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.
 
@@ -96,7 +95,7 @@ def build_node_tree(root: ElementTreeRootType,
     """
     elem: ElementType
     parent: Any
-    child: ChildNodeType
+    child: ta.ChildNodeType
     children: Iterator[Any]
     document: Optional[DocumentProtocol]
 
@@ -191,7 +190,7 @@ def build_node_tree(root: ElementTreeRootType,
 
 def build_lxml_node_tree(root: LxmlRootType,
                          uri: Optional[str] = None,
-                         fragment: Optional[bool] = None) -> RootNodeType:
+                         fragment: Optional[bool] = None) -> ta.RootNodeType:
     """
     Returns a tree of XPath nodes that wrap the provided lxml root tree.
 
@@ -202,10 +201,10 @@ def build_lxml_node_tree(root: LxmlRootType,
     `False` is provided creates a dummy document when the root is an Element instance. \
     For default the root node kind is preserved.
     """
-    root_node: RootNodeType
+    root_node: ta.RootNodeType
     document: Optional[LxmlDocumentProtocol]
     parent: Any
-    child: ChildNodeType
+    child: ta.ChildNodeType
     children: Iterator[Any]
 
     position = 1
@@ -331,8 +330,8 @@ def build_lxml_node_tree(root: LxmlRootType,
 
 def build_schema_node_tree(root: SchemaElemType,
                            uri: Optional[str] = None,
-                           elements: Optional[ElementMapType] = None,
-                           global_elements: Optional[list[ChildNodeType]] = None) \
+                           elements: Optional[ta.ElementMapType] = None,
+                           global_elements: Optional[list[ta.ChildNodeType]] = None) \
         -> SchemaElementNode:
     """
     Returns a graph of XPath nodes that wrap the provided XSD schema structure.
@@ -353,7 +352,7 @@ def build_schema_node_tree(root: SchemaElemType,
 
     position = 1
     if hasattr(root, 'namespaces'):
-        namespaces: NamespacesType = root.namespaces
+        namespaces: ta.NamespacesType = root.namespaces
         ns_pos_offset = len(namespaces) + int('xml' not in namespaces) + 1
     else:
         namespaces = {}
