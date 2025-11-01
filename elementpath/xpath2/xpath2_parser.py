@@ -25,7 +25,7 @@ from elementpath.namespaces import XSD_NAMESPACE, XML_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
 from elementpath.collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
-from elementpath.datatypes import builtin_xsd_types, QName
+from elementpath.datatypes import builtin_atomic_types, QName
 from elementpath.aliases import AtomicType
 from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathConstructor
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
@@ -263,7 +263,7 @@ class XPath2Parser(XPath1Parser):
             'rbp': bp,
             'sequence_types': sequence_types,
             'name': type_name,
-            'type_class': builtin_xsd_types.get(type_name),
+            'type_class': builtin_atomic_types.get(type_name),
         }
         token_class = cls.register(symbol, **kwargs)
 

@@ -31,7 +31,7 @@ from elementpath.helpers import OCCURRENCE_INDICATORS, Patterns, \
     is_xml_codepoint, node_position
 from elementpath.namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE
-from elementpath.datatypes import NumericProxy, QName, Date10, DateTime10, Time, \
+from elementpath.datatypes import NumericProxy, QName, Date, DateTime, Time, \
     AnyURI
 from elementpath.aliases import AtomicType, NumericType
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
@@ -838,12 +838,12 @@ function('format-time', nargs=(2, 5),
 @method('format-time')
 def evaluate_format_date_time_functions(self: XPathFunction, context: ContextType = None) \
         -> Emptiable[str]:
-    cls: type[Union[DateTime10, Date10, Time]]
+    cls: type[Union[DateTime, Date, Time]]
     if self.symbol == 'format-dateTime':
-        cls = DateTime10
+        cls = DateTime
         invalid_markers = ''
     elif self.symbol == 'format-date':
-        cls = Date10
+        cls = Date
         invalid_markers = 'HhPmsf'
     else:
         cls = Time

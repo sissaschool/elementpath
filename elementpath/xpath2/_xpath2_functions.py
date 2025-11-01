@@ -156,7 +156,7 @@ def evaluate_namespace_uri_for_prefix_function(
     if not isinstance(elem, EtreeElementNode):
         return []
 
-    ns_uris = {get_namespace(e.tag) for e in elem.value.iter() if not callable(e.tag)}
+    ns_uris = {get_namespace(e.tag) for e in elem.value.iter() if isinstance(e.tag, str)}
     for p, uri in self.parser.namespaces.items():
         if uri in ns_uris:
             if p == prefix:
@@ -1260,7 +1260,7 @@ def evaluate_seconds_from_duration_function(self: XPathFunction, context: Contex
 def evaluate_from_datetime_functions(self: XPathFunction, context: ContextType = None) \
         -> Emptiable[Union[int, Decimal]]:
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
-    item: Union[DateTime10, DateTime, None] = self.get_argument(self.context or context, cls=cls)
+    item: DateTime | None = self.get_argument(self.context or context, cls=cls)
     if item is None:
         return []
     elif self.symbol.startswith('year'):
@@ -1284,7 +1284,7 @@ def evaluate_from_datetime_functions(self: XPathFunction, context: ContextType =
 def evaluate_timezone_from_datetime_function(self: XPathFunction, context: ContextType = None) \
         -> Emptiable[DayTimeDuration]:
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
-    item: Union[DateTime10, DateTime, None] = self.get_argument(self.context or context, cls=cls)
+    item: DateTime | None = self.get_argument(self.context or context, cls=cls)
     if item is None or item.tzinfo is None:
         return []
     seconds = Decimal.from_float(item.tzinfo.offset.total_seconds())
@@ -1299,7 +1299,7 @@ def evaluate_timezone_from_datetime_function(self: XPathFunction, context: Conte
 def evaluate_from_date_functions(self: XPathFunction, context: ContextType = None) \
         -> Emptiable[Union[int, DayTimeDuration]]:
     cls = Date if self.parser.xsd_version == '1.1' else Date10
-    item: Union[Date10, Date, None] = self.get_argument(self.context or context, cls=cls)
+    item: Date | None = self.get_argument(self.context or context, cls=cls)
     if item is None:
         return []
     elif self.symbol.startswith('year'):
@@ -1353,19 +1353,19 @@ def evaluate_timezone_from_time_function(self: XPathFunction, context: ContextTy
 @method(function('adjust-dateTime-to-timezone', nargs=(1, 2),
                  sequence_types=('xs:dateTime?', 'xs:dayTimeDuration?', 'xs:dateTime?')))
 def evaluate_adjust_datetime_to_timezone_function(
-        self: XPathFunction, context: ContextType = None) -> Emptiable[Union[DateTime10, Date10]]:
+        self: XPathFunction, context: ContextType = None) -> Emptiable[DateTime]:
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     result = self.adjust_datetime(self.context or context, cls)
-    return cast(Emptiable[Union[DateTime10, DateTime]], result)
+    return cast(Emptiable[DateTime], result)
 
 
 @method(function('adjust-date-to-timezone', nargs=(1, 2),
                  sequence_types=('xs:date?', 'xs:dayTimeDuration?', 'xs:date?')))
 def evaluate_adjust_date_to_timezone_function(
-        self: XPathFunction, context: ContextType = None) -> Emptiable[Union[Date10, Date]]:
+        self: XPathFunction, context: ContextType = None) -> Emptiable[Date]:
     cls = Date if self.parser.xsd_version == '1.1' else Date10
     result = self.adjust_datetime(self.context or context, cls)
-    return cast(Emptiable[Union[Date10, Date]], result)
+    return cast(Emptiable[Date], result)
 
 
 @method(function('adjust-time-to-timezone', nargs=(1, 2),
@@ -1394,12 +1394,12 @@ def evaluate_static_base_uri_function(self: XPathFunction, context: ContextType 
 # Dynamic context functions
 @method(function('current-dateTime', nargs=0, sequence_types=('xs:dateTime',)))
 def evaluate_current_datetime_function(self: XPathFunction, context: ContextType = None) \
-        -> Union[DateTime10, DateTime]:
+        -> Union[DateTime]:
     if self.context is not None:
         context = self.context
 
     dt = datetime.datetime.now() if context is None else context.current_dt
-    if self.parser.xsd_version == '1.1':
+    if self.parser.xsd_version != '1.0':
         return DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute,
                         dt.second, dt.microsecond, dt.tzinfo)
     return DateTime10(dt.year, dt.month, dt.day, dt.hour, dt.minute,
@@ -1407,8 +1407,7 @@ def evaluate_current_datetime_function(self: XPathFunction, context: ContextType
 
 
 @method(function('current-date', nargs=0, sequence_types=('xs:date',)))
-def evaluate_current_date_function(self: XPathFunction, context: ContextType = None) \
-        -> Union[Date10, Date]:
+def evaluate_current_date_function(self: XPathFunction, context: ContextType = None) -> Date:
     if self.context is not None:
         context = self.context
 

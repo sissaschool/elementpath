@@ -33,7 +33,7 @@ from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode
 from elementpath.datatypes import DecimalProxy, AbstractDateTime, AnyURI, \
-    UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
+    UntypedAtomic, Timezone, DateTime, Date, DayTimeDuration, Duration, \
     Integer, QName, AnyAtomicType
 from elementpath.sequence_types import is_sequence_type_restriction, match_sequence_type
 from elementpath.tdop import Token, MultiLabel
@@ -751,9 +751,9 @@ class XPathToken(Token[ta.XPathTokenType]):
         _tzinfo = _item.tzinfo
         try:
             if _tzinfo is not None and timezone is not None:
-                if isinstance(_item, DateTime10):
+                if isinstance(_item, DateTime):
                     _item += timezone.offset
-                elif not isinstance(item, Date10):
+                elif not isinstance(item, Date):
                     _item += timezone.offset - _tzinfo.offset
                 elif timezone.offset < _tzinfo.offset:
                     _item -= timezone.offset - _tzinfo.offset
@@ -1469,7 +1469,7 @@ class XPathConstructor(XPathFunction):
     """
     A token for processing XPath 2.0+ constructors.
     """
-    type_class: type[AnyAtomicType]
+    type_class: type[ta.AtomicType]
 
     @staticmethod
     def cast(value: Any) -> ta.AtomicType:

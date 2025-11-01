@@ -25,7 +25,7 @@ from elementpath.helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_no
     node_position, get_double
 from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED, get_namespace, get_expanded_name
-from elementpath.datatypes import builtin_xsd_types, UntypedAtomic, QName, AnyURI, \
+from elementpath.datatypes import builtin_atomic_types, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
 from elementpath.decoder import get_atomic_sequence
 from elementpath.xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
@@ -319,6 +319,8 @@ def evaluate_instance_expression(self: XPathToken, context: ContextType = None) 
             try:
                 if not is_instance(item, qname, self.parser):
                     return False
+            except TypeError as err:
+                raise self.error('XPST0051', err) from None
             except KeyError:
                 msg = f"atomic type {type_name!r} not found in in-scope schema types"
                 raise self.error('XPST0051', msg) from None
@@ -399,8 +401,8 @@ class _CastableOperator(XPathToken):
         type_name = self[1][1].name if self[1].symbol == ':' else self[1].name
         if type_name in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
             raise self.error('XPST0080')
-        elif type_name in builtin_xsd_types:
-            builtin_type = builtin_xsd_types[type_name]
+        elif type_name in builtin_atomic_types:
+            builtin_type = builtin_atomic_types[type_name]
             token_class = self.parser.symbol_table.get(builtin_type.name)
             if issubclass(token_class, XPathConstructor):
                 self.constructor = token_class(self.parser)

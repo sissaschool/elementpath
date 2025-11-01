@@ -12,8 +12,7 @@ XSD atomic datatypes subpackage. Includes a class for UntypedAtomic data and
 classes for other XSD built-in types. This subpackage raises only built-in
 exceptions in order to be reusable in other packages.
 """
-from .any_types import builtin_xsd_types, builtin_sequence_types, \
-    BuiltinTypeMeta, AnyAtomicType
+from .any_types import builtin_atomic_types, AtomicTypeMeta, AnyAtomicType
 from .sequences import XPathSequence, EmptySequence
 from .numeric import Float, Float10, Integer, Int, Long, \
     NegativeInteger, PositiveInteger, NonNegativeInteger, \
@@ -23,7 +22,7 @@ from .untyped import UntypedAtomic
 from .qname import AbstractQName, QName, Notation
 from .string import NormalizedString, XsdToken, Name, NCName, \
     NMToken, Id, Idref, Language, Entity
-from .lists import AbstractListType, NMTokens, Idrefs, Entities
+from .lists import builtin_list_types, ListType, NMTokens, Idrefs, Entities
 from .uri import AnyURI
 from .binary import AbstractBinary, Base64Binary, HexBinary
 from .datetime import AbstractDateTime, DateTime10, DateTime, DateTimeStamp, \
@@ -36,11 +35,10 @@ from .proxies import ErrorProxy, BooleanProxy, DecimalProxy, DoubleProxy, \
 ###
 # Alias kept for backward compatibility, will be removed in v6.0.
 OrderedDateTime = AbstractDateTime
-AtomicTypeMeta = BuiltinTypeMeta
 
-__all__ = ['AbstractBinary', 'AbstractDateTime', 'AbstractListType', 'AbstractQName',
+__all__ = ['AbstractBinary', 'AbstractDateTime', 'ListType', 'AbstractQName',
            'AnyAtomicType', 'AnyURI', 'ArithmeticProxy', 'AtomicTypeMeta', 'Base64Binary',
-           'BooleanProxy', 'BuiltinTypeMeta', 'Byte', 'Date', 'Date10', 'DateTime',
+           'BooleanProxy', 'AtomicTypeMeta', 'Byte', 'Date', 'Date10', 'DateTime',
            'DateTime10', 'DateTimeStamp', 'DayTimeDuration', 'DecimalProxy', 'DoubleProxy',
            'DoubleProxy10', 'Duration', 'EmptySequence', 'Entities', 'Entity', 'ErrorProxy',
            'Float', 'Float10', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
@@ -51,4 +49,4 @@ __all__ = ['AbstractBinary', 'AbstractDateTime', 'AbstractListType', 'AbstractQN
            'OrderedDateTime', 'PositiveInteger', 'QName', 'Short', 'StringProxy', 'Time',
            'Timezone', 'UnsignedByte', 'UnsignedInt', 'UnsignedLong', 'UnsignedShort',
            'UntypedAtomic', 'XPathSequence', 'XsdToken', 'YearMonthDuration',
-           'builtin_sequence_types', 'builtin_xsd_types']
+           'ListType', 'builtin_atomic_types', 'builtin_list_types']

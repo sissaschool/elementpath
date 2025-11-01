@@ -11,7 +11,7 @@ import re
 import math
 import operator
 from calendar import isleap, leapdays
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from decimal import Decimal
 from typing import Any, Generic, Optional, SupportsFloat, TypeVar, Union
 from urllib.parse import urlsplit
@@ -87,6 +87,28 @@ class LazyPattern:
 
     def __delete__(self, instance: Any) -> None:
         raise AttributeError("Can't delete attribute {}".format(self._name))
+
+    @property
+    def groupindex(self) -> Mapping[str, int]:
+        try:
+            return self._compiled.groupindex
+        except AttributeError:
+            self._compiled = re.compile(self._pattern, self._flags)
+            return self._compiled.groupindex
+
+    def match(self, string: str) -> re.Match[str]:
+        try:
+            return self._compiled.match(string)
+        except AttributeError:
+            self._compiled = re.compile(self._pattern, self._flags)
+            return self._compiled.match(string)
+
+    def search(self, string: str) -> re.Match[str]:
+        try:
+            return self._compiled.search(string)
+        except AttributeError:
+            self._compiled = re.compile(self._pattern, self._flags)
+            return self._compiled.search(string)
 
 
 class Patterns:
@@ -257,7 +279,7 @@ def ordinal(n: int) -> str:
             return '%dth' % n
 
 
-def get_double(value: Union[SupportsFloat, str], xsd_version: str = '1.1') -> float:
+def get_double(value: Union[SupportsFloat, str], xsd_version: str | None = None) -> float:
     if isinstance(value, str):
         value = collapse_white_spaces(value)
         if value in NUMERIC_INF_OR_NAN and (xsd_version != '1.0' or value != '+INF'):

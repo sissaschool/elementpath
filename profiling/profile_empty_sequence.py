@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from timeit import timeit
+from collections import UserList
 from elementpath.datatypes.sequences import EmptySequenceType, EmptySequence
 from elementpath.datatypes.sequences import XPathSequence
 
@@ -33,7 +34,8 @@ if __name__ == '__main__':
     print()
 
     NUMBER = 1000
-    SETUP = 'from __main__ import fg, obj1, obj2, t1, t2, t3, is_empty_sequence, EmptySequence, XPathSequence'
+    SETUP = ('from __main__ import fg, obj1, obj2, t1, t2, t3, is_empty_sequence, '
+             'EmptySequence, XPathSequence, UserList')
     obj1 = []
     obj2 = ['foo', 'bar']
     t1 = (9, 8)
@@ -47,6 +49,7 @@ if __name__ == '__main__':
     run_timeit('[[] for _ in range(10000)]', SETUP, NUMBER)
     run_timeit('[() for _ in range(10000)]', SETUP, NUMBER)
     run_timeit('[XPathSequence() for _ in range(10000)]', SETUP, NUMBER)
+    run_timeit('[UserList() for _ in range(10000)]', SETUP, NUMBER)
 
     print()
 

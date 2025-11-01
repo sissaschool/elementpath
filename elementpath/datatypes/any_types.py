@@ -20,24 +20,23 @@ from elementpath.namespaces import XSD_NAMESPACE
 # into a dictionary. Some classes of XSD primitive types are defined
 # as proxies of basic Python datatypes.
 
-_builtin_xsd_types: dict[str, 'BuiltinTypeMeta'] = {}
-builtin_xsd_types = MappingProxyType(_builtin_xsd_types)
-"""Registry of builtin XSD types by expanded name."""
-
-_builtin_sequence_types: dict[str, 'BuiltinTypeMeta'] = {}
-builtin_sequence_types = MappingProxyType(_builtin_sequence_types)
-"""Registry of builtin XSD types by sequence type."""
+_builtin_atomic_types: dict[str, 'AtomicTypeMeta'] = {}
+builtin_atomic_types = MappingProxyType(_builtin_atomic_types)
+"""Registry of builtin atomic types by expanded name and prefixed name."""
 
 
-class BuiltinTypeMeta(ABCMeta):
+class AtomicTypeMeta(ABCMeta):
     """
-    Metaclass for creating builtin XSD types. The created classes
+    Metaclass for creating builtin atomic types. The created classes
     are decorated with missing attributes and methods. When a name
-    attribute is provided the class is registered into a global map
-    of XSD atomic types and also the expanded name is added.
+    attribute is provided the class is registered into two maps of
+    atomic referenced by expanded name and prefixed name. For default
+    the names are mapped to XSD namespace with 'xs' as the prefix.
     """
+    types_map = _builtin_atomic_types
+
     def __new__(mcs, class_name: str, bases: tuple[type[Any], ...],
-                dict_: dict[str, Any]) -> 'BuiltinTypeMeta':
+                dict_: dict[str, Any]) -> 'AtomicTypeMeta':
         try:
             name = dict_['name']
         except KeyError:
@@ -49,7 +48,7 @@ class BuiltinTypeMeta(ABCMeta):
         if '__slots__' not in dict_:
             dict_['__slots__'] = ()  # Avoids __dict__ creation
 
-        cls = super(BuiltinTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
+        cls = super(AtomicTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
 
         # Register all the derived classes with a valid name if not already registered
         if name:
@@ -59,72 +58,88 @@ class BuiltinTypeMeta(ABCMeta):
             extended_name = f'{{{namespace}}}{name}' if namespace else name
             prefixed_name = f'{prefix}:{name}' if prefix else name
 
-            if extended_name not in _builtin_xsd_types:
-                _builtin_xsd_types[extended_name] = cls
-            if prefixed_name not in _builtin_sequence_types:
-                _builtin_sequence_types[prefixed_name] = cls
+            if extended_name not in cls.types_map:
+                assert extended_name not in mcs.types_map, \
+                    'builtin atomic type already defined'
+                assert prefixed_name not in mcs.types_map, \
+                    'prefix already used by another namespace'
+                mcs.types_map[extended_name] = mcs.types_map[prefixed_name] = cls
 
         return cls
 
 
-class AnyType(metaclass=BuiltinTypeMeta):
-    xsd_version: str = '1.0'
-    name: str
-    namespace: str | None = None
-    prefix: str | None = None
+class AnyType(metaclass=ABCMeta):
+    """
+    xs:anyType: the base class for all XSD types. Not applicable as concrete type by XPath.
+    """
+
+    name: str | None = None          # Register the class if a name is provided.
+    namespace: str | None = None     # Namespace URI, defaults to XSD namespace.
+    prefix: str | None = None        # Namespace prefix: defaults to 'xs' prefix.
+    _xsd_version: str | None = None  # Overridden by types compatible with either XSD 1.0 or 1.1
 
     @abstractmethod
     def __init__(self, obj: Any) -> None:
         raise NotImplementedError()
 
     @classmethod
-    def make(cls, obj: Any,
-             version: str = '2.0',
-             xsd_version: str = '1.1') -> 'AnyType':
+    def make(cls, value: Any, **kwargs: Any) -> 'AnyType':
         """
-        Versioned factory method to create an atomic type.
+        Versioned factory method to create XSD type instances.
 
-        :param obj: the value to be converted to an atomic type.
-        :param version: the version of the XPath processor that create the atomic type.
-        :param xsd_version: the version of the XSD processor that create the atomic type.
+        :param value: the value to be converted to the XSD type.
+        :param kwargs: additional keyword arguments to be passed to factory.
         """
-        return cls(obj)
+        return cls(value)
 
     @classmethod
-    def validate(cls, obj: object) -> None:
-        if not isinstance(obj, object):
-            raise cls.invalid_type(obj)  # noqa
+    def validate(cls, value: Any) -> None:
+        """Validate the provided value against the XSD type."""
+        if not isinstance(value, object):
+            raise cls._invalid_type(value)  # noqa
 
     @classmethod
-    def is_valid(cls, obj: object) -> bool:
+    def is_valid(cls, value: Any) -> bool:
+        """Return whether the provided value is a valid XSD type."""
         try:
-            cls.validate(obj)
+            cls.validate(value)
         except (TypeError, ValueError):
             return False
         else:
             return True
 
     @classmethod
-    def invalid_type(cls, obj: object) -> TypeError:
+    def _invalid_type(cls, obj: object) -> TypeError:
         if cls.name:
             return TypeError('invalid type {!r} for xs:{}'.format(type(obj), cls.name))
         return TypeError('invalid type {!r} for {!r}'.format(type(obj), cls))
 
     @classmethod
-    def invalid_value(cls, obj: object) -> ValueError:
+    def _invalid_value(cls, obj: object) -> ValueError:
         if cls.name:
             return ValueError('invalid value {!r} for xs:{}'.format(obj, cls.name))
         return ValueError('invalid value {!r} for {!r}'.format(obj, cls))
 
+    @property
+    def xpath_versions(self) -> tuple[str, ...] | str:
+        """Return the XPath versions that the instance is compatible with."""
+        return '2.0+'
+
+    @property
+    def xsd_versions(self) -> tuple[str, str] | str:
+        """Return the XSD versions that the instance is compatible with."""
+        return self._xsd_version or ('1.0', '1.1')
+
 
 class AnySimpleType(AnyType):
     """
-    The base type of all XSD simple types (atomic types, union types and list types).
-    Only for reproducing the XSD type hierarchy, not applicable as a real type by XPath.
+    xs:anySimpleType: the base type of all XSD simple types (atomic types,
+    union types and list types). Not applicable as concrete type by XPath.
     """
 
 
-class AnyAtomicType(AnySimpleType):
+class AnyAtomicType(AnySimpleType, metaclass=AtomicTypeMeta):
+    """xs:anyAtomicType: the base type of all XSD atomic types."""
     name = 'anyAtomicType'
     pattern = LazyPattern(r'^$')
 
@@ -138,6 +153,6 @@ class AnyAtomicType(AnySimpleType):
             return
         elif isinstance(value, str):
             if cls.pattern.match(value) is None:
-                raise cls.invalid_value(value)
+                raise cls._invalid_value(value)
         else:
-            raise cls.invalid_type(value)
+            raise cls._invalid_type(value)

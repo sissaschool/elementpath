@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 __all__ = ['XPathSequence', 'EmptySequence', 'EmptySequenceType']
 
 
-class XPathSequence(list):
+class XPathSequence(tuple):
 
     @classmethod
     def empty_sequence(cls) -> 'XPathSequence':

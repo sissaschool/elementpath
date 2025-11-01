@@ -26,7 +26,7 @@ try:
 except ImportError:
     xmlschema = None
 
-from elementpath.helpers import MONTH_DAYS, MONTH_DAYS_LEAP
+from elementpath.helpers import MONTH_DAYS, MONTH_DAYS_LEAP, get_double
 from elementpath.datatypes import AnyAtomicType, DateTime, DateTime10, Date, Date10, \
     Time, Timezone, Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, \
     GregorianYear, GregorianYear10, GregorianYearMonth, GregorianYearMonth10, \
@@ -34,14 +34,15 @@ from elementpath.datatypes import AnyAtomicType, DateTime, DateTime10, Date, Dat
     ArithmeticProxy, Id, Notation, QName, Base64Binary, HexBinary, NormalizedString, \
     XsdToken, Language, Float10, Float, Integer, Short, NegativeInteger, AnyURI, \
     BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, StringProxy, \
-    builtin_xsd_types, OrderedDateTime, BuiltinTypeMeta
+    builtin_atomic_types, builtin_list_types, OrderedDateTime, AtomicTypeMeta
 from elementpath.decoder import get_atomic_sequence
 
 
 class AtomicTypesTest(unittest.TestCase):
 
-    def test_xsd_atomic_types_maps(self):
-        self.assertEqual(len(builtin_xsd_types), 50)
+    def test_builtin_types_maps(self):
+        self.assertEqual(len(builtin_atomic_types), 94)
+        self.assertEqual(len(builtin_list_types), 6)
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_get_atomic_value(self):
@@ -105,7 +106,7 @@ class AnyAtomicTypeTest(unittest.TestCase):
     def test_invalid_type_name(self):
 
         with self.assertRaises(TypeError):
-            class InvalidAtomicType(metaclass=BuiltinTypeMeta):
+            class InvalidAtomicType(metaclass=AtomicTypeMeta):
                 name = b'invalid'
 
     def test_validation(self):
@@ -1030,7 +1031,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertIsInstance(hash(dt), int)
 
     def test_isinstance(self):
-        dt = DateTime.fromstring("2002-04-02T12:00:00-01:00")
+        dt = DateTime10.fromstring("2002-04-02T12:00:00-01:00")
         self.assertIsInstance(dt, DateTime)
         self.assertIsInstance(dt, DateTime10)
         self.assertIsInstance(dt, AnyAtomicType)
@@ -1921,8 +1922,7 @@ class TypeProxiesTest(unittest.TestCase):
         self.assertTrue(issubclass(DoubleProxy10, AnyAtomicType))
         self.assertFalse(issubclass(DoubleProxy10, float))
 
-
-    def _test_get_double_function(self):
+    def test_get_double_function(self):
         self.assertEqual(get_double(1), 1.0)
         self.assertEqual(get_double(1.0), 1.0)
 

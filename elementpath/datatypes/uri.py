@@ -101,7 +101,7 @@ class AnyURI(AnyAtomicType):
         elif isinstance(value, bytes):
             value = value.decode()
         elif not isinstance(value, str):
-            raise cls.invalid_type(value)
+            raise cls._invalid_type(value)
 
         try:
             url_parts = urlparse(value)
@@ -111,7 +111,7 @@ class AnyURI(AnyAtomicType):
             raise ValueError(msg.format(value, cls.name, str(err))) from None
         else:
             if url_parts.path.startswith(':'):
-                raise cls.invalid_value(value)
+                raise cls._invalid_value(value)
             elif value.count('#') > 1:
                 msg = 'invalid value {!r} for xs:{} (too many # characters)'
                 raise ValueError(msg.format(value, cls.name))

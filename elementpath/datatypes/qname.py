@@ -9,6 +9,7 @@
 #
 from typing import Any, Optional
 
+from elementpath.aliases import XPath2ParserType
 from elementpath.helpers import LazyPattern
 from .any_types import AnyAtomicType
 from .untyped import UntypedAtomic
@@ -28,6 +29,29 @@ class AbstractQName(AnyAtomicType):
         r'^(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
         r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
     )
+
+    @classmethod
+    def make(cls, value: Any,
+             namespaces: dict[str, str] | None = None,
+             parser: XPath2ParserType | None = None,
+             **kwargs: Any) -> 'AbstractQName':
+
+        if isinstance(value, AbstractQName):
+            return value
+        elif isinstance(value, UntypedAtomic) and parser and parser.version >= '3.1':
+            value = value.value
+        elif not isinstance(value, str):
+            raise cls._invalid_type(value)
+
+        if namespaces is None:
+            if parser is None:
+                return cls(None, value)
+            namespaces = parser.namespaces
+
+        if ':' not in value:
+            return cls(namespaces.get(''), value)
+        else:
+            return cls(namespaces.get(value[0:value.index(':')]), value)
 
     __slots__ = ('uri', 'qname', 'prefix', 'local_name')
 

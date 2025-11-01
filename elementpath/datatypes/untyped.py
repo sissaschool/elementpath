@@ -12,6 +12,7 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import Any, Union
 
+from elementpath.aliases import XPath2ParserType
 from elementpath.helpers import reversed_sub, reversed_truediv, BOOLEAN_VALUES, get_double
 from .any_types import AnyAtomicType
 
@@ -26,20 +27,24 @@ class UntypedAtomic(AnyAtomicType):
     and converting to basic data types.
 
     :param value: the untyped value, usually a string.
+    :param parser: the XPath parser that creates the instance, if any.
     """
     name = 'untypedAtomic'
     value: str
-    xsd_version: str
 
-    __slots__ = ('value', 'xsd_version')
+    __slots__ = ('value', '_xsd_version', 'parser')
+
+    @classmethod
+    def make(cls, value: Any, **kwargs: Any) -> 'UntypedAtomic':
+        return cls(value, kwargs.get('parser'))
 
     @classmethod
     def validate(cls, value: object) -> None:
         if not isinstance(value, cls):
-            raise cls.invalid_type(value)
+            raise cls._invalid_type(value)
 
-    def __init__(self, value: UntypedArgType, xsd_version: str = '1.1') -> None:
-        self.xsd_version = xsd_version
+    def __init__(self, value: UntypedArgType,
+                 parser: XPath2ParserType | None = None) -> None:
         match value:
             case str():
                 self.value = value
@@ -60,6 +65,9 @@ class UntypedAtomic(AnyAtomicType):
             case _:
                 raise TypeError("{!r} is not an atomic value".format(value))
 
+        self.parser = parser
+        self._xsd_version = parser.xsd_version if parser is not None else None
+
     def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
@@ -76,8 +84,8 @@ class UntypedAtomic(AnyAtomicType):
         match other:
             case UntypedAtomic():
                 if force_float:
-                    return op(get_double(self.value, self.xsd_version),
-                              get_double(other.value, self.xsd_version))
+                    return op(get_double(self.value, self._xsd_version),
+                              get_double(other.value, self._xsd_version))
                 return op(self.value, other.value)
             case bool():
                 # Cast to xs:boolean
@@ -86,14 +94,12 @@ class UntypedAtomic(AnyAtomicType):
                     raise ValueError("{!r} cannot be cast to xs:boolean".format(self.value))
                 return op(value in ('1', 'true'), other)
             case int():
-                return op(get_double(self.value, self.xsd_version), other)
+                return op(get_double(self.value, self._xsd_version), other)
             case None | str() | list():
                 return op(self.value, other)
             case AnyAtomicType():
-                if hasattr(other, 'fromstring'):
-                    return op(type(other).fromstring(self.value), other)
-                elif hasattr(other, 'ordered'):
-                    return op(type(other)(self.value, other.ordered), other)
+                if hasattr(other, 'make'):
+                    return op(type(other).make(self.value, parser=self.parser), other)
                 else:
                     return op(type(other)(self.value), other)
             case _:
@@ -144,7 +150,7 @@ class UntypedAtomic(AnyAtomicType):
         return int(self.value)
 
     def __float__(self) -> float:
-        return get_double(self.value, self.xsd_version)
+        return get_double(self.value, self._xsd_version)
 
     def __bool__(self) -> bool:
         return bool(self.value)  # For effective boolean value, not for cast to xs:boolean.

@@ -69,7 +69,7 @@ class SequenceTypesTest(unittest.TestCase):
         self.assertFalse(is_sequence_type_restriction('element()', 'node()'))
         self.assertTrue(is_sequence_type_restriction('xs:anyAtomicType', 'xs:string'))
         self.assertFalse(is_sequence_type_restriction('xs:anyAtomicType', 'xs:unknown'))
-        self.assertTrue(is_sequence_type_restriction('xs:string', 'xs:anyAtomicType'))
+        self.assertFalse(is_sequence_type_restriction('xs:string', 'xs:anyAtomicType'))
         self.assertTrue(is_sequence_type_restriction('xs:string', 'xs:token'))
         self.assertFalse(is_sequence_type_restriction('xs:string', 'xs:int'))
         self.assertFalse(is_sequence_type_restriction('xs:string', 'xs:unknown'))

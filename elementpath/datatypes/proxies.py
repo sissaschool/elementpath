@@ -11,8 +11,9 @@ import math
 from decimal import Decimal
 from typing import Any
 
-from elementpath.helpers import BOOLEAN_VALUES, NUMERIC_INF_OR_NAN, INVALID_NUMERIC, \
-    FloatArgType, LazyPattern, collapse_white_spaces
+from elementpath.aliases import XPath2ParserType
+from elementpath.helpers import BOOLEAN_VALUES, FloatArgType, LazyPattern, \
+    collapse_white_spaces, get_double
 from .any_types import AnyAtomicType
 from .sequences import XPathSequence, EmptySequence, EmptySequenceType
 from .untyped import UntypedAtomic
@@ -60,9 +61,9 @@ class BooleanProxy(AnyAtomicType):
             return
         elif isinstance(value, str):
             if cls.pattern.match(value) is None:
-                raise cls.invalid_value(value)
+                raise cls._invalid_value(value)
         else:
-            raise cls.invalid_type(value)
+            raise cls._invalid_type(value)
 
 
 class DecimalProxy(AnyAtomicType):
@@ -73,10 +74,10 @@ class DecimalProxy(AnyAtomicType):
         if isinstance(value, (str, UntypedAtomic)):
             value = collapse_white_spaces(str(value)).replace(' ', '')
             if cls.pattern.match(value) is None:
-                raise cls.invalid_value(value)
+                raise cls._invalid_value(value)
         elif isinstance(value, (float, Float, Decimal)):
             if math.isinf(value) or math.isnan(value):
-                raise cls.invalid_value(value)
+                raise cls._invalid_value(value)
         try:
             return Decimal(value)
         except (ValueError, ArithmeticError):
@@ -95,16 +96,16 @@ class DecimalProxy(AnyAtomicType):
         match value:
             case Decimal():
                 if math.isnan(value) or math.isinf(value):
-                    raise cls.invalid_value(value)
+                    raise cls._invalid_value(value)
             case bool():
-                raise cls.invalid_type(value)
+                raise cls._invalid_type(value)
             case int() | Integer():
                 return
             case str():
                 if cls.pattern.match(value) is None:
-                    raise cls.invalid_value(value)
+                    raise cls._invalid_value(value)
             case _:
-                raise cls.invalid_type(value)
+                raise cls._invalid_type(value)
 
 
 class DoubleProxy(AnyAtomicType):
@@ -113,22 +114,21 @@ class DoubleProxy(AnyAtomicType):
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[+-]?INF|NaN)$'
     )
 
-    def __new__(cls, value: FloatArgType, xsd_version: str = '1.1') -> float:
-        if isinstance(value, str):
-            value = collapse_white_spaces(value)
-            if value in NUMERIC_INF_OR_NAN:
-                if xsd_version == '1.0' and value == '+INF':
-                    raise cls.invalid_value(value)
-                elif value == 'NaN':
-                    return math.nan
-            elif value.lower() in INVALID_NUMERIC:
-                raise cls.invalid_value(value)
-        elif math.isnan(value):
-            return math.nan
+    @classmethod
+    def make(cls, value: Any,
+             parser: XPath2ParserType | None = None,
+             **kwargs: Any) -> 'float':
+        if cls.__name__.endswith('10'):
+            return get_double(value, '1.0')
+        elif parser is not None:
+            return get_double(value, parser.xsd_version)
+        else:
+            return get_double(value, kwargs.get('xsd_version'))
 
-        return float(value)
+    def __new__(cls, value: FloatArgType) -> float:
+        return get_double(value)
 
-    def __init__(self, value: FloatArgType, xsd_version: str = '1.1') -> None:
+    def __init__(self, value: FloatArgType) -> None:
         float.__init__(self)
 
     @classmethod
@@ -141,16 +141,14 @@ class DoubleProxy(AnyAtomicType):
             return
         elif isinstance(value, str):
             if cls.pattern.match(value) is None:
-                raise cls.invalid_value(value)
+                raise cls._invalid_value(value)
         else:
-            raise cls.invalid_type(value)
+            raise cls._invalid_type(value)
 
 
 class DoubleProxy10(DoubleProxy):
-    name = 'double'
-
-    def __new__(cls, value: FloatArgType, xsd_version: str = '1.0') -> float:  # type: ignore[misc]
-        return super().__new__(cls, value, xsd_version)
+    def __new__(cls, value: FloatArgType) -> float:
+        return get_double(value, '1.0')
 
 
 class StringProxy(AnyAtomicType):
@@ -169,7 +167,7 @@ class StringProxy(AnyAtomicType):
     @classmethod
     def validate(cls, value: object) -> None:
         if not isinstance(value, str):
-            raise cls.invalid_type(value)
+            raise cls._invalid_type(value)
 
 
 ####
@@ -225,8 +223,8 @@ class ErrorProxy(AnyAtomicType):
             return EmptySequence
         msg = f"Cast {value!r} to xs:error is not possible"
         if isinstance(value, list):
-            raise cls.invalid_value(msg)
-        raise cls.invalid_type(msg)
+            raise cls._invalid_value(msg)
+        raise cls._invalid_type(msg)
 
     @classmethod
     def __subclasshook__(cls, subclass: type) -> bool:

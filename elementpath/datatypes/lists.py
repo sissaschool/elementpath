@@ -7,25 +7,51 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from abc import abstractmethod
+from collections.abc import MutableSequence
+from types import MappingProxyType
 from typing import Any
 
-from .any_types import AnySimpleType, AnyAtomicType
+from .any_types import AtomicTypeMeta, AnySimpleType, AnyAtomicType
 from .untyped import UntypedAtomic
 from .string import NMToken, Idref, Entity
 
-__all__ = ['AbstractListType', 'NMTokens', 'Idrefs', 'Entities']
+__all__ = ['builtin_list_types', 'ListType', 'NMTokens', 'Idrefs', 'Entities']
 
 
-class AbstractListType(AnySimpleType):
-    obj: list[AnyAtomicType]
-    item_type: type['AnyAtomicType']
+_builtin_list_types: dict[str, type] = {}
+builtin_list_types = MappingProxyType(_builtin_list_types)
+"""Registry of builtin list types by expanded name."""
 
-    __slots__ = ('item_type',)
 
-    @abstractmethod
-    def __init__(self, obj: Any) -> None:
-        raise NotImplementedError()
+class ListTypeMeta(AtomicTypeMeta):
+    types_map = _builtin_list_types
+
+
+class ListType(MutableSequence, AnySimpleType, metaclass=ListTypeMeta):
+    value: list[AnyAtomicType]
+    item_type: type[AnyAtomicType]
+
+    __slots__ = ('value', 'item_type')
+
+    def __init__(self, value: list[AnyAtomicType],
+                 item_type: type[AnyAtomicType]) -> None:
+        self.value = value
+        self.item_type = item_type
+
+    def __getitem__(self, index: int) -> AnyAtomicType:
+        return self.value[index]
+
+    def __setitem__(self, index: int, value: AnyAtomicType) -> None:
+        self.value[index] = value
+
+    def __delitem__(self, index: int) -> None:
+        del self.value[index]
+
+    def __len__(self) -> int:
+        return len(self.value)
+
+    def insert(self, index: int, value: AnyAtomicType) -> None:
+        self.value.insert(index, value)
 
     @classmethod
     def validate(cls, obj: object) -> None:
@@ -33,7 +59,7 @@ class AbstractListType(AnySimpleType):
             return
         elif not isinstance(obj, list) or \
                 any(not isinstance(item, AnyAtomicType) for item in obj):
-            raise cls.invalid_type(obj)
+            raise cls._invalid_type(obj)
         else:
             for item in obj:
                 cls.item_type.validate(item)
@@ -47,30 +73,30 @@ class AbstractListType(AnySimpleType):
         elif isinstance(value, list):
             values = value
         else:
-            raise cls.invalid_type(value)
+            raise cls._invalid_type(value)
 
         try:
             return [cls.item_type(x) for x in values]
         except ValueError:
-            raise cls.invalid_value(value)
+            raise cls._invalid_value(value)
 
 
 ###
 # Builtin list types
 
-class NMTokens(AbstractListType):
+class NMTokens(ListType):
     name = 'NMTOKENS'
     items: list[NMToken]
     item_type: type[NMToken] = NMToken
 
 
-class Idrefs(AbstractListType):
+class Idrefs(ListType):
     name = 'IDREFS'
     items: list[Idref]
     item_type: type[Idref] = NMToken
 
 
-class Entities(AbstractListType):
+class Entities(ListType):
     name = 'ENTITIES'
     items: list[Entity]
     item_type: type[Entity] = Entity

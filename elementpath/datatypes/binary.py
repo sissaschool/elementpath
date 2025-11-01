@@ -11,6 +11,7 @@ from abc import abstractmethod
 from typing import Union, Any
 import codecs
 
+from elementpath.aliases import XPath2ParserType
 from elementpath.helpers import LazyPattern, collapse_white_spaces
 from .any_types import AnyAtomicType
 from .untyped import UntypedAtomic
@@ -30,24 +31,15 @@ class AbstractBinary(AnyAtomicType):
     __slots__ = ('value', 'ordered')
 
     @classmethod
-    def make(cls, value: Any, version: str = '2.0', xsd_version: str = '1.1') -> 'AnyAtomicType':
-        ordered: bool = version >= '3.1'
+    def make(cls, value: Any,
+             parser: XPath2ParserType | None = None,
+             **kwargs: Any) -> 'AbstractBinary':
+        ordered = parser is not None and parser.version >= '3.1'
+        return cls(value, ordered)
 
-        match value:
-            case x if isinstance(x, cls):
-                if value.ordered is ordered:
-                    return value
-                return cls(value.value, ordered=ordered)
-            case AbstractBinary():
-                return cls(cls.encoder(value.decode()), ordered)
-            case UntypedAtomic():
-                return cls(collapse_white_spaces(value.value), ordered=ordered)
-            case str():
-                return cls(collapse_white_spaces(value), ordered=ordered)
-            case bytes():
-                return cls(collapse_white_spaces(value.decode('utf-8')), ordered=ordered)
-            case _:
-                raise cls.invalid_type(value)  # noqa
+    @property
+    def xpath_versions(self) -> tuple[str, ...] | str:
+        return '3.1+' if self.ordered else '2.0', '3.0'
 
     def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AbstractBinary'],
                  ordered: bool = False) -> None:
@@ -67,7 +59,7 @@ class AbstractBinary(AnyAtomicType):
             case bytes():
                 value = collapse_white_spaces(value.decode('utf-8'))
             case _:
-                raise self.invalid_type(value)  # noqa
+                raise self._invalid_type(value)  # noqa
 
         self.validate(value)
         self.value = value.replace(' ', '').encode('ascii')
@@ -152,13 +144,13 @@ class Base64Binary(AbstractBinary):
         elif isinstance(value, bytes):
             value = value.decode()
         elif not isinstance(value, str):
-            raise cls.invalid_type(value)
+            raise cls._invalid_type(value)
 
         value = value.replace(' ', '')
         if value:
             match = cls.pattern.match(value)
             if match is None or match.group(0) != value:
-                raise cls.invalid_value(value)
+                raise cls._invalid_value(value)
 
     def __str__(self) -> str:
         return self.value.decode('utf-8')
@@ -195,11 +187,11 @@ class HexBinary(AbstractBinary):
         elif isinstance(value, bytes):
             value = value.decode()
         elif not isinstance(value, str):
-            raise cls.invalid_type(value)
+            raise cls._invalid_type(value)
 
         value = value.strip()
         if cls.pattern.match(value) is None:
-            raise cls.invalid_value(value)
+            raise cls._invalid_value(value)
 
     @classmethod
     def encoder(cls, value: bytes) -> bytes:

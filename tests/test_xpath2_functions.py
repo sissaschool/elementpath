@@ -921,9 +921,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.wrong_value('fn:dateTime(xs:date("1999-12-31+03:00"), xs:time("13:00:00+05:24"))',
                          'FORG0008', 'inconsistent timezones')
 
-        self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))', DateTime10)
+        self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))', DateTime)
         with self.assertRaises(AssertionError):
-            self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))', DateTime)
+            self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))')
 
         self.parser._xsd_version = '1.1'
         try:

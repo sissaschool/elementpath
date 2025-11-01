@@ -27,7 +27,7 @@ class _Notation(dt.Notation):
     """An instantiable xs:NOTATION."""
 
 
-ATOMIC_VALUES: dict[str, dict[str, aliases.AtomicType]] = {'1.0': {
+_ATOMIC_VALUES: dict[str, dict[str, aliases.AtomicType]] = {'1.0': {
     f'{{{XSD_NAMESPACE}}}untypedAtomic': dt.UntypedAtomic('1'),
     f'{{{XSD_NAMESPACE}}}anyType': dt.UntypedAtomic('1'),
     f'{{{XSD_NAMESPACE}}}anySimpleType': dt.UntypedAtomic('1'),
@@ -77,8 +77,8 @@ ATOMIC_VALUES: dict[str, dict[str, aliases.AtomicType]] = {'1.0': {
     f'{{{XSD_NAMESPACE}}}unsignedByte': dt.UnsignedByte('1'),
 }}
 
-ATOMIC_VALUES['1.1'] = ATOMIC_VALUES['1.0'].copy()
-ATOMIC_VALUES['1.1'].update({
+_ATOMIC_VALUES['1.1'] = _ATOMIC_VALUES['1.0'].copy()
+_ATOMIC_VALUES['1.1'].update({
     f'{{{XSD_NAMESPACE}}}date': dt.Date.fromstring('2000-01-01'),
     f'{{{XSD_NAMESPACE}}}dateTime': dt.DateTime.fromstring('2000-01-01T12:00:00'),
     f'{{{XSD_NAMESPACE}}}gYear': dt.GregorianYear.fromstring('1999'),
@@ -99,7 +99,7 @@ def iter_atomic_values(xsd_type: XsdTypeProtocol) -> Iterator[aliases.AtomicType
             for member_type in root_type.member_types:
                 yield from _iter_values(member_type, depth + 1)
 
-    atomic_values = ATOMIC_VALUES[xsd_type.xsd_version]
+    atomic_values = _ATOMIC_VALUES[xsd_type.xsd_version]
     if xsd_type.name in atomic_values:
         yield atomic_values[xsd_type.name]
     elif xsd_type.is_simple() or (simple_type := xsd_type.simple_type) is None:

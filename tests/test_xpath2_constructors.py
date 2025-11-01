@@ -19,10 +19,10 @@ except ImportError:
     lxml_etree = None
 
 from elementpath import XPathContext, select
-from elementpath.datatypes import Timezone, DateTime10, DateTime, DateTimeStamp, \
-    GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10, GregorianYearMonth10, \
-    Duration, YearMonthDuration, DayTimeDuration, Date10, Time, QName, UntypedAtomic, \
-    Base64Binary, HexBinary
+from elementpath.datatypes import Timezone, DateTime, DateTimeStamp, \
+    GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10, \
+    GregorianYearMonth10, Duration, YearMonthDuration, DayTimeDuration, \
+    Date10, Time, QName, UntypedAtomic, Base64Binary, HexBinary
 from elementpath.xpath_nodes import TextAttributeNode
 from elementpath.namespaces import XSD_NAMESPACE
 from elementpath.xpath_tokens import XPathConstructor
@@ -323,19 +323,19 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         self.check_value('xs:dateTime(())', [])
         self.check_value('xs:dateTime("1969-07-20T20:18:00")',
-                         DateTime10(1969, 7, 20, 20, 18))
+                         DateTime(1969, 7, 20, 20, 18))
         self.check_value('xs:dateTime(xs:untypedAtomic("1969-07-20T20:18:00"))',
-                         DateTime10(1969, 7, 20, 20, 18))
+                         DateTime(1969, 7, 20, 20, 18))
         self.check_value('xs:dateTime("2000-05-10T21:30:00+05:24")',
                          datetime.datetime(2000, 5, 10, hour=21, minute=30, tzinfo=tz1))
         self.check_value('xs:dateTime("1999-12-31T24:00:00")',
                          datetime.datetime(2000, 1, 1, 0, 0))
         self.check_value('xs:dateTime(xs:date("1969-07-20"))',
-                         DateTime10(1969, 7, 20))
+                         DateTime(1969, 7, 20))
 
-        self.check_value('xs:dateTime(xs:date("1969-07-20"))', DateTime10)
+        self.check_value('xs:dateTime(xs:date("1969-07-20"))', DateTime)
         with self.assertRaises(AssertionError):
-            self.check_value('xs:dateTime(xs:date("1969-07-20"))', DateTime)
+            self.check_value('xs:dateTime(xs:date("1969-07-20"))')
 
         self.parser._xsd_version = '1.1'
         try:
@@ -355,16 +355,16 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML('<root a="1969-07-20T20:18:00"/>')
         context = XPathContext(root)
-        self.check_value('xs:dateTime(@a)', DateTime10(1969, 7, 20, 20, 18), context=context)
+        self.check_value('xs:dateTime(@a)', DateTime(1969, 7, 20, 20, 18), context=context)
 
-        context.item = TextAttributeNode('a', str(DateTime10(1969, 7, 20, 20, 18)))
-        self.check_value('xs:dateTime(.)', DateTime10(1969, 7, 20, 20, 18), context=context)
+        context.item = TextAttributeNode('a', str(DateTime(1969, 7, 20, 20, 18)))
+        self.check_value('xs:dateTime(.)', DateTime(1969, 7, 20, 20, 18), context=context)
 
         context.item = TextAttributeNode('a', 'true')
         self.check_value('xs:dateTime(.)', ValueError, context=context)
 
-        context.item = DateTime10(1969, 7, 20, 20, 18)
-        self.check_value('xs:dateTime(.)', DateTime10(1969, 7, 20, 20, 18), context=context)
+        context.item = DateTime(1969, 7, 20, 20, 18)
+        self.check_value('xs:dateTime(.)', DateTime(1969, 7, 20, 20, 18), context=context)
 
     def test_datetimestamp_constructor(self):
         tz0 = Timezone(datetime.timedelta(hours=7, minutes=0))
