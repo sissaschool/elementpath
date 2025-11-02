@@ -623,7 +623,12 @@ class DateTime(AbstractDateTime):
 
 class DateTime10(DateTime):
     """xs:dateTime builtin type for XSD 1.0"""
+    name = 'dateTime'
     _xsd_version = '1.0'
+
+    @classmethod
+    def __subclasshook__(cls, subclass) -> bool:
+        return subclass is DateTime10 or subclass is DateTime
 
 
 class DateTimeStamp(DateTime):
@@ -690,7 +695,12 @@ class Date(AbstractDateTime):
 
 class Date10(Date):
     """xs:date builtin type for XSD 1.0."""
+    name = 'date'
     _xsd_version = '1.0'
+
+    @classmethod
+    def __subclasshook__(cls, subclass) -> bool:
+        return subclass is Date10 or subclass is Date
 
 
 class GregorianDay(AbstractDateTime):
@@ -830,7 +840,12 @@ class GregorianYear(AbstractDateTime):
 
 class GregorianYear10(GregorianYear):
     """xs:gYear builtin type for XSD 1.0"""
+    name = 'gYear'
     _xsd_version = '1.0'
+
+    @classmethod
+    def __subclasshook__(cls, subclass) -> bool:
+        return subclass is GregorianYear10 or subclass is GregorianYear
 
 
 class GregorianYearMonth(AbstractDateTime):
@@ -882,8 +897,13 @@ class GregorianYearMonth(AbstractDateTime):
 
 
 class GregorianYearMonth10(GregorianYearMonth):
-    """xs:gYearMonth builtin type for XSD 1.0, will be removed in v6.0."""
+    """xs:gYearMonth builtin type for XSD 1.0"""
+    name = 'gYearMonth'
     _xsd_version = '1.0'
+
+    @classmethod
+    def __subclasshook__(cls, subclass) -> bool:
+        return subclass is GregorianYearMonth10 or subclass is GregorianYearMonth
 
 
 class Time(AbstractDateTime):

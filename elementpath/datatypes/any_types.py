@@ -59,8 +59,6 @@ class AtomicTypeMeta(ABCMeta):
             prefixed_name = f'{prefix}:{name}' if prefix else name
 
             if extended_name not in cls.types_map:
-                assert extended_name not in mcs.types_map, \
-                    'builtin atomic type already defined'
                 assert prefixed_name not in mcs.types_map, \
                     'prefix already used by another namespace'
                 mcs.types_map[extended_name] = mcs.types_map[prefixed_name] = cls
