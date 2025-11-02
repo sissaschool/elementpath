@@ -14,7 +14,6 @@ import math
 import decimal
 import operator
 from collections.abc import Iterator, Sequence
-from copy import copy
 from typing import Any, cast, NoReturn, Optional, Union
 
 from elementpath.exceptions import ElementPathKeyError, ElementPathTypeError
@@ -332,24 +331,14 @@ def select_parent_shortcut(self: XPathToken, context: ContextType = None) \
 # Logical Operators
 @method(infix('or', bp=20))
 def evaluate_or_operator(self: XPathToken, context: ContextType = None) -> bool:
-    if isinstance(context, XPathSchemaContext):
-        op1 = self.boolean_value(self[0].select(copy(context)))
-        op2 = self.boolean_value(self[1].select(copy(context)))
-        return op1 or op2
-
-    return self.boolean_value(self[0].select(copy(context))) or \
-        self.boolean_value(self[1].select(copy(context)))
+    return self.boolean_value(self[0].select_sequence(context)) or \
+        self.boolean_value(self[1].select_sequence(context))
 
 
 @method(infix('and', bp=25))
 def evaluate_and_operator(self: XPathToken, context: ContextType = None) -> bool:
-    if isinstance(context, XPathSchemaContext):
-        op1 = self.boolean_value(self[0].select(copy(context)))
-        op2 = self.boolean_value(self[1].select(copy(context)))
-        return op1 and op2
-
-    return self.boolean_value(self[0].select(copy(context))) and \
-        self.boolean_value(self[1].select(copy(context)))
+    return self.boolean_value(self[0].select_sequence(context)) and \
+        self.boolean_value(self[1].select_sequence(context))
 
 
 ###
@@ -589,7 +578,7 @@ def select_union_operator(self: XPathToken, context: ContextType = None) \
     if context is None:
         raise self.missing_context()
 
-    results = {item for k in range(2) for item in self[k].select(copy(context))}
+    results = {item for k in range(2) for item in self[k].select_sequence(context)}
     if any(not isinstance(x, XPathNode) for x in results):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
     elif self.concatenated:
@@ -747,7 +736,7 @@ def select_predicate(self: XPathToken, context: ContextType = None) -> Iterator[
             raise self.error('XPTY0020')
 
         predicate: Sequence[NumericType]
-        predicate = [x for x in cast(Iterator[NumericType], self[1].select(copy(context)))]
+        predicate = [x for x in cast(Iterator[NumericType], self[1].select_sequence(context))]
 
         if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
             if context.position == predicate[0]:

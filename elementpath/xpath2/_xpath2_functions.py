@@ -17,7 +17,6 @@ import re
 import os.path
 import unicodedata
 from collections.abc import Iterator
-from copy import copy
 from decimal import Decimal, DecimalException
 from string import ascii_letters
 from typing import cast, Optional, Union
@@ -144,7 +143,7 @@ def evaluate_namespace_uri_for_prefix_function(
     elif context is None:
         raise self.missing_context()
 
-    prefix = self.get_argument(context=copy(context))
+    prefix = self.get_argument(context=context)
     if prefix is None:
         prefix = ''
     if not isinstance(prefix, str):
@@ -211,7 +210,7 @@ def evaluate_resolve_qname_function(self: XPathFunction, context: ContextType = 
     if self.context is not None:
         context = self.context
 
-    qname = self.get_argument(context=copy(context))
+    qname = self.get_argument(context=context)
     if qname is None:
         return []
     elif not isinstance(qname, str):
@@ -629,7 +628,7 @@ def select_index_of_function(self: XPathFunction, context: ContextType = None) \
     if self.context is not None:
         context = self.context
 
-    value = self[1].get_atomized_operand(copy(context))
+    value = self[1].get_atomized_operand(context)
     if value is None:
         raise self.error('XPTY0004', "2nd argument cannot be an empty sequence")
 
@@ -766,8 +765,8 @@ def evaluate_deep_equal_function(self: XPathFunction, context: ContextType = Non
         collation = self.get_argument(context, 2, required=True, cls=str)
 
     return deep_equal(
-        seq1=self[0].select(copy(context)),
-        seq2=self[1].select(copy(context)),
+        seq1=self[0].select(context),
+        seq2=self[1].select(context),
         collation=collation,
     )
 
@@ -1523,7 +1522,7 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
     if self.context is not None:
         context = self.context
 
-    idrefs = {x for item in self[0].select(copy(context))
+    idrefs = {x for item in self[0].select(context)
               for x in self.string_value(item).split() if Id.is_valid(x)}
 
     if context is None:
@@ -1576,7 +1575,7 @@ def select_idref_function(self: XPathFunction, context: ContextType = None) \
     if self.context is not None:
         context = self.context
 
-    ids = [x for x in self[0].select(context=copy(context)) if hasattr(x, 'split')]
+    ids = [x for x in self[0].select(context=context) if hasattr(x, 'split')]
     node = self.get_argument(context, index=1, default_to_context=True)
 
     if isinstance(context, XPathSchemaContext):

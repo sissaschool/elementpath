@@ -156,7 +156,7 @@ def select_simple_map_operator(self: XPathToken, context: ContextType = None) \
         raise self.missing_context()
 
     for context.item in context.inner_focus_select(self[0]):
-        for result in self[1].select(copy(context)):
+        for result in self[1].select(context):
             yield result
 
 

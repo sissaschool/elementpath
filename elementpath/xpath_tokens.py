@@ -92,6 +92,19 @@ class XPathToken(Token[ta.XPathTokenType]):
             else:
                 yield item
 
+    def select_sequence(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
+        if context is None:
+            yield from self.select(None)
+        else:
+            axis = context.axis
+            item = context.item
+            context.axis = None
+            try:
+                yield from self.select(context)
+            finally:
+                context.axis = axis
+                context.item = item
+
     def __str__(self) -> str:
         if self.symbol == '$':
             return '$%s variable reference' % (self[0].value if self._items else '')
@@ -280,7 +293,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 return token  # It's a function reference
 
             item = None
-            for k, result in enumerate(token.select(copy(context))):
+            for k, result in enumerate(token.select_sequence(context)):
                 if k == 0:
                     item = result
                 elif self.parser.compatibility_mode:
@@ -437,7 +450,7 @@ class XPathToken(Token[ta.XPathTokenType]):
 
         :param context: the XPath dynamic context.
         """
-        for item in self.select(context):
+        for item in self.select_sequence(context):
             yield from self.atomize_item(item)
 
     def get_atomized_operand(self, context: ta.ContextType = None) -> Optional[ta.AtomicType]:
@@ -474,8 +487,8 @@ class XPathToken(Token[ta.XPathTokenType]):
         right_values: Any
 
         if self.parser.compatibility_mode:
-            left_values = [x for x in self._items[0].atomization(copy(context))]
-            right_values = [x for x in self._items[1].atomization(copy(context))]
+            left_values = [x for x in self._items[0].atomization(context)]
+            right_values = [x for x in self._items[1].atomization(context)]
             # Boolean comparison if one of the results is a single boolean value (1.)
             try:
                 if isinstance(left_values[0], bool):
@@ -497,8 +510,8 @@ class XPathToken(Token[ta.XPathTokenType]):
                 yield from product(left_values, right_values)
                 return
         else:
-            left_values = self._items[0].atomization(copy(context))
-            right_values = self._items[1].atomization(copy(context))
+            left_values = self._items[0].atomization(context)
+            right_values = self._items[1].atomization(context)
 
         for values in product(left_values, right_values):
             if any(isinstance(x, bool) for x in values):

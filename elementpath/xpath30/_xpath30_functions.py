@@ -134,7 +134,6 @@ class _InlineFunction(XPathFunction):
         sequence_type: str
         self.check_arguments_number(len(args))
 
-        context = copy(context)
         if self.variables and context is not None:
             context.variables.update(self.variables)
 
@@ -1116,7 +1115,6 @@ def select_innermost_function(self: XPathFunction, context: ContextType = None) 
     if context is None:
         raise self.missing_context()
 
-    context = copy(context)
     nodes = [e for e in self[0].select(context)]
     if any(not isinstance(x, XPathNode) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')
@@ -1131,8 +1129,6 @@ def select_outermost_function(self: XPathFunction, context: ContextType = None) 
         -> Iterator[XPathNode]:
     if context is None:
         raise self.missing_context()
-
-    context = copy(context)
 
     nodes: Union[list[ItemType], set[ItemType]]
     nodes = [e for e in self[0].select(context)]
@@ -1572,7 +1568,7 @@ def select_for_each_function(self: XPathFunction, context: ContextType = None) \
         func = self.get_argument(context, index=1, cls=XPathFunction, required=True)
     assert isinstance(func, XPathFunction)
 
-    for item in self[0].select(copy(context)):
+    for item in self[0].select(context):
         result = func(item, context=context)
         if isinstance(result, list):
             yield from result
@@ -1592,7 +1588,7 @@ def select_filter_function(self: XPathFunction, context: ContextType = None)\
     if func.nargs == 0:
         raise self.error('XPTY0004', f'invalid number of arguments {func.nargs}')
 
-    for item in self[0].select(copy(context)):
+    for item in self[0].select(context):
         cond = func(item, context=context)
         if not isinstance(cond, bool):
             raise self.error('XPTY0004', 'a single boolean value required')
@@ -1616,7 +1612,7 @@ def select_fold_left_function(self: XPathFunction, context: ContextType = None) 
     zero = self.get_argument(context, index=1)
 
     result = zero
-    for item in self[0].select(copy(context)):
+    for item in self[0].select(context):
         result = func(result, item, context=context)
 
     if isinstance(result, list):
@@ -1641,7 +1637,7 @@ def select_fold_right_function(self: XPathFunction, context: ContextType = None)
     zero = self.get_argument(context, index=1)
 
     result = zero
-    sequence = [x for x in self[0].select(copy(context))]
+    sequence = [x for x in self[0].select(context)]
 
     for item in reversed(sequence):
         result = func(item, result, context=context)
@@ -1666,7 +1662,7 @@ def select_for_each_pair_function(self: XPathFunction, context: ContextType = No
     elif func.arity != 2:
         raise self.error('XPTY0004', "function arity of 3rd argument must be 2")
 
-    for item1, item2 in zip(self[0].select(copy(context)), self[1].select(copy(context))):
+    for item1, item2 in zip(self[0].select(context), self[1].select(context)):
         result = func(item1, item2, context=context)
         if isinstance(result, list):
             yield from result

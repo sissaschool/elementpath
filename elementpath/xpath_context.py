@@ -10,7 +10,6 @@
 import datetime
 import importlib
 from collections.abc import Iterator, Sequence, Callable
-from copy import copy
 from functools import cached_property
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
@@ -345,7 +344,7 @@ class XPathContext:
             -> Iterator[ItemType]:
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position, self.axis
-        results = [x for x in token.select(copy(self))]
+        results = [x for x in token.select_sequence(self)]
         self.axis = None
 
         if token.label == 'axis' and cast('XPathAxis', token).reverse_axis:

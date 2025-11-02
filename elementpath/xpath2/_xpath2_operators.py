@@ -126,7 +126,7 @@ def select_intersect_and_except_operators(self: XPathToken, context: ContextType
     if context is None:
         raise self.missing_context()
 
-    s1, s2 = set(self[0].select(copy(context))), set(self[1].select(copy(context)))
+    s1, s2 = set(self[0].select_sequence(context)), set(self[1].select_sequence(context))
     if any(not isinstance(x, XPathNode) for x in s1) \
             or any(not isinstance(x, XPathNode) for x in s2):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
@@ -157,26 +157,26 @@ def nud_if_expression(self: XPathToken) -> XPathToken:
 @method('if')
 def evaluate_if_expression(self: XPathToken, context: ContextType = None) \
         -> Union[ItemType, list[ItemType]]:
-    if self.boolean_value(self[0].select(copy(context))):
+    if self.boolean_value(self[0].select_sequence(context)):
         if isinstance(context, XPathSchemaContext):
-            self[2].evaluate(copy(context))
+            self[2].evaluate(context)
         return self[1].evaluate(context)
     else:
         if isinstance(context, XPathSchemaContext):
-            self[1].evaluate(copy(context))
+            self[1].evaluate(context)
         return self[2].evaluate(context)
 
 
 @method('if')
 def select_if_expression(self: XPathToken, context: ContextType = None) \
         -> Iterator[ItemType]:
-    if self.boolean_value(self[0].select(copy(context))):
+    if self.boolean_value(self[0].select_sequence(context)):
         if isinstance(context, XPathSchemaContext):
-            self[2].evaluate(copy(context))
+            self[2].evaluate(context)
         yield from self[1].select(context)
     else:
         if isinstance(context, XPathSchemaContext):
-            self[1].evaluate(copy(context))
+            self[1].evaluate(context)
         yield from self[2].select(context)
 
 
@@ -222,7 +222,7 @@ def evaluate_quantified_expressions(self: XPathToken, context: ContextType = Non
 
     for results in copy(context).iter_product(selectors, varnames):
         context.variables.update(x for x in zip(varnames, results))
-        if self.boolean_value(self[-1].select(copy(context))):
+        if self.boolean_value(self[-1].select_sequence(context)):
             if some:
                 return True
         elif not some:
@@ -270,7 +270,7 @@ def select_for_expression(self: XPathToken, context: ContextType = None) -> Iter
 
     for results in copy(context).iter_product(selectors, varnames):
         context.variables.update(x for x in zip(varnames, results))
-        yield from self[-1].select(copy(context))
+        yield from self[-1].select_sequence(context)
 
 
 ###
@@ -296,7 +296,6 @@ def evaluate_instance_expression(self: XPathToken, context: ContextType = None) 
         if context is None:
             raise self.missing_context()
 
-        context = copy(context)
         for position, context.item in enumerate(self[0].select(context)):
             if context.axis is None:
                 context.axis = 'self'
@@ -600,7 +599,7 @@ def evaluate_comma_operator(self: XPathToken, context: ContextType = None) \
 @method(',')
 def select_comma_operator(self: XPathToken, context: ContextType = None) -> Iterator[ItemType]:
     for op in self:
-        yield from op.select(context=copy(context))
+        yield from op.select_sequence(context)
 
 
 ###
@@ -674,8 +673,7 @@ def led_value_comparison_operators(self: XPathToken, left: XPathToken) -> XPathT
 @method('ge')
 def evaluate_value_comparison_operators(self: XPathToken, context: ContextType = None) \
         -> Emptiable[bool]:
-    operands = [self[0].get_atomized_operand(context=copy(context)),
-                self[1].get_atomized_operand(context=copy(context))]
+    operands = [self[0].get_atomized_operand(context), self[1].get_atomized_operand(context)]
 
     if any(x is None for x in operands):
         return []
@@ -860,7 +858,7 @@ def select_document_node_kind_test(self: XPathFunction, context: ContextType = N
             if isinstance(item, DocumentNode):
                 yield item
     else:
-        elements = [e for e in self[0].select(copy(context)) if isinstance(e, ElementNode)]
+        elements = [e for e in self[0].select_sequence(context) if isinstance(e, ElementNode)]
         if isinstance(context.item, DocumentNode):
             if len(elements) == 1:
                 yield context.item
