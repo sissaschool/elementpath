@@ -647,7 +647,7 @@ def select_child_path(self: XPathToken, context: ContextType = None) \
         yield from self[0].select(context)
     else:
         items: set[ItemType] = set()
-        for _ in context.inner_focus_select(self[0]):
+        for _ in self[0].select_with_focus(context):
             if not isinstance(context.item, XPathNode):
                 msg = f"Intermediate step contains an atomic value {context.item!r}"
                 raise self.error('XPTY0019', msg)
@@ -674,7 +674,7 @@ def select_descendant_path(self: XPathToken, context: ContextType = None) \
         raise self.missing_context()
     elif len(self) == 2:
         items: set[ItemType] = set()
-        for _ in context.inner_focus_select(self[0]):
+        for _ in self[0].select_with_focus(context):
             if not isinstance(context.item, XPathNode):
                 raise self.error('XPTY0019')
 
@@ -730,7 +730,7 @@ def select_predicate(self: XPathToken, context: ContextType = None) -> Iterator[
     if context is None:
         raise self.missing_context()
 
-    for _ in context.inner_focus_select(self[0], True):
+    for _ in self[0].select_with_focus(context):
         if (self[1].label in ('axis', 'kind test') or self[1].symbol == '..') \
                 and not isinstance(context.item, XPathNode):
             raise self.error('XPTY0020')

@@ -34,7 +34,7 @@ from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode
 from elementpath.datatypes import DecimalProxy, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime, Date, DayTimeDuration, Duration, \
-    Integer, QName, AnyAtomicType
+    Integer, QName, AnyAtomicType, ListType
 from elementpath.sequence_types import is_sequence_type_restriction, match_sequence_type
 from elementpath.tdop import Token, MultiLabel
 from elementpath.xpath_context import XPathSchemaContext, XPathContext
@@ -104,6 +104,18 @@ class XPathToken(Token[ta.XPathTokenType]):
             finally:
                 context.axis = axis
                 context.item = item
+
+    def select_with_focus(self, context: XPathContext) -> Iterator[ta.ItemType]:
+        """Select item with an inner focus on dynamic context."""
+        status = context.item, context.size, context.position, context.axis
+        results = [x for x in self.select_sequence(context)]
+
+        context.axis = None
+        context.size = len(results)
+        for context.position, context.item in enumerate(results, start=1):
+            yield context.item
+
+        context.item, context.size, context.position, context.axis = status
 
     def __str__(self) -> str:
         if self.symbol == '$':
@@ -999,6 +1011,24 @@ class XPathAxis(XPathToken):
     def source(self) -> str:
         return '%s::%s' % (self.symbol, self[0].source)
 
+    def select_with_focus(self, context: XPathContext) -> Iterator[ta.ItemType]:
+        """Select item with an inner focus on dynamic context."""
+        status = context.item, context.size, context.position, context.axis
+        results = [x for x in self.select_sequence(context)]
+        context.axis = None
+
+        if self.reverse_axis:
+            context.size = context.position = len(results)
+            for context.item in results:
+                yield context.item
+                context.position -= 1
+        else:
+            context.size = len(results)
+            for context.position, context.item in enumerate(results, start=1):
+                yield context.item
+
+        context.item, context.size, context.position, context.axis = status
+
 
 class ValueToken(XPathToken):
     """
@@ -1482,7 +1512,7 @@ class XPathConstructor(XPathFunction):
     """
     A token for processing XPath 2.0+ constructors.
     """
-    type_class: type[ta.AtomicType]
+    type_class: type[AnyAtomicType | ListType]
 
     @staticmethod
     def cast(value: Any) -> ta.AtomicType:

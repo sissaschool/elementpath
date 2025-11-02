@@ -89,6 +89,3 @@ class Entity(NCName):
 class NMToken(XsdToken):
     name = 'NMTOKEN'
     pattern = LazyPattern(r'^[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]+$')
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)

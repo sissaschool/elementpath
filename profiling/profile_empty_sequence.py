@@ -53,6 +53,13 @@ if __name__ == '__main__':
 
     print()
 
+    run_timeit('[x for x in range(10000)]', SETUP, NUMBER)
+    run_timeit('tuple([x for x in range(10000)])', SETUP, NUMBER)
+    run_timeit('XPathSequence([x for x in range(10000)])', SETUP, NUMBER)
+    run_timeit('UserList    ([x for x in range(10000)])', SETUP, NUMBER)
+
+    print()
+
     run_timeit('for _ in range(10000): obj1 is None', SETUP, NUMBER)
     run_timeit('for _ in range(10000): obj1 is EmptySequence', SETUP, NUMBER)
     run_timeit('for _ in range(10000): obj1 == []', SETUP, NUMBER)

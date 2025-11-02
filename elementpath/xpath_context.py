@@ -13,6 +13,7 @@ from collections.abc import Iterator, Sequence, Callable
 from functools import cached_property
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
+from warnings import deprecated
 
 from elementpath.aliases import ChildNodeType, RootNodeType, RootArgType, ItemType, \
     ValueType, ItemArgType, FunctionArgType, CollectionArgType, NamespacesType, InputType
@@ -340,24 +341,10 @@ class XPathContext:
             item = self.get_context_item(items)
             return [item] if isinstance(item, XPathNode) else []
 
-    def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis'], predicate: bool = False) \
-            -> Iterator[ItemType]:
-        """Apply the token's selector with an inner focus."""
-        status = self.item, self.size, self.position, self.axis
-        results = [x for x in token.select_sequence(self)]
-        self.axis = None
-
-        if token.label == 'axis' and cast('XPathAxis', token).reverse_axis:
-            self.size = self.position = len(results)
-            for self.item in results:
-                yield self.item
-                self.position -= 1
-        else:
-            self.size = len(results)
-            for self.position, self.item in enumerate(results, start=1):
-                yield self.item
-
-        self.item, self.size, self.position, self.axis = status
+    @deprecated("inner_focus_select() is deprecated and will be removed in future versions.")
+    def inner_focus_select(self, token: 'XPathToken',
+                           predicate: bool = False) -> Iterator[ItemType]:
+        return token.select_with_focus(self)
 
     def iter_product(self, selectors: Sequence[Callable[[Any], Any]],
                      varnames: Optional[Sequence[str]] = None) -> Iterator[Any]:
