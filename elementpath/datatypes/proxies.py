@@ -15,7 +15,6 @@ from elementpath.aliases import XPath2ParserType
 from elementpath.helpers import BOOLEAN_VALUES, FloatArgType, LazyPattern, \
     collapse_white_spaces, get_double
 from .any_types import AnyAtomicType
-from .sequences import XPathSequence, EmptySequence, EmptySequenceType
 from .untyped import UntypedAtomic
 from .numeric import Float, Integer
 from .datetime import AbstractDateTime, Duration
@@ -218,9 +217,9 @@ class ArithmeticProxy(metaclass=ArithmeticTypeMeta):
 class ErrorProxy(AnyAtomicType):
     name = 'error'
 
-    def __new__(cls, value: Any) -> XPathSequence:
-        if isinstance(value, XPathSequence) or value is None or value == []:
-            return EmptySequence
+    def __new__(cls, value: Any) -> list | None:
+        if value is None or value == []:
+            return value
         msg = f"Cast {value!r} to xs:error is not possible"
         if isinstance(value, list):
             raise cls._invalid_value(msg)
@@ -228,4 +227,4 @@ class ErrorProxy(AnyAtomicType):
 
     @classmethod
     def __subclasshook__(cls, subclass: type) -> bool:
-        return issubclass(subclass, (EmptySequenceType, type(None)))
+        return subclass is type(None)

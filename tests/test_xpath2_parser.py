@@ -28,13 +28,13 @@ from textwrap import dedent
 import xml.etree.ElementTree as ET
 
 from elementpath import XPath2Parser, XPathContext, XPathSchemaContext, \
-    MissingContextError, ElementNode, select, iter_select, get_node_tree
+    MissingContextError, ElementNode, select, iter_select, get_node_tree, XPathFunction
 from elementpath.datatypes import builtin_atomic_types, DateTime, Date, Date10, \
     Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.collations import get_locale_category
 from elementpath.sequence_types import is_instance
-from elementpath.xpath_tokens import ProxyToken, XPathFunction
+from elementpath.xpath_tokens import ProxyToken
 
 try:
     from tests import test_xpath1_parser

@@ -13,7 +13,6 @@ classes for other XSD built-in types. This subpackage raises only built-in
 exceptions in order to be reusable in other packages.
 """
 from .any_types import builtin_atomic_types, AtomicTypeMeta, AnyAtomicType
-from .sequences import XPathSequence, EmptySequence
 from .numeric import Float, Float10, Integer, Int, Long, \
     NegativeInteger, PositiveInteger, NonNegativeInteger, \
     NonPositiveInteger, Short, Byte, UnsignedByte, UnsignedInt, \
@@ -40,7 +39,7 @@ __all__ = ['AbstractBinary', 'AbstractDateTime', 'ListType', 'AbstractQName',
            'AnyAtomicType', 'AnyURI', 'ArithmeticProxy', 'AtomicTypeMeta', 'Base64Binary',
            'BooleanProxy', 'AtomicTypeMeta', 'Byte', 'Date', 'Date10', 'DateTime',
            'DateTime10', 'DateTimeStamp', 'DayTimeDuration', 'DecimalProxy', 'DoubleProxy',
-           'DoubleProxy10', 'Duration', 'EmptySequence', 'Entities', 'Entity', 'ErrorProxy',
+           'DoubleProxy10', 'Duration', 'Entities', 'Entity', 'ErrorProxy',
            'Float', 'Float10', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
            'GregorianYear', 'GregorianYear10', 'GregorianYearMonth', 'GregorianYearMonth10',
            'HexBinary', 'Id', 'Idref', 'Idrefs', 'Int', 'Integer', 'Language', 'Long',
@@ -48,5 +47,5 @@ __all__ = ['AbstractBinary', 'AbstractDateTime', 'ListType', 'AbstractQName',
            'NonPositiveInteger', 'NormalizedString', 'Notation', 'NumericProxy',
            'OrderedDateTime', 'PositiveInteger', 'QName', 'Short', 'StringProxy', 'Time',
            'Timezone', 'UnsignedByte', 'UnsignedInt', 'UnsignedLong', 'UnsignedShort',
-           'UntypedAtomic', 'XPathSequence', 'XsdToken', 'YearMonthDuration',
+           'UntypedAtomic', 'XsdToken', 'YearMonthDuration',
            'ListType', 'builtin_atomic_types', 'builtin_list_types']

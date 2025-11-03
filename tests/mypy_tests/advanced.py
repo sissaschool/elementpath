@@ -3,7 +3,8 @@
 def main() -> None:
     from io import StringIO
     from xml.etree import ElementTree
-    from elementpath import XPath2Parser, XPathToken, XPathContext, DocumentNode
+    from elementpath import XPath2Parser, XPathContext, DocumentNode
+    from elementpath import XPathToken
 
     parser = XPath2Parser()
     token = parser.parse('/root/(: comment :) child[@attr]')

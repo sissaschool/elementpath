@@ -12,7 +12,7 @@ from timeit import timeit
 from memory_profiler import profile
 
 from elementpath import XPath1Parser
-from elementpath.xpath_tokens import ValueToken
+from xpath_tokens import ValueToken
 
 
 def run_timeit(stmt='pass', setup='pass', number=1000):

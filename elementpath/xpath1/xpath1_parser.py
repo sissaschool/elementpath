@@ -25,8 +25,7 @@ from elementpath.tdop import Parser
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.sequence_types import match_sequence_type
 from elementpath.schema_proxy import AbstractSchemaProxy
-from elementpath.xpath_tokens import XPathToken, XPathAxis, \
-    XPathFunction, ProxyToken
+from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction, ProxyToken
 
 
 class XPath1Parser(Parser[XPathTokenType]):

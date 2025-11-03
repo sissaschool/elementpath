@@ -18,7 +18,7 @@ from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_NUMERIC, \
 from elementpath.datatypes import builtin_atomic_types, builtin_list_types, \
     AnyAtomicType, QName, NumericProxy
 from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
-from elementpath import xpath_tokens
+from elementpath.xpath_tokens import XPathToken
 
 XSD_EXTENDED_PREFIX = f'{{{XSD_NAMESPACE}}}'
 XSD_10_UNSUPPORTED = frozenset(
@@ -274,16 +274,17 @@ def match_sequence_type(value: Any,
             else:
                 return all(match_st(x, st) for x in v)
         elif st == 'item()':
-            return isinstance(v, (XPathNode, AnyAtomicType, list, xpath_tokens.XPathFunction))
+            return isinstance(v, (XPathNode, AnyAtomicType, list,
+                                  XPathToken.token_types.function))
         elif st == 'numeric' or st == 'xs:numeric':
             return isinstance(v, NumericProxy)
         elif st.startswith('function('):
-            if not isinstance(v, xpath_tokens.XPathFunction):
+            if not isinstance(v, XPathToken.token_types.function):
                 return False
             return v.match_function_test(st)
 
         elif st.startswith('array('):
-            if not isinstance(v, xpath_tokens.XPathArray):
+            if not isinstance(v, XPathToken.token_types.array):
                 return False
             if st == 'array(*)':
                 return True
@@ -292,7 +293,7 @@ def match_sequence_type(value: Any,
             return all(match_st(x, item_st) for x in v.items())
 
         elif st.startswith('map('):
-            if not isinstance(v, xpath_tokens.XPathMap):
+            if not isinstance(v, XPathToken.token_types.map):
                 return False
             if st == 'map(*)':
                 return True

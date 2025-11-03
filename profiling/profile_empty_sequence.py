@@ -10,7 +10,7 @@
 #
 from timeit import timeit
 from collections import UserList
-from elementpath.datatypes.sequences import EmptySequenceType, EmptySequence
+from elementpath.xpath_tokens.sequences import EmptySequenceType, EmptySequence
 from elementpath.datatypes.sequences import XPathSequence
 
 
