@@ -253,7 +253,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(token.evaluate(), 0)
         self.assertEqual(str(token), "'map:size' function")
         self.assertEqual(
-            repr(token), f'<_PrefixedReferenceToken object at {hex(id(token))}>'
+            repr(token), f'<PrefixedReferenceToken object at {hex(id(token))}>'
         )
         self.assertEqual(token.source, 'map:size(map{})')
 
@@ -264,7 +264,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertListEqual(token.evaluate(), [])
         self.assertEqual(str(token), "'map:keys' function")
         self.assertEqual(
-            repr(token), f'<_PrefixedReferenceToken object at {hex(id(token))}>'
+            repr(token), f'<PrefixedReferenceToken object at {hex(id(token))}>'
         )
         self.assertEqual(token.source, 'map:keys(map{})')
 

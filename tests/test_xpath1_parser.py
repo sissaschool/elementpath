@@ -161,7 +161,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             value=217.35
         )
         self.check_token(
-            '(name)', 'literal', "'schema' name",
+            '(name)', 'name', "'schema' name",
             value='schema'
         )
 
