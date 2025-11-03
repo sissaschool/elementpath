@@ -241,6 +241,32 @@ class XPath2Parser(XPath1Parser):
 
         return self.token
 
+    def parse_sequence_type(self) -> XPathToken:
+        if self.next_token.label in ('kind test', 'sequence type', 'function test'):
+            token = self.expression(rbp=85)
+        else:
+            if self.next_token.symbol == 'Q{':
+                token = self.advance().nud()
+            elif self.next_token.symbol != '(name)':
+                raise self.next_token.wrong_syntax()
+            else:
+                self.advance()
+                if self.next_token.symbol == ':':
+                    left = self.token
+                    self.advance()
+                    token = self.token.led(left)
+                else:
+                    token = self.token
+
+                if self.next_token.symbol in ('::', '('):
+                    raise self.next_token.wrong_syntax()
+
+        next_symbol = self.next_token.symbol
+        if token.symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
+            token.occurrence = next_symbol
+            self.advance()
+        return token
+
     @classmethod
     def constructor(cls, symbol: str, bp: int = 90, nargs: NargsType = 1,
                     sequence_types: Union[tuple[()], tuple[str, ...], list[str]] = (),

@@ -251,7 +251,7 @@ class _InlineFunction(XPathFunction):
         else:
             self.label = 'function test'
             while True:
-                token = self.parse_sequence_type()
+                token = self.parser.parse_sequence_type()
                 append_sequence_type(token)
                 self.append(token)
                 if self.parser.next_token.symbol != ',':

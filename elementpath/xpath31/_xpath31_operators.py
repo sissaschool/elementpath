@@ -47,14 +47,14 @@ def nud_map_sequence_type_or_constructor(self: XPathFunction) \
     if self.parser.next_token.label not in ('kind test', 'sequence type', 'function test'):
         self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
     self[:] = self.parser.expression(45),
-    self[0].parse_occurrence()
+    self.parser.parse_occurrence(self[0])
 
     if self[0].symbol != '*':
         self.parser.advance(',')
         if self.parser.next_token.label not in ('kind test', 'sequence type', 'function test'):
             self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
         self.append(self.parser.expression(45))
-        self[-1].parse_occurrence()
+        self.parser.parse_occurrence(self[-1])
 
     self.parser.advance(')')
     return self
@@ -78,9 +78,9 @@ def nud_sequence_type_or_curly_array_constructor(self: XPathFunction) -> XPathTo
         self.parser.expected_next('(name)', ':', '*', 'item')
     self[:] = self.parser.expression(45),
     if self[0].symbol != '*':
-        self[0].parse_occurrence()
+        self.parser.parse_occurrence(self[0])
     self.parser.advance(')')
-    self.parse_occurrence()
+    self.parser.parse_occurrence(self)
     return self
 
 

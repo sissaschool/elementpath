@@ -22,11 +22,11 @@ from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, \
 from elementpath.sequence_types import match_sequence_type, is_sequence_type_restriction
 from elementpath.xpath_nodes import XPathNode
 from elementpath.tree_builders import get_node_tree
-from . import base
-from .wrappers import ValueToken
+from .base import XPathToken
+from .tokens import ValueToken
 
 
-class XPathFunction(base.XPathToken):
+class XPathFunction(XPathToken):
     """
     A token for processing XPath functions.
     """
@@ -84,14 +84,14 @@ class XPathFunction(base.XPathToken):
 
         if self.label == 'partial function':
             for arg, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
-                if isinstance(arg, XPathFunction) or not isinstance(arg, base.XPathToken):
+                if isinstance(arg, XPathFunction) or not isinstance(arg, XPathToken):
                     tk.value = self.validated_argument(arg, context)
                 else:
                     tk.value = arg.evaluate(context)
         else:
             self.clear()
             for arg in args:
-                if isinstance(arg, base.XPathToken):
+                if isinstance(arg, XPathToken):
                     self._items.append(arg)
                 else:
                     value = self.validated_argument(arg, context)
@@ -159,7 +159,7 @@ class XPathFunction(base.XPathToken):
         return [get_arg_item(x) for x in arg]
 
     def validated_result(self, result: ta.ValueType) -> ta.ValueType:
-        if isinstance(result, base.XPathToken) and result.symbol == '?':
+        if isinstance(result, XPathToken) and result.symbol == '?':
             return result
         elif match_sequence_type(result, self.sequence_types[-1], self.parser):
             return result
@@ -347,9 +347,9 @@ class XPathFunction(base.XPathToken):
             def select(context: ta.ContextType = None) -> Iterator['XPathFunction']:
                 yield self
 
-            if self.__class__.evaluate is not base.XPathToken.evaluate:
+            if self.__class__.evaluate is not XPathToken.evaluate:
                 setattr(self, '_partial_evaluate', self.evaluate)
-            if self.__class__.select is not base.XPathToken.select:
+            if self.__class__.select is not XPathToken.select:
                 setattr(self, '_partial_select', self.select)
 
             setattr(self, 'evaluate', evaluate)

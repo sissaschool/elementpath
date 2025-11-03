@@ -17,12 +17,12 @@ from typing import Any
 
 from .base import XPathToken
 from .axes import XPathAxis
-from .wrappers import ValueToken, ProxyToken
 from .functions import XPathFunction
 from .contructors import XPathConstructor
 from .maps import XPathMap
 from .arrays import XPathArray
 from .sequences import XPathSequence
+from .tokens import ValueToken, ProxyToken
 
 __all__ = ['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor',
            'ValueToken', 'ProxyToken', 'XPathMap', 'XPathArray', 'XPathSequence',
@@ -33,14 +33,14 @@ __all__ = ['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor',
 class TokenBaseClasses:
     """A register of available XPath token base classes."""
     base: type[XPathToken] = XPathToken
-    function: type[XPathFunction] = XPathFunction
     axis: type[XPathAxis] = XPathAxis
-    value: type[ValueToken] = ValueToken
-    proxy: type[ProxyToken] = ProxyToken
+    function: type[XPathFunction] = XPathFunction
     constructor: type[XPathConstructor] = XPathConstructor
     array: type[XPathArray] = XPathArray
     map: type[XPathMap] = XPathMap
     sequence: type[XPathSequence] = XPathSequence
+    value: type[ValueToken] = ValueToken
+    proxy: type[ProxyToken] = ProxyToken
 
     class __Name:
         name: str | None = None

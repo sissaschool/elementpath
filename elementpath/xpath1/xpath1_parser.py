@@ -282,6 +282,14 @@ class XPath1Parser(Parser[XPathTokenType]):
         else:
             raise self.next_token.wrong_syntax(message)
 
+    def parse_occurrence(self, token: XPathToken) -> None:
+        """Parse the occurrence for the current token."""
+        if self.next_token.symbol in ('*', '+', '?'):
+            assert self.token is token
+            token.occurrence = self.next_token.symbol
+            self.advance()
+            self.next_token.unexpected('*', '+', '?')
+
     def check_variables(self, values: MutableMapping[str, Any]) -> None:
         """Checks the sequence types of the XPath dynamic context's variables."""
         for varname, value in values.items():
@@ -378,7 +386,7 @@ XPath1Parser.literal('(string)')
 XPath1Parser.literal('(float)')
 XPath1Parser.literal('(decimal)')
 XPath1Parser.literal('(integer)')
-XPath1Parser.literal('(invalid)')
+XPath1Parser.register('(invalid)')
 XPath1Parser.register('(unknown)')
 
 ###

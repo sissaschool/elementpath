@@ -279,7 +279,7 @@ def select_for_expression(self: XPathToken, context: ContextType = None) -> Iter
 @method('treat', bp=61)
 def led_sequence_type_based_expressions(self: XPathToken, left: XPathToken) -> XPathToken:
     self.parser.advance('of' if self.symbol == 'instance' else 'as')
-    self[:] = left, self.parse_sequence_type()
+    self[:] = left, self.parser.parse_sequence_type()
     return self
 
 

@@ -57,61 +57,6 @@ class XPathToken(Token[ta.XPathTokenType]):
     occurrence: Optional[str] = None  # occurrence indicator for item types
     concatenated = False  # a flag for infix operators that can be concatenated
 
-    def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
-        """
-        Evaluate default method for XPath tokens.
-
-        :param context: The XPath dynamic context.
-        """
-        return [x for x in self.select(context)]
-
-    def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
-        """
-        Select operator that generates XPath results.
-
-        :param context: The XPath dynamic context.
-        """
-        item = self.evaluate(context)
-        if isinstance(item, list):
-            yield from item
-        else:
-            yield item
-
-    def select_flatten(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
-        """A select that flattens XPath results, including arrays."""
-        for item in self.select(context):
-            if isinstance(item, list):
-                yield from item
-            elif isinstance(item, XPathToken) and hasattr(item, 'iter_flatten'):
-                yield from item.iter_flatten(context)
-            else:
-                yield item
-
-    def select_sequence(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
-        if context is None:
-            yield from self.select(None)
-        else:
-            axis = context.axis
-            item = context.item
-            context.axis = None
-            try:
-                yield from self.select(context)
-            finally:
-                context.axis = axis
-                context.item = item
-
-    def select_with_focus(self, context: XPathContext) -> Iterator[ta.ItemType]:
-        """Select item with an inner focus on dynamic context."""
-        status = context.item, context.size, context.position, context.axis
-        results = [x for x in self.select_sequence(context)]
-
-        context.axis = None
-        context.size = len(results)
-        for context.position, context.item in enumerate(results, start=1):
-            yield context.item
-
-        context.item, context.size, context.position, context.axis = status
-
     def __str__(self) -> str:
         if self.symbol == '$':
             return '$%s variable reference' % (self[0].value if self._items else '')
@@ -224,40 +169,134 @@ class XPathToken(Token[ta.XPathTokenType]):
             for tk in self._items:
                 yield from tk.iter_leaf_elements()
 
-    def parse_sequence_type(self) -> 'XPathToken':
-        if self.parser.next_token.label in ('kind test', 'sequence type', 'function test'):
-            token = self.parser.expression(rbp=85)
+    ###
+    # Evaluation and selectors methods
+    def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
+        """
+        Evaluate default method for XPath tokens.
+
+        :param context: The XPath dynamic context.
+        """
+        return [x for x in self.select(context)]
+
+    def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
+        """
+        Select operator that generates XPath results.
+
+        :param context: The XPath dynamic context.
+        """
+        item = self.evaluate(context)
+        if isinstance(item, list):
+            yield from item
         else:
-            if self.parser.next_token.symbol == 'Q{':
-                token = self.parser.advance().nud()
-            elif self.parser.next_token.symbol != '(name)':
-                raise self.wrong_syntax()
+            yield item
+
+    def select_flatten(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
+        """A select that flattens XPath results, including arrays."""
+        for item in self.select(context):
+            if isinstance(item, list):
+                yield from item
+            elif isinstance(item, XPathToken) and hasattr(item, 'iter_flatten'):
+                yield from item.iter_flatten(context)
             else:
-                self.parser.advance()
-                if self.parser.next_token.symbol == ':':
-                    left = self.parser.token
-                    self.parser.advance()
-                    token = self.parser.token.led(left)
+                yield item
+
+    def select_sequence(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
+        if context is None:
+            yield from self.select(None)
+        else:
+            axis = context.axis
+            item = context.item
+            context.axis = None
+            try:
+                yield from self.select(context)
+            finally:
+                context.axis = axis
+                context.item = item
+
+    def select_with_focus(self, context: XPathContext) -> Iterator[ta.ItemType]:
+        """Select item with an inner focus on dynamic context."""
+        status = context.item, context.size, context.position, context.axis
+        results = [x for x in self.select_sequence(context)]
+
+        context.axis = None
+        context.size = len(results)
+        for context.position, context.item in enumerate(results, start=1):
+            yield context.item
+
+        context.item, context.size, context.position, context.axis = status
+
+    def select_results(self, context: ta.ContextType) -> Iterator[ta.ResultType]:
+        """
+        Generates formatted XPath results.
+
+        :param context: the XPath dynamic context.
+        """
+        if context is None:
+            yield from cast(Iterator[ta.AtomicType], self.select(context))
+        else:
+            self.parser.check_variables(context.variables)
+
+            for result in self.select(context):
+                if not isinstance(result, XPathNode):
+                    yield result
+                elif isinstance(result, NamespaceNode):
+                    if self.parser.compatibility_mode:
+                        yield result.prefix, result.uri
+                    else:
+                        yield result.uri
+                elif isinstance(result, DocumentNode):
+                    if result.is_extended:
+                        # cannot represent with an ElementTree: yield the document node
+                        yield result
+                    elif result is context.root or result is not context.document:
+                        yield result.value
                 else:
-                    token = self.parser.token
+                    yield result.value
 
-                if self.parser.next_token.symbol in ('::', '('):
-                    raise self.parser.next_token.wrong_syntax()
+    def get_results(self, context: ta.ContextType) \
+            -> Union[list[ta.ResultType], ta.AtomicType]:
+        """
+        Returns results formatted according to XPath specifications.
 
-        next_symbol = self.parser.next_token.symbol
-        if token.symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
-            token.occurrence = next_symbol
-            self.parser.advance()
-        return token
+        :param context: the XPath dynamic context.
+        :return: a list or a simple datatype when the result is a single simple type \
+        generated by a literal or function token.
+        """
+        results: list[ta.ResultType]
+        item = None
+        if context is None:
+            results = [x for x in cast(Iterator[ta.AtomicType], self.select(context))]
+        else:
+            self.parser.check_variables(context.variables)
 
-    def parse_occurrence(self) -> None:
-        if self.parser.next_token.symbol in ('*', '+', '?'):
-            self.occurrence = self.parser.next_token.symbol
-            self.parser.advance()
-            self.parser.next_token.unexpected('*', '+', '?')
+            results = []
+            for item in self.select(context):
+                if not isinstance(item, XPathNode):
+                    results.append(item)
+                elif isinstance(item, NamespaceNode):
+                    if self.parser.compatibility_mode:
+                        results.append((item.prefix, item.uri))
+                    else:
+                        results.append(item.uri)
+                elif isinstance(item, DocumentNode):
+                    if item.is_extended:
+                        results.append(item)
+                    elif item is not context.document or item is context.root:
+                        results.append(item.value)
+                else:
+                    results.append(item.value)
+
+        if len(results) == 1 and not isinstance(item, (ElementNode, DocumentNode)):
+            if isinstance(item, (bool, int, float, Decimal)):
+                return item
+            elif self.label in ('function', 'literal'):
+                return cast(ta.AtomicType, results[0])
+
+        return results
 
     ###
-    # Dynamic context methods
+    # Helpers to get and validate arguments
     def get_argument(self, context: ta.ContextType,
                      index: int = 0,
                      required: bool = False,
@@ -404,6 +443,19 @@ class XPathToken(Token[ta.XPathTokenType]):
             msg = f"{ordinal(index+1)} argument has type {type(item)!r} instead of {cls!r}"
         raise self.error(code, msg)
 
+    ###
+    # Atomization of sequences
+    def atomization(self, context: ta.ContextType = None) -> Iterator[ta.AtomicType]:
+        """
+        Helper method for value atomization of a sequence.
+
+        Ref: https://www.w3.org/TR/xpath31/#id-atomization
+
+        :param context: the XPath dynamic context.
+        """
+        for item in self.select_sequence(context):
+            yield from self.atomize_item(item)
+
     def atomize_item(self, item: ta.ValueType) -> Iterator[ta.AtomicType]:
         """
         Atomization of a sequence item. Yields typed values, as computed by
@@ -449,17 +501,8 @@ class XPathToken(Token[ta.XPathTokenType]):
             msg = f"sequence item {item!r} is not appropriate for the context"
             raise self.error('XPTY0004', msg)
 
-    def atomization(self, context: ta.ContextType = None) -> Iterator[ta.AtomicType]:
-        """
-        Helper method for value atomization of a sequence.
-
-        Ref: https://www.w3.org/TR/xpath31/#id-atomization
-
-        :param context: the XPath dynamic context.
-        """
-        for item in self.select_sequence(context):
-            yield from self.atomize_item(item)
-
+    ###
+    # Helpers for operators
     def get_atomized_operand(self, context: ta.ContextType = None) -> Optional[ta.AtomicType]:
         """
         Get the atomized value for an XPath operator.
@@ -539,75 +582,6 @@ class XPathToken(Token[ta.XPathTokenType]):
 
             yield values
 
-    def select_results(self, context: ta.ContextType) -> Iterator[ta.ResultType]:
-        """
-        Generates formatted XPath results.
-
-        :param context: the XPath dynamic context.
-        """
-        if context is None:
-            yield from cast(Iterator[ta.AtomicType], self.select(context))
-        else:
-            self.parser.check_variables(context.variables)
-
-            for result in self.select(context):
-                if not isinstance(result, XPathNode):
-                    yield result
-                elif isinstance(result, NamespaceNode):
-                    if self.parser.compatibility_mode:
-                        yield result.prefix, result.uri
-                    else:
-                        yield result.uri
-                elif isinstance(result, DocumentNode):
-                    if result.is_extended:
-                        # cannot represent with an ElementTree: yield the document node
-                        yield result
-                    elif result is context.root or result is not context.document:
-                        yield result.value
-                else:
-                    yield result.value
-
-    def get_results(self, context: ta.ContextType) \
-            -> Union[list[ta.ResultType], ta.AtomicType]:
-        """
-        Returns results formatted according to XPath specifications.
-
-        :param context: the XPath dynamic context.
-        :return: a list or a simple datatype when the result is a single simple type \
-        generated by a literal or function token.
-        """
-        results: list[ta.ResultType]
-        item = None
-        if context is None:
-            results = [x for x in cast(Iterator[ta.AtomicType], self.select(context))]
-        else:
-            self.parser.check_variables(context.variables)
-
-            results = []
-            for item in self.select(context):
-                if not isinstance(item, XPathNode):
-                    results.append(item)
-                elif isinstance(item, NamespaceNode):
-                    if self.parser.compatibility_mode:
-                        results.append((item.prefix, item.uri))
-                    else:
-                        results.append(item.uri)
-                elif isinstance(item, DocumentNode):
-                    if item.is_extended:
-                        results.append(item)
-                    elif item is not context.document or item is context.root:
-                        results.append(item.value)
-                else:
-                    results.append(item.value)
-
-        if len(results) == 1 and not isinstance(item, (ElementNode, DocumentNode)):
-            if isinstance(item, (bool, int, float, Decimal)):
-                return item
-            elif self.label in ('function', 'literal'):
-                return cast(ta.AtomicType, results[0])
-
-        return results
-
     def get_operands(self, context: ta.ContextType, cls: Optional[type[Any]] = None) -> Any:
         """
         Returns the operands for a binary operator. Float arguments are converted
@@ -685,17 +659,6 @@ class XPathToken(Token[ta.XPathTokenType]):
         if uri_parts.path.startswith('/') and base_uri_parts.path not in ('', '/'):
             return uri
         return urllib.parse.urljoin(base_uri, uri)
-
-    def get_namespace(self, prefix: str) -> str:
-        """
-        Resolves a prefix to a namespace raising an error (FONS0004) if the
-        prefix is not found in the namespace map.
-        """
-        try:
-            return self.parser.namespaces[prefix]
-        except KeyError as err:
-            msg = 'no namespace found for prefix %r' % str(err)
-            raise self.error('FONS0004', msg) from None
 
     def bind_namespace(self, namespace: str) -> None:
         """
@@ -788,19 +751,20 @@ class XPathToken(Token[ta.XPathTokenType]):
         return _item
 
     ###
-    # XSD types related methods
-    def cast_to_qname(self, qname: str) -> QName:
-        """Cast a prefixed qname string to a QName object."""
+    # Helpers for cast to XSD types
+    def cast_to_qname(self, value: str) -> QName:
+        """Cast a string compatible value to a QName object."""
         try:
-            if ':' not in qname:
-                return QName(self.parser.namespaces.get(''), qname.strip())
-            pfx, _ = qname.strip().split(':')
-            return QName(self.parser.namespaces[pfx], qname)
+            return QName.make(value, parser=self.parser)
         except ValueError:
-            msg = 'invalid value {!r} for an xs:QName'.format(qname.strip())
-            raise self.error('FORG0001', msg)
+            msg = 'invalid value {!r} for an xs:QName'.format(value.strip())
+            raise self.error('FORG0001', msg) from None
         except KeyError as err:
-            raise self.error('FONS0004', 'no namespace found for prefix {}'.format(err))
+            msg = 'no namespace found for prefix {}'.format(err)
+            raise self.error('FONS0004', msg) from None
+        except TypeError:
+            msg = 'the argument has an invalid type {!r}'.format(type(value))
+            raise self.error('XPTY0004', msg) from None
 
     def cast_to_double(self, value: Union[SupportsFloat, str]) -> float:
         """Cast a value to xs:double."""
@@ -809,9 +773,10 @@ class XPathToken(Token[ta.XPathTokenType]):
         except ValueError as err:
             raise self.error('FORG0001', str(err))  # str or UntypedAtomic
 
-    def cast_to_primitive_type(self, obj: Any, type_name: str) -> Any:
-        if obj is None or not type_name.startswith('xs:') or type_name.count(':') != 1:
-            return obj
+    def cast_to_primitive_type(self, value: Any, type_name: str) -> Any:
+        """Cast a value to a primitive atomic type or a list of atomic values."""
+        if value is None or not type_name.startswith('xs:') or type_name.count(':') != 1:
+            return value
 
         type_name = type_name[3:].rstrip('+*?')
         token = cast('XPathConstructor', self.parser.symbol_table[type_name](self.parser))
@@ -828,10 +793,10 @@ class XPathToken(Token[ta.XPathTokenType]):
             else:
                 return v
 
-        if isinstance(obj, list):
-            return [cast_value(x) for x in obj]
+        if isinstance(value, list):
+            return [cast_value(x) for x in value]
         else:
-            return cast_value(obj)
+            return cast_value(value)
 
     ###
     # XPath data accessors base functions

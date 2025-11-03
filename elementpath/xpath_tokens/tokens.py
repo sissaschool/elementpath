@@ -7,6 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""A collection of additional and special token classes."""
+
 from typing import Iterator
 
 import elementpath.aliases as ta

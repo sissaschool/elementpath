@@ -16,7 +16,7 @@ import operator
 from collections.abc import Iterator, Sequence
 from typing import Any, cast, NoReturn, Optional, Union
 
-from elementpath.exceptions import ElementPathKeyError, ElementPathTypeError
+from elementpath.exceptions import ElementPathTypeError
 from elementpath.helpers import collapse_white_spaces, node_position
 from elementpath.datatypes import AbstractDateTime, AnyURI, Duration, DayTimeDuration, \
     YearMonthDuration, NumericProxy, ArithmeticProxy
@@ -47,41 +47,41 @@ infix = XPath1Parser.infix
 method = XPath1Parser.method
 
 
-@method(register('(name)', bp=10, label='literal'))
-def nud_name_literal(self: XPathToken) -> XPathToken:
-    if self.parser.next_token.symbol == '::':
-        msg = "axis '%s::' not found" % self.value
-        if self.parser.compatibility_mode:
-            raise self.error('XPST0010', msg)
-        raise self.error('XPST0003', msg)
-    elif self.parser.next_token.symbol == '(':
-        if self.parser.version >= '2.0':
-            pass  # XP30+ has led() for '(' operator that can check this
-        elif self.namespace == XSD_NAMESPACE:
-            raise self.error('XPST0017', 'unknown constructor function {!r}'.format(self.value))
-        elif self.namespace or self.value not in self.parser.RESERVED_FUNCTION_NAMES:
-            raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
-        else:
-            msg = f"{self.value!r} is not allowed as function name"
+class _NameLiteral(XPathToken):
+    """The special '(name)' literal token."""
+    symbol = lookup_name = '(name)'
+    label = 'literal'
+    bp = 10
+    value: str
+
+    def nud(self) -> XPathToken:
+        if self.parser.next_token.symbol == '::':
+            msg = "axis '%s::' not found" % self.value
+            if self.parser.compatibility_mode:
+                raise self.error('XPST0010', msg)
             raise self.error('XPST0003', msg)
+        elif self.parser.next_token.symbol == '(':
+            if self.parser.version >= '2.0':
+                pass  # XP30+ has led() for '(' operator that can check this
+            elif self.namespace == XSD_NAMESPACE:
+                raise self.error('XPST0017', 'unknown constructor function {!r}'.format(self.value))
+            elif self.namespace or self.value not in self.parser.RESERVED_FUNCTION_NAMES:
+                raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
+            else:
+                msg = f"{self.value!r} is not allowed as function name"
+                raise self.error('XPST0003', msg)
 
-    return self
+        return self
 
+    def evaluate(self, context: ContextType = None) -> list[ItemType]:
+        return [x for x in self.select(context)]
 
-@method('(name)')
-def evaluate_name_literal(self: XPathToken, context: ContextType = None) \
-        -> list[ItemType]:
-    return [x for x in self.select(context)]
+    def select(self, context: ContextType = None) -> Iterator[ItemType]:
+        if context is None:
+            raise self.missing_context()
 
-
-@method('(name)')
-def select_name_literal(self: XPathToken, context: ContextType = None) \
-        -> Iterator[ItemType]:
-    if context is None:
-        raise self.missing_context()
-
-    if isinstance(self.value, str):
-        yield from context.iter_matching_nodes(self.value, self.parser.default_namespace)
+        if isinstance(self.value, str):
+            yield from context.iter_matching_nodes(self.value, self.parser.default_namespace)
 
 
 ###
@@ -139,11 +139,12 @@ class _PrefixedReferenceToken(XPathToken):
 
         if left.symbol == '(name)':
             try:
-                namespace = self.get_namespace(cast(str, left.value))
-            except ElementPathKeyError:
+                namespace = self.parser.namespaces[left.value]
+            except KeyError:
                 self.parser.advance()  # Assure there isn't a following incomplete comment
                 self[:] = left, self.parser.token
                 msg = "prefix {!r} is not declared".format(left.value)
+                # raise self.error('FONS0004', msg) from None  FIXME?? XP30+??
                 raise self.error('XPST0081', msg) from None
             else:
                 self.parser.next_token.bind_namespace(namespace)
@@ -182,6 +183,7 @@ class _PrefixedReferenceToken(XPathToken):
         yield from context.iter_matching_nodes(self.name)
 
 
+XPath1Parser.symbol_table['(name)'] = _NameLiteral
 XPath1Parser.symbol_table[':'] = _PrefixedReferenceToken
 
 

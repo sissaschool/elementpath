@@ -38,20 +38,18 @@ class AbstractQName(AnyAtomicType):
 
         if isinstance(value, AbstractQName):
             return value
-        elif isinstance(value, UntypedAtomic) and parser and parser.version >= '3.1':
+        elif isinstance(value, UntypedAtomic) and parser and parser.version >= '3.0':
             value = value.value
         elif not isinstance(value, str):
             raise cls._invalid_type(value)
 
         if namespaces is None:
-            if parser is None:
-                return cls(None, value)
-            namespaces = parser.namespaces
+            namespaces = parser.namespaces if parser is not None else {}
 
         if ':' not in value:
             return cls(namespaces.get(''), value)
         else:
-            return cls(namespaces.get(value[0:value.index(':')]), value)
+            return cls(namespaces[value[0:value.index(':')]], value)
 
     __slots__ = ('uri', 'qname', 'prefix', 'local_name')
 

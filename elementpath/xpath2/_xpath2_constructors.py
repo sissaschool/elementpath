@@ -354,14 +354,7 @@ def evaluate_string_type_and_function(self: XPathConstructor, context: ContextTy
 @constructor('QName', bp=90, label=('function', 'constructor function'),
              nargs=(1, 2), sequence_types=('xs:string?', 'xs:string', 'xs:QName'))
 def cast_qname_type(self: XPathConstructor, value: AtomicType) -> QName:
-    if isinstance(value, QName):
-        return value
-    elif isinstance(value, UntypedAtomic) and self.parser.version >= '3.0':
-        return self.cast_to_qname(value.value)
-    elif isinstance(value, str):
-        return self.cast_to_qname(value)
-    else:
-        raise self.error('XPTY0004', 'the argument has an invalid type %r' % type(value))
+    return self.cast_to_qname(value)
 
 
 @constructor('dateTime', bp=90, label=('function', 'constructor function'),
