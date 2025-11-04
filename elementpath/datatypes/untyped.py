@@ -10,7 +10,7 @@
 import operator
 from collections.abc import Callable
 from decimal import Decimal
-from typing import Any, Union
+from typing import Any, cast, Union
 
 from elementpath.aliases import XPath2ParserType
 from elementpath.helpers import reversed_sub, reversed_truediv, BOOLEAN_VALUES, get_double
@@ -103,7 +103,7 @@ class UntypedAtomic(AnyAtomicType):
                 else:
                     return op(type(other)(self.value), other)
             case _:
-                return NotImplemented
+                return cast(bool, NotImplemented)
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -111,22 +111,22 @@ class UntypedAtomic(AnyAtomicType):
     def __eq__(self, other: Any) -> bool:
         return self._operator(operator.eq, other, force_float=False)
 
-    def __ne__(self, other: Any) -> Any:
+    def __ne__(self, other: Any) -> bool:
         return not self._operator(operator.eq, other, force_float=False)
 
-    def __lt__(self, other: Any) -> Any:
+    def __lt__(self, other: Any) -> bool:
         return self._operator(operator.lt, other)
 
-    def __le__(self, other: Any) -> Any:
+    def __le__(self, other: Any) -> bool:
         return self._operator(operator.le, other)
 
-    def __gt__(self, other: Any) -> Any:
+    def __gt__(self, other: Any) -> bool:
         return self._operator(operator.gt, other)
 
-    def __ge__(self, other: Any) -> Any:
+    def __ge__(self, other: Any) -> bool:
         return self._operator(operator.ge, other)
 
-    def __add__(self, other: Any) -> Any:
+    def __add__(self, other: Any) -> bool:
         return self._operator(operator.add, other)
     __radd__ = __add__
 

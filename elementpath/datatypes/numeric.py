@@ -30,13 +30,14 @@ class Float(float, AnyAtomicType):
     @classmethod
     def make(cls, value: Any,
              parser: XPath2ParserType | None = None,
+             xsd_version: str | None = None,
              **kwargs: Any) -> 'Float':
         if cls.__name__.endswith('10'):
             return Float(value, '1.0')
         elif parser is not None:
             return Float(value, parser.xsd_version)
         else:
-            return Float(value, kwargs.get('xsd_version'))
+            return Float(value, xsd_version)
 
     def __new__(cls, value: FloatArgType, xsd_version: str | None = None) -> 'Float':
         if isinstance(value, str):
@@ -162,7 +163,7 @@ class Float(float, AnyAtomicType):
 
 class Float10(Float):
     """xs:float for XSD 1.0"""
-    def __new__(cls, value: FloatArgType, xsd_version: str = '1.0') -> 'Float':
+    def __new__(cls, value: FloatArgType, xsd_version: str | None = '1.0') -> 'Float':
         return Float(value, xsd_version=xsd_version)
 
 

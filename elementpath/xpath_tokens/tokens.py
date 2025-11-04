@@ -136,13 +136,13 @@ class PrefixedReferenceToken(XPathToken):
             return f"{self.value!r} prefixed name"
 
     @property
-    def source(self: XPathToken) -> str:
+    def source(self) -> str:
         if self.occurrence:
             return ':'.join(tk.source for tk in self) + self.occurrence
         else:
             return ':'.join(tk.source for tk in self)
 
-    def led(self: XPathToken, left: XPathToken) -> XPathToken:
+    def led(self, left: ta.XPathTokenType) -> XPathToken:
         version = self.parser.version
         if self.is_spaced():
             if version <= '3.0':

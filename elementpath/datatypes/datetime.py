@@ -298,11 +298,11 @@ class AbstractDateTime(AnyAtomicType):
 
             case DayTimeDuration():
                 delta = op(self.todelta(), other.get_timedelta())
-                tzinfo = cast(datetime.tzinfo | None, self._dt.tzinfo)
+                tzinfo = self._dt.tzinfo
                 if tzinfo is None:
                     return type(self).fromdelta(delta)
 
-                value = type(self).fromdelta(delta + tzinfo.offset)
+                value = type(self).fromdelta(delta + tzinfo.utcoffset(None))
                 value.tzinfo = tzinfo
                 return value
 
@@ -411,7 +411,7 @@ class AbstractDateTime(AnyAtomicType):
             raise ValueError(msg.format(datetime_string, cls))
 
         match_dict = match.groupdict()
-        kwargs: dict[str, int | str] = {
+        kwargs: dict[str, int] = {
             k: int(v) for k, v in match_dict.items() if k != 'tzinfo' and v is not None
         }
 

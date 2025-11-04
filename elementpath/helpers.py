@@ -89,21 +89,21 @@ class LazyPattern:
         raise AttributeError("Can't delete attribute {}".format(self._name))
 
     @property
-    def groupindex(self) -> Mapping[str, int]:
+    def groupindex(self) -> Mapping[str, int] | None:
         try:
             return self._compiled.groupindex
         except AttributeError:
             self._compiled = re.compile(self._pattern, self._flags)
             return self._compiled.groupindex
 
-    def match(self, string: str) -> re.Match[str]:
+    def match(self, string: str) -> re.Match[str] | None:
         try:
             return self._compiled.match(string)
         except AttributeError:
             self._compiled = re.compile(self._pattern, self._flags)
             return self._compiled.match(string)
 
-    def search(self, string: str) -> re.Match[str]:
+    def search(self, string: str) -> re.Match[str] | None:
         try:
             return self._compiled.search(string)
         except AttributeError:

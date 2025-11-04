@@ -161,11 +161,11 @@ class Token(MutableSequence[TK]):
     __slots__ = '_items', 'parser', 'value', 'span'
 
     _items: list[TK]
-    parser: 'Parser[TK]'
+    parser: 'Parser[Token[TK]]'
     value: Any
     span: tuple[int, int]
 
-    def __init__(self, parser: 'Parser[TK]',
+    def __init__(self, parser: 'Parser[Token[TK]]',
                  value: Optional[Any] = None) -> None:
         self._items = []
         self.parser = parser
@@ -260,7 +260,7 @@ class Token(MutableSequence[TK]):
             return 1, token_index + 1
         return line, token_index - self.parser.source[:token_index].rindex('\n')
 
-    def as_name(self) -> TK:
+    def as_name(self) -> 'Token[TK]':
         """Returns a new '(name)' token for resolving ambiguous states."""
         assert self.parser.name_pattern.match(self.symbol) is not None, \
             "Token symbol is not compatible with the name pattern!"
@@ -305,11 +305,11 @@ class Token(MutableSequence[TK]):
         except IndexError:
             return False
 
-    def nud(self) -> TK:
+    def nud(self) -> 'Token[TK]':
         """Pratt's null denotation method"""
         raise self.wrong_syntax()
 
-    def led(self, left: TK) -> TK:
+    def led(self, left: 'Token[TK]') -> 'Token[TK]':
         """Pratt's left denotation method"""
         raise self.wrong_syntax()
 
@@ -317,12 +317,12 @@ class Token(MutableSequence[TK]):
         """Evaluation method"""
         return self.value
 
-    def iter(self: TK, *symbols: str) -> Iterator[TK]:
+    def iter(self: 'Token[TK]', *symbols: str) -> Iterator['Token[TK]']:
         """Returns a generator for iterating the token's tree."""
-        status: list[tuple[Optional[TK], Iterator[TK]]] = []
-        parent: Optional[TK] = self
-        children: Iterator[TK] = iter(self)
-        tk: TK
+        status: list[tuple[Optional['Token[TK]'], Iterator['Token[TK]']]] = []
+        parent: Optional['Token[TK]'] = self
+        children: Iterator['Token[TK]'] = iter(self)
+        tk: 'Token[TK]'
 
         while True:
             for tk in children:

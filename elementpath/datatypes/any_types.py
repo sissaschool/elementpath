@@ -11,7 +11,7 @@ from abc import ABCMeta, abstractmethod
 from types import MappingProxyType
 from typing import Any
 
-from elementpath.helpers import Property, LazyPattern
+from elementpath.helpers import LazyPattern
 from elementpath.namespaces import XSD_NAMESPACE
 
 ###
@@ -42,7 +42,7 @@ class AtomicTypeMeta(ABCMeta):
         except KeyError:
             name = dict_['name'] = None  # do not inherit name
 
-        if name is not None and not isinstance(name, (str, Property)):
+        if name is not None and not isinstance(name, str):
             raise TypeError("attribute 'name' must be a string or None")
 
         if '__slots__' not in dict_:
