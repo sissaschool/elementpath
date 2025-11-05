@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -15,7 +15,7 @@ import os
 import re
 import pathlib
 import platform
-import datetime
+from itertools import chain
 
 
 class PackageTest(unittest.TestCase):
@@ -65,17 +65,23 @@ class PackageTest(unittest.TestCase):
     @unittest.skipIf(platform.system() == 'Windows', 'Skip on Windows platform')
     def test_wrong_copyright_info(self):
         message = "\nFound a wrong copyright info at line %d of file %r: %r"
-        source_files = pathlib.Path(self.source_dir).glob('**/*.py')
+        source_files = chain(pathlib.Path(self.package_dir).glob('LICENSE'),
+                             pathlib.Path(self.source_dir).glob('**/*.py'),
+                             pathlib.Path(self.package_dir).glob('tests/*.py'))
         package_dir = pathlib.Path(self.package_dir)
-        year = str(datetime.datetime.now().year)
+        year = '2025'
 
+        wrong_copyright_count = 0
         for line in fileinput.input(source_files):
             match = self.get_copyright_info.search(line)
             if match and match.groups()[1] != year:
                 filepath = pathlib.Path(fileinput.filename()).relative_to(package_dir)
                 lineno = fileinput.filelineno()
                 print(message % (lineno, str(filepath), match.groups()[0]), end='')
+                wrong_copyright_count += 1
                 continue
+        else:
+            self.assertEqual(wrong_copyright_count, 0, msg="Found wrong copyright info")
 
     def test_version_matching(self):
         message = "\nFound a different version at line %d of file %r: %r (maybe %r)."
@@ -125,8 +131,6 @@ class PackageTest(unittest.TestCase):
                     self.assertGreaterEqual(int(python_version[2:]), int(min_version[2:]))
 
         self.assertIsNotNone(min_version, msg="Missing python_requires in pyproject.toml")
-
-
 
 
 if __name__ == '__main__':
