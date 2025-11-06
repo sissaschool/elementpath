@@ -21,12 +21,11 @@ from .functions import XPathFunction
 from .contructors import XPathConstructor
 from .maps import XPathMap
 from .arrays import XPathArray
-from .sequences import XPathSequence
 from .tokens import ValueToken, ProxyToken, NameToken, \
     PrefixedReferenceToken, ExpandedNameToken
 
 __all__ = ['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor',
-           'XPathMap', 'XPathArray', 'XPathSequence', 'ValueToken', 'ProxyToken',
+           'XPathMap', 'XPathArray', 'ValueToken', 'ProxyToken',
            'NameToken', 'PrefixedReferenceToken', 'ExpandedNameToken', 'TokenBaseClasses']
 
 
@@ -39,7 +38,6 @@ class TokenBaseClasses:
     constructor: type[XPathConstructor] = XPathConstructor
     array: type[XPathArray] = XPathArray
     map: type[XPathMap] = XPathMap
-    sequence: type[XPathSequence] = XPathSequence
     value: type[ValueToken] = ValueToken
     proxy: type[ProxyToken] = ProxyToken
     name: type[NameToken] = NameToken

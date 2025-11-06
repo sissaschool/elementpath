@@ -18,6 +18,7 @@ from .any_types import AnyAtomicType
 from .untyped import UntypedAtomic
 from .numeric import Float, Integer
 from .datetime import AbstractDateTime, Duration
+from .sequences import EmptySequence, empty_sequence
 
 __all__ = ['BooleanProxy', 'DecimalProxy', 'DoubleProxy', 'DoubleProxy10',
            'StringProxy', 'NumericProxy', 'ArithmeticProxy', 'ErrorProxy']
@@ -218,7 +219,7 @@ class ErrorProxy(AnyAtomicType):
     name = 'error'
 
     def __new__(cls, value: Any) -> list | None:
-        if value is None or value == []:
+        if value is empty_sequence or value is None or value == []:
             return value
         msg = f"Cast {value!r} to xs:error is not possible"
         if isinstance(value, list):
@@ -227,4 +228,4 @@ class ErrorProxy(AnyAtomicType):
 
     @classmethod
     def __subclasshook__(cls, subclass: type) -> bool:
-        return subclass is type(None)
+        return subclass is type(None) or issubclass(subclass, EmptySequence)

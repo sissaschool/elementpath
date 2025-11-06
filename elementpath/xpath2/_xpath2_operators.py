@@ -17,7 +17,7 @@ from collections.abc import Iterator
 from decimal import Decimal, DivisionByZero
 from typing import cast, Union
 
-from elementpath.aliases import AtomicType, NumericType, Emptiable, SequenceType, \
+from elementpath.aliases import AtomicType, NumericType, Emptiable, NotEmptiable, \
     ContextType, ItemType
 from elementpath.protocols import XsdAttributeProtocol
 from elementpath.exceptions import ElementPathError
@@ -67,7 +67,7 @@ def nud_variable_reference(self: XPathToken) -> XPathToken:
 
 @method('$')
 def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
-        -> Emptiable[SequenceType[ItemType]]:
+        -> Emptiable[NotEmptiable[ItemType]]:
     if context is None:
         raise self.missing_context()
 

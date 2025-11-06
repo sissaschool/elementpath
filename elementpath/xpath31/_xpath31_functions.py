@@ -24,7 +24,7 @@ from typing import Any, cast, Optional
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
-from elementpath.aliases import SequenceType, Emptiable, AtomicType, NumericType, \
+from elementpath.aliases import NotEmptiable, Emptiable, AtomicType, NumericType, \
     ContextType, ItemType, FunctionArgType
 from elementpath.protocols import ElementProtocol, EtreeElementProtocol
 from elementpath.datatypes import AnyAtomicType, AbstractBinary, AbstractDateTime, \
@@ -143,7 +143,7 @@ def evaluate_map_contains_function(self: XPathFunction, context: ContextType = N
 @method(function('get', prefix='map', nargs=2,
                  sequence_types=('map(*)', 'xs:anyAtomicType', 'item()*')))
 def evaluate_map_get_function(self: XPathFunction, context: ContextType = None) \
-        -> SequenceType[ItemType]:
+        -> NotEmptiable[ItemType]:
     if self.context is not None:
         context = self.context
 
@@ -269,7 +269,7 @@ def evaluate_map_find_function(self: XPathFunction, context: ContextType = None)
     key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
     items = []
 
-    def collect_matching_items(obj: SequenceType[ItemType]) -> None:
+    def collect_matching_items(obj: NotEmptiable[ItemType]) -> None:
         if isinstance(obj, list):
             for x in obj:
                 collect_matching_items(x)
@@ -316,7 +316,7 @@ def evaluate_array_size_function(self: XPathFunction, context: ContextType = Non
 @method(function('get', prefix='array', nargs=2,
                  sequence_types=('array(*)', 'xs:integer', 'item()*')))
 def evaluate_array_get_function(self: XPathFunction, context: ContextType = None) \
-        -> SequenceType[ItemType]:
+        -> NotEmptiable[ItemType]:
     if self.context is not None:
         context = self.context
 
@@ -453,7 +453,7 @@ def evaluate_array_subarray_function(self: XPathFunction, context: ContextType =
 @method(function('head', prefix='array', nargs=1,
                  sequence_types=('array(*)', 'item()*')))
 def evaluate_array_head_function(self: XPathFunction, context: ContextType = None) \
-        -> SequenceType[ItemType]:
+        -> NotEmptiable[ItemType]:
     if self.context is not None:
         context = self.context
 
@@ -616,7 +616,7 @@ def select_array_fold_left_right_functions(self: XPathFunction, context: Context
                  sequence_types=('item()*', 'xs:string?',
                                  'function(item()) as xs:anyAtomicType*', 'item()*')))
 def evaluate_sort_function(self: XPathFunction, context: ContextType = None) \
-        -> SequenceType[ItemType]:
+        -> NotEmptiable[ItemType]:
     if self.context is not None:
         context = self.context
 
@@ -749,7 +749,7 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
                 fallback = cast(Callable[..., str], v)
                 escape = False
 
-    def decode_value(value: SequenceType[ItemType]) -> Emptiable[ItemType]:
+    def decode_value(value: NotEmptiable[ItemType]) -> Emptiable[ItemType]:
         if value is None:
             return []
         elif isinstance(value, list):
@@ -764,8 +764,8 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
             for x in value
         )
 
-    def json_object_pairs_to_map(obj: Iterable[tuple[str, SequenceType[ItemType]]]) -> XPathMap:
-        items: dict[ItemType, SequenceType[ItemType]] = {}
+    def json_object_pairs_to_map(obj: Iterable[tuple[str, NotEmptiable[ItemType]]]) -> XPathMap:
+        items: dict[ItemType, NotEmptiable[ItemType]] = {}
         key: Any
         value: Any
 
@@ -904,7 +904,7 @@ def evaluate_random_number_generator_function(self: XPathFunction, context: Cont
 @method(function('apply', nargs=2,
                  sequence_types=('function(*)', 'array(*)', 'item()*')))
 def evaluate_apply_function(self: XPathFunction, context: ContextType = None) \
-        -> SequenceType[ItemType]:
+        -> NotEmptiable[ItemType]:
     if self.context is not None:
         context = self.context
 

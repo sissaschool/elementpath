@@ -17,13 +17,12 @@ from collections.abc import Iterator, Sequence
 from typing import Any, cast, NoReturn, Optional, Union
 
 from elementpath.exceptions import ElementPathTypeError
-from elementpath.helpers import collapse_white_spaces, node_position
-from elementpath.datatypes import AbstractDateTime, AnyURI, Duration, DayTimeDuration, \
+from elementpath.helpers import node_position
+from elementpath.datatypes import AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericProxy, ArithmeticProxy
-from elementpath.aliases import NumericType, ArithmeticType, XPathParserType, \
+from elementpath.aliases import NumericType, ArithmeticType, \
     ParentNodeType, ContextType, ItemType, XPathTokenType
 from elementpath.xpath_context import XPathSchemaContext
-from elementpath.namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
 from elementpath.xpath_nodes import XPathNode, \
     ElementNode, AttributeNode, DocumentNode
 from elementpath.xpath_tokens import XPathToken
@@ -45,6 +44,7 @@ register = XPath1Parser.register
 nullary = XPath1Parser.nullary
 infix = XPath1Parser.infix
 method = XPath1Parser.method
+
 
 ###
 # Variables

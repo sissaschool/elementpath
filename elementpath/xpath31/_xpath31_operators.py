@@ -13,7 +13,7 @@ XPath 3.1 implementation - part 2 (operators and constructors)
 from collections.abc import Iterator, Iterable
 from typing import cast, Optional, Union
 
-from elementpath.aliases import AtomicType, SequenceType, XPathParserType, \
+from elementpath.aliases import AtomicType, NotEmptiable, XPathParserType, \
     ContextType, ItemType, ValueType
 from elementpath.helpers import iter_sequence
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
@@ -166,7 +166,7 @@ class LookupOperatorToken(XPathToken):
             self[:] = left, self.parser.expression(85)
             return self
 
-    def evaluate(self, context: ContextType = None) -> SequenceType[ItemType]:
+    def evaluate(self, context: ContextType = None) -> NotEmptiable[ItemType]:
         if not self:
             return self.value  # a placeholder token
         return [x for x in self.select(context)]
@@ -258,7 +258,7 @@ def led_arrow_operator(self: XPathToken, left: XPathToken) -> XPathToken:
 
 @method('=>')
 def evaluate_arrow_operator(self: XPathToken, context: ContextType = None) \
-        -> SequenceType[ItemType]:
+        -> NotEmptiable[ItemType]:
     tokens = [self[0]]
     if self[2]:
         tokens.extend(self[2][0].get_argument_tokens())

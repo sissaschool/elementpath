@@ -30,6 +30,8 @@ from .datetime import AbstractDateTime, DateTime10, DateTime, DateTimeStamp, \
     Duration, DayTimeDuration, YearMonthDuration
 from .proxies import ErrorProxy, BooleanProxy, DecimalProxy, DoubleProxy, \
     DoubleProxy10, StringProxy, NumericProxy, ArithmeticProxy
+from .sequences import XPathSequence, FullSequence, SingletonSequence, \
+    EmptySequence, empty_sequence
 
 ###
 # Alias kept for backward compatibility, will be removed in v6.0.
@@ -47,5 +49,6 @@ __all__ = ['AbstractBinary', 'AbstractDateTime', 'ListType', 'AbstractQName',
            'NonPositiveInteger', 'NormalizedString', 'Notation', 'NumericProxy',
            'OrderedDateTime', 'PositiveInteger', 'QName', 'Short', 'StringProxy', 'Time',
            'Timezone', 'UnsignedByte', 'UnsignedInt', 'UnsignedLong', 'UnsignedShort',
-           'UntypedAtomic', 'XsdToken', 'YearMonthDuration',
-           'ListType', 'builtin_atomic_types', 'builtin_list_types']
+           'UntypedAtomic', 'XsdToken', 'YearMonthDuration', 'ListType',
+           'builtin_atomic_types', 'builtin_list_types', 'XPathSequence', 'FullSequence',
+           'SingletonSequence', 'EmptySequence', 'empty_sequence']

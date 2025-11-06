@@ -113,6 +113,8 @@ def evaluate_last_function(self: XPathFunction, context: ContextType = None) -> 
         context = self.context
     elif context is None:
         raise self.missing_context()
+    elif context.size is None:
+        raise self.missing_context("Context size is undefined")
     return context.size
 
 

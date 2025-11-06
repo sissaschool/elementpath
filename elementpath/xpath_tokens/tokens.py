@@ -16,6 +16,7 @@ from elementpath.helpers import collapse_white_spaces
 import elementpath.aliases as ta
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, XMLNS_NAMESPACE
 from elementpath.datatypes import AnyAtomicType, AnyURI
+
 from .base import XPathToken
 
 
@@ -38,6 +39,7 @@ class ValueToken(XPathToken):
             yield from self.value
         else:
             yield self.value
+
 
 ###
 # Token classes for names

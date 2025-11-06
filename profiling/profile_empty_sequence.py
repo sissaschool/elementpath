@@ -8,10 +8,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import sys
 from timeit import timeit
-from collections import UserList
-from elementpath.xpath_tokens.sequences import EmptySequenceType, EmptySequence
-from elementpath.datatypes.sequences import XPathSequence
+from elementpath.xpath_sequence import XPathSequence, EmptySequence, empty_sequence, \
+    SingletonSequence, FullSequence
 
 
 def run_timeit(stmt='pass', setup='pass', number=1000):
@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     NUMBER = 1000
     SETUP = ('from __main__ import fg, obj1, obj2, t1, t2, t3, is_empty_sequence, '
-             'EmptySequence, XPathSequence, UserList')
+             'empty_sequence, XPathSequence, EmptySequence, FullSequence, SingletonSequence')
     obj1 = []
     obj2 = ['foo', 'bar']
     t1 = (9, 8)
@@ -45,18 +45,24 @@ if __name__ == '__main__':
     print("*** Profile evaluation ***\n")
 
     run_timeit('[None for _ in range(10000)]', SETUP, NUMBER)
-    run_timeit('[EmptySequence for _ in range(10000)]', SETUP, NUMBER)
+    run_timeit('[empty_sequence for _ in range(10000)]', SETUP, NUMBER)
+    run_timeit('[EmptySequence() for _ in range(10000)]', SETUP, NUMBER)
     run_timeit('[[] for _ in range(10000)]', SETUP, NUMBER)
     run_timeit('[() for _ in range(10000)]', SETUP, NUMBER)
-    run_timeit('[XPathSequence() for _ in range(10000)]', SETUP, NUMBER)
-    run_timeit('[UserList() for _ in range(10000)]', SETUP, NUMBER)
+    run_timeit('[SingletonSequence(_) for _ in range(10000)]', SETUP, NUMBER)
+    run_timeit('[EmptySequence() for _ in range(10000)]', SETUP, NUMBER)
 
     print()
 
     run_timeit('[x for x in range(10000)]', SETUP, NUMBER)
     run_timeit('tuple([x for x in range(10000)])', SETUP, NUMBER)
-    run_timeit('XPathSequence([x for x in range(10000)])', SETUP, NUMBER)
-    run_timeit('UserList    ([x for x in range(10000)])', SETUP, NUMBER)
+    run_timeit('FullSequence([x for x in range(10000)])', SETUP, NUMBER)
+    run_timeit('FullSequence(tuple([x for x in range(10000)]))', SETUP, NUMBER)
+
+    run_timeit('v = tuple([x for x in range(10000)])\nfor _ in v: pass', SETUP, NUMBER)
+    run_timeit('v = FullSequence([x for x in range(10000)])\nfor _ in v: pass', SETUP, NUMBER)
+
+    sys.exit()
 
     print()
 

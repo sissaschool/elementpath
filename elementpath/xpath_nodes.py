@@ -16,7 +16,7 @@ from xml.etree import ElementTree
 
 from elementpath.exceptions import ElementPathRuntimeError, \
     ElementPathValueError, ElementPathKeyError
-from elementpath.aliases import AtomicType, NamespacesType, NsmapType, SequenceType, \
+from elementpath.aliases import AtomicType, NamespacesType, NsmapType, NotEmptiable, \
     TaggedNodeType, ParentNodeType, ChildNodeType, ElementMapType
 from elementpath.datatypes import UntypedAtomic, AnyURI, QName
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
@@ -163,7 +163,7 @@ class XPathNode:
         raise NotImplementedError()
 
     @property
-    def typed_value(self) -> SequenceType[AtomicType]:
+    def typed_value(self) -> NotEmptiable[AtomicType]:
         raise NotImplementedError()
 
     @staticmethod
@@ -425,7 +425,7 @@ class AttributeNode(XPathNode):
         return XSD_UNTYPED_ATOMIC if self.xsd_type is None else self.xsd_type.name
 
     @property
-    def typed_value(self) -> SequenceType[AtomicType]:
+    def typed_value(self) -> NotEmptiable[AtomicType]:
         values = [v for v in self.iter_typed_values]
         if len(values) == 1:
             return values[0]
@@ -598,7 +598,7 @@ class TextNode(XPathNode):
         return XSD_UNTYPED_ATOMIC
 
     @property
-    def typed_value(self) -> SequenceType[AtomicType]:
+    def typed_value(self) -> NotEmptiable[AtomicType]:
         return UntypedAtomic(self.value)
 
     @property
@@ -765,7 +765,7 @@ class ProcessingInstructionNode(XPathNode):
         return self.content
 
     @property
-    def typed_value(self) -> SequenceType[AtomicType]:
+    def typed_value(self) -> NotEmptiable[AtomicType]:
         return self.content
 
     @property
@@ -896,7 +896,7 @@ class ElementNode(XPathNode):
         return XSD_UNTYPED if self.xsd_type is None else self.xsd_type.name
 
     @property
-    def typed_value(self) -> SequenceType[AtomicType]:
+    def typed_value(self) -> NotEmptiable[AtomicType]:
         values = [v for v in self.iter_typed_values]
         if len(values) == 1:
             return values[0]

@@ -496,7 +496,7 @@ def evaluate_untyped_atomic(self: XPathConstructor, context: ContextType = None)
              sequence_types=('xs:QName?', 'xs:string', 'item()*', 'none'))
 def cast_error_type(self: XPathConstructor, value: AtomicType) -> Emptiable[None]:
     try:
-        return self.type_class(value)
+        return self.type_class.make(value, parser=self.parser)
     except (TypeError, ValueError) as err:
         raise self.error('FORG0001', str(err)) from None
 

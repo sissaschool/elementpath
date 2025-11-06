@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     from .protocols import DocumentType, ElementType, SchemaElemType  # noqa: F401
     from .datatypes import AnyAtomicType, AbstractDateTime  # noqa: F401
     from .datatypes import Duration, UntypedAtomic  # noqa: F401
+    from .datatypes import XPathSequence, FullSequence  # noqa: F401
+    from .datatypes import SingletonSequence, EmptySequence  # noqa: F401
     from .xpath_nodes import XPathNode, ElementNode, AttributeNode  # noqa: F401
     from .xpath_nodes import TextNode, DocumentNode, NamespaceNode  # noqa: F401
     from .xpath_nodes import CommentNode, ProcessingInstructionNode  # noqa: F401
@@ -43,15 +45,16 @@ ArithmeticType = Union[NumericType, 'AbstractDateTime', 'Duration', 'UntypedAtom
 
 ###
 # Sequence and item/value types
-_T = TypeVar('_T')
+ItemType = Union['XPathNode', AtomicType, 'XPathFunction']
 
-Emptiable = Union[_T, list[NoReturn], tuple[()]]
-SequenceType = Union[_T, list[_T], tuple[_T, ...]]
-UnionType = Union[_T, list[_T], tuple[_T, ...]]
+_T = TypeVar('_T', bound=ItemType)
+
+Emptiable = Union[_T, 'SingletonSequence[_T]', list[NoReturn], 'EmptySequence']
+NotEmptiable = Union[_T, 'SingletonSequence[_T]', list[_T], 'FullSequence[_T]']
+SequenceType = Union['EmptySequence', 'SingletonSequence[_T]', 'FullSequence[_T]']
 InputType = Union[None, _T, list[_T], tuple[_T, ...]]
 
-ItemType = Union['XPathNode', AtomicType, 'XPathFunction']
-ValueType = Union[ItemType, tuple[ItemType, ...], list[ItemType]]
+ValueType = Union[ItemType, 'SequenceType[ItemType]', list[ItemType]]
 ResultType = Union[
     AtomicType, 'ElementProtocol', 'XsdAttributeProtocol', tuple[Optional[str], str],
     'DocumentProtocol', 'DocumentNode', 'XPathFunction', object
