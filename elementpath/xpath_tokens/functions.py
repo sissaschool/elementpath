@@ -387,7 +387,7 @@ class XPathFunction(XPathToken):
     def _partial_select(self, context: ta.ContextType = None) -> Iterator[Any]:
         item = self._partial_evaluate(context)
         if item is not None:
-            if isinstance(item, list):
+            if isinstance(item, self.sequence_class):
                 yield from item
             else:
                 if context is not None:

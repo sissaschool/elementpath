@@ -35,7 +35,7 @@ class ValueToken(XPathToken):
         return self.value
 
     def select(self, context: ta.ContextType = None) -> Iterator[AnyAtomicType]:
-        if isinstance(self.value, list):
+        if isinstance(self.value, self.sequence_class):
             yield from self.value
         else:
             yield self.value
@@ -194,7 +194,7 @@ class PrefixedReferenceToken(XPathToken):
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):
             value = self[1].evaluate(context)
-            if isinstance(value, list):
+            if isinstance(value, self.sequence_class):
                 yield from value
             elif value is not None:
                 yield value

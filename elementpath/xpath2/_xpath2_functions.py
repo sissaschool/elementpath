@@ -27,7 +27,7 @@ from elementpath.exceptions import ElementPathValueError
 from elementpath.helpers import Patterns, is_idrefs, is_xml_codepoint, round_number
 from elementpath.datatypes import DateTime10, DateTime, Date10, Date, \
     Float, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
-    UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
+    UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy, empty_sequence
 from elementpath.aliases import AtomicType, NumericType
 from elementpath.namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_ID, XML_LANG
@@ -551,7 +551,7 @@ def select_empty_function(self: XPathFunction, context: ContextType = None) \
     except StopIteration:
         yield True
     else:
-        yield not value and isinstance(value, list)
+        yield not value and isinstance(value, list) or value is empty_sequence
 
 
 @method('exists')
@@ -562,7 +562,7 @@ def select_exists_function(self: XPathFunction, context: ContextType = None) \
     except StopIteration:
         yield False
     else:
-        yield not (not value and isinstance(value, list))
+        yield not (not value and isinstance(value, list)) and value is not empty_sequence
 
 
 @method(function('distinct-values', nargs=(1, 2),

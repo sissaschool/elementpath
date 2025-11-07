@@ -16,7 +16,7 @@ from elementpath.helpers import collapse_white_spaces, OCCURRENCE_INDICATORS, Pa
 from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_NUMERIC, \
     get_expanded_name, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, XSD_DATETIME_STAMP
 from elementpath.datatypes import builtin_atomic_types, builtin_list_types, \
-    AnyAtomicType, QName, NumericProxy
+    AnyAtomicType, QName, NumericProxy, XPathSequence
 from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
 from elementpath.xpath_tokens import XPathToken
 
@@ -266,7 +266,7 @@ def match_sequence_type(value: Any,
             return st in ('empty-sequence()', 'none') or occurrence in ('?', '*')
         elif st in ('empty-sequence()', 'none'):
             return False
-        elif isinstance(v, list):
+        elif isinstance(v, (XPathSequence, list)):
             if len(v) == 1:
                 return match_st(v[0], st)
             elif occurrence is None or occurrence == '?':
@@ -275,16 +275,16 @@ def match_sequence_type(value: Any,
                 return all(match_st(x, st) for x in v)
         elif st == 'item()':
             return isinstance(v, (XPathNode, AnyAtomicType, list,
-                                  XPathToken.token_types.function))
+                                  XPathToken.token_classes.function))
         elif st == 'numeric' or st == 'xs:numeric':
             return isinstance(v, NumericProxy)
         elif st.startswith('function('):
-            if not isinstance(v, XPathToken.token_types.function):
+            if not isinstance(v, XPathToken.token_classes.function):
                 return False
             return v.match_function_test(st)
 
         elif st.startswith('array('):
-            if not isinstance(v, XPathToken.token_types.array):
+            if not isinstance(v, XPathToken.token_classes.array):
                 return False
             if st == 'array(*)':
                 return True
@@ -293,7 +293,7 @@ def match_sequence_type(value: Any,
             return all(match_st(x, item_st) for x in v.items())
 
         elif st.startswith('map('):
-            if not isinstance(v, XPathToken.token_types.map):
+            if not isinstance(v, XPathToken.token_classes.map):
                 return False
             if st == 'map(*)':
                 return True

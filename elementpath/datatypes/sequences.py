@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import Callable, Sequence  # noqa: F401
-from typing import Any, TypeVar, NoReturn, overload
+from typing import Any, TypeVar, NoReturn, overload, Iterator
 
 from elementpath.aliases import ItemType, SequenceType  # noqa: F401
 
@@ -156,6 +156,9 @@ class EmptySequence(XPathSequence[NoReturn]):
     def __getitem__(self, index: int | slice) -> NoReturn | list[NoReturn]:
         return [][index]
 
+    def __iter__(self):
+        return iter(())
+
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, (EmptySequence, tuple, list)) and len(other) == 0
 
@@ -185,6 +188,9 @@ class SingletonSequence(XPathSequence[T]):
 
     def __getitem__(self, index: int | slice) -> T | list[T] | list[NoReturn]:
         return self.item if index == 0 else [self.item][index]
+
+    def __iter__(self):
+        yield self.item
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, SingletonSequence):
@@ -231,3 +237,16 @@ class FullSequence(XPathSequence[T]):
 
     def __getitem__(self, index: int | slice) -> T | list[T] | list[NoReturn]:
         return self.items[index]
+
+    def __iter__(self):
+        return iter(self.items)
+
+
+def iter_sequence(obj: Any) -> Iterator[Any]:
+    if obj is None:
+        return
+    elif isinstance(obj, list):
+        for item in obj:
+            yield from iter_sequence(item)
+    else:
+        yield obj

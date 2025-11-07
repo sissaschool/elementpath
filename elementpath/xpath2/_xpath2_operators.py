@@ -301,7 +301,7 @@ def evaluate_instance_expression(self: XPathToken, context: ContextType = None) 
                 context.axis = 'self'
 
             result = self[1].evaluate(context)
-            if isinstance(result, list) and not result:
+            if isinstance(result, self.sequence_class) and not result:
                 return occurs in ('*', '?')
             elif position and (occurs is None or occurs == '?'):
                 return False
@@ -342,7 +342,7 @@ def evaluate_treat_expression(self: XPathToken, context: ContextType = None) \
     elif self[1].label in ('kind test', 'sequence type', 'function test'):
         for position, item in enumerate(self[0].select(context)):
             result = self[1].evaluate(context)
-            if isinstance(result, list) and not result:
+            if isinstance(result, self.sequence_class) and not result:
                 raise self.error('XPDY0050')
             elif position and (occurs is None or occurs == '?'):
                 raise self.error('XPDY0050', "more than one item in sequence")
@@ -589,7 +589,7 @@ def evaluate_comma_operator(self: XPathToken, context: ContextType = None) \
     results = []
     for op in self:
         result = op.evaluate(context)
-        if isinstance(result, (list, tuple)):
+        if isinstance(result, self.sequence_class):
             results.extend(result)
         elif result is not None:
             results.append(result)

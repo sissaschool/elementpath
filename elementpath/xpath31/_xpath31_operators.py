@@ -15,7 +15,7 @@ from typing import cast, Optional, Union
 
 from elementpath.aliases import AtomicType, NotEmptiable, XPathParserType, \
     ContextType, ItemType, ValueType
-from elementpath.helpers import iter_sequence
+from elementpath.datatypes.sequences import iter_sequence
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.xpath_tokens import XPathToken, ProxyToken, \
     XPathFunction, XPathMap, XPathArray

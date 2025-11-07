@@ -128,7 +128,7 @@ class XPathArray(XPathFunction):
         for item in items:
             if isinstance(item, XPathArray):
                 yield from item.iter_flatten(context)
-            elif isinstance(item, list):
+            elif isinstance(item, self.sequence_class):
                 yield from item
             else:
                 yield item

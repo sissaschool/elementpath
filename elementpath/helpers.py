@@ -11,7 +11,7 @@ import re
 import math
 import operator
 from calendar import isleap, leapdays
-from collections.abc import Iterator, Mapping
+from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any, Generic, Optional, SupportsFloat, TypeVar, Union
 from urllib.parse import urlsplit
@@ -369,16 +369,6 @@ def unescape_json_string(s: str) -> str:
         replace('\\\\', '\\')
 
     return Patterns.unicode_escape.sub(unicode_escape_callback, s)
-
-
-def iter_sequence(obj: Any) -> Iterator[Any]:
-    if obj is None:
-        return
-    elif isinstance(obj, list):
-        for item in obj:
-            yield from iter_sequence(item)
-    else:
-        yield obj
 
 
 def split_function_test(function_test: str) -> list[str]:

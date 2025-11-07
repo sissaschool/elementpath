@@ -17,7 +17,8 @@ from xml.etree import ElementTree
 from elementpath.helpers import LazyPattern, days_from_common_era, \
     months2days, round_number, is_idrefs, collapse_white_spaces, escape_json_string, \
     get_double, numeric_equal, numeric_not_equal, equal, not_equal, \
-    match_wildcard, unescape_json_string, iter_sequence, split_function_test
+    match_wildcard, unescape_json_string, split_function_test
+from elementpath.datatypes.sequences import iter_sequence
 from elementpath.xpath30.xpath30_helpers import decimal_to_string, int_to_roman, \
     int_to_month, int_to_weekday, int_to_words, int_to_alphabetic, week_in_month, \
     to_ordinal_en, to_ordinal_it, format_digits, ordinal_suffix

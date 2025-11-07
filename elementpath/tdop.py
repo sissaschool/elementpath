@@ -191,6 +191,9 @@ class Token(MutableSequence[TK]):
     def __len__(self) -> int:
         return len(self._items)
 
+    def __iter__(self) -> Iterator[TK]:
+        return iter(self._items)
+
     def insert(self, i: int, item: TK) -> None:
         self._items.insert(i, item)
 

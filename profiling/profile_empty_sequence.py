@@ -10,7 +10,7 @@
 #
 import sys
 from timeit import timeit
-from elementpath.xpath_sequence import XPathSequence, EmptySequence, empty_sequence, \
+from elementpath.datatypes import XPathSequence, EmptySequence, empty_sequence, \
     SingletonSequence, FullSequence
 
 
@@ -56,11 +56,15 @@ if __name__ == '__main__':
 
     run_timeit('[x for x in range(10000)]', SETUP, NUMBER)
     run_timeit('tuple([x for x in range(10000)])', SETUP, NUMBER)
+    run_timeit('list([x for x in range(10000)])', SETUP, NUMBER)
     run_timeit('FullSequence([x for x in range(10000)])', SETUP, NUMBER)
     run_timeit('FullSequence(tuple([x for x in range(10000)]))', SETUP, NUMBER)
+    run_timeit('XPathSequence.from_items([x for x in range(10000)])', SETUP, NUMBER)
 
-    run_timeit('v = tuple([x for x in range(10000)])\nfor _ in v: pass', SETUP, NUMBER)
-    run_timeit('v = FullSequence([x for x in range(10000)])\nfor _ in v: pass', SETUP, NUMBER)
+    run_timeit('\nv = [x for x in range(10000)]\nfor _ in v: pass', SETUP, NUMBER)
+    run_timeit('\nv = tuple([x for x in range(10000)])\nfor _ in v: pass', SETUP, NUMBER)
+    run_timeit('\nv = list([x for x in range(10000)])\nfor _ in v: pass', SETUP, NUMBER)
+    run_timeit('\nv = FullSequence([x for x in range(10000)])\nfor _ in v: pass', SETUP, NUMBER)
 
     sys.exit()
 

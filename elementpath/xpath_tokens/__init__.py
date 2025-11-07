@@ -31,7 +31,7 @@ __all__ = ['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor',
 
 @dataclass(frozen=True, slots=True)
 class TokenBaseClasses:
-    """A register of available XPath token base classes."""
+    """A register of XPath token base classes."""
     base: type[XPathToken] = XPathToken
     axis: type[XPathAxis] = XPathAxis
     function: type[XPathFunction] = XPathFunction
@@ -57,4 +57,4 @@ class TokenBaseClasses:
         raise AttributeError("Can't delete attribute {!r}".format(self.__Name.name))
 
 
-XPathToken.token_types = TokenBaseClasses()
+XPathToken.token_classes = TokenBaseClasses()
