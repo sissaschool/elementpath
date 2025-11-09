@@ -122,31 +122,31 @@ class XPath1TokenTest(unittest.TestCase):
     def test_iter_method(self):
         token = self.parser.parse('2 + 5')
         items = [tk for tk in token.iter()]
-        self.assertListEqual(items, [token[0], token, token[1]])
+        self.assertEqual(items, [token[0], token, token[1]])
 
         token = self.parser.parse('/A/B[C]/D/@a')
         self.assertEqual(token.tree, '(/ (/ (/ (/ (A)) ([ (B) (C))) (D)) (@ (a)))')
-        self.assertListEqual(list(tk.value for tk in token.iter()),
+        self.assertEqual(list(tk.value for tk in token.iter()),
                              ['/', 'A', '/', 'B', '[', 'C', '/', 'D', '/', '@', 'a'])
-        self.assertListEqual(list(tk.value for tk in token.iter('(name)')),
+        self.assertEqual(list(tk.value for tk in token.iter('(name)')),
                              ['A', 'B', 'C', 'D', 'a'])
 
-        self.assertListEqual(list(tk.source for tk in token.iter('/')),
+        self.assertEqual(list(tk.source for tk in token.iter('/')),
                              ['/A', '/A/B[C]', '/A/B[C]/D', '/A/B[C]/D/@a'])
 
     def test_iter_leaf_elements_method(self):
         token = self.parser.parse('2 + 5')
-        self.assertListEqual(list(token.iter_leaf_elements()), [])
+        self.assertEqual(list(token.iter_leaf_elements()), [])
 
         token = self.parser.parse('/A/B[C]/D/@a')
-        self.assertListEqual(list(token.iter_leaf_elements()), [])
+        self.assertEqual(list(token.iter_leaf_elements()), [])
 
         token = self.parser.parse('/A/B[C]/D')
-        self.assertListEqual(list(token.iter_leaf_elements()), ['D'])
+        self.assertEqual(list(token.iter_leaf_elements()), ['D'])
 
         token = self.parser.parse('/A/B[C]')
         self.assertEqual(token.tree, '(/ (/ (A)) ([ (B) (C)))')
-        self.assertListEqual(list(token.iter_leaf_elements()), ['B'])
+        self.assertEqual(list(token.iter_leaf_elements()), ['B'])
 
     def test_get_argument_method(self):
         token = self.parser.symbol_table['true'](self.parser)
@@ -165,26 +165,26 @@ class XPath1TokenTest(unittest.TestCase):
         xsd_type = DummyXsdType()
 
         context = XPathContext(elem)
-        self.assertListEqual(list(token.select_results(context)), [elem])
+        self.assertEqual(list(token.select_results(context)), [elem])
 
         context = XPathContext(elem, item=elem)
         setattr(context.root, 'xsd_type', xsd_type)
-        self.assertListEqual(list(token.select_results(context)), [elem])
+        self.assertEqual(list(token.select_results(context)), [elem])
 
         context = XPathContext(elem)
         context.item = context.root.attributes[0]
-        self.assertListEqual(list(token.select_results(context)), ['30'])
+        self.assertEqual(list(token.select_results(context)), ['30'])
 
         context = XPathContext(elem)
         context.item = context.root.attributes[0]
         setattr(context.item, 'xsd_type', xsd_type)
-        self.assertListEqual(list(token.select_results(context)), ['30'])
+        self.assertEqual(list(token.select_results(context)), ['30'])
 
         context = XPathContext(elem, item=10)
-        self.assertListEqual(list(token.select_results(context)), [10])
+        self.assertEqual(list(token.select_results(context)), [10])
 
         context = XPathContext(elem, item='10')
-        self.assertListEqual(list(token.select_results(context)), ['10'])
+        self.assertEqual(list(token.select_results(context)), ['10'])
 
     def test_cast_to_double(self):
         token = self.parser.parse('.')
@@ -203,11 +203,11 @@ class XPath1TokenTest(unittest.TestCase):
         root = ElementTree.Element('root')
         token = self.parser.parse('/unknown/.')
         context = XPathContext(root)
-        self.assertListEqual(list(token.atomization(context)), [])
+        self.assertEqual(list(token.atomization(context)), [])
 
         if self.parser.version > '1.0':
             token = self.parser.parse('((), 1, 3, "a")')
-            self.assertListEqual(list(token.atomization()), [1, 3, 'a'])
+            self.assertEqual(list(token.atomization()), [1, 3, 'a'])
 
     def test_boolean_value_function(self):
         token = self.parser.parse('true()')
@@ -469,10 +469,10 @@ class XPath2TokenTest(XPath1TokenTest):
 
         try:
             context = XPathSchemaContext(root=schema, axis='self', schema=self.parser.schema)
-            self.assertListEqual(list(context.iter_matching_nodes('root')), [])
+            self.assertEqual(list(context.iter_matching_nodes('root')), [])
 
             tag = '{%s}schema' % XSD_NAMESPACE
-            self.assertListEqual(
+            self.assertEqual(
                 list(e.elem for e in context.iter_matching_nodes(tag)), [schema]
             )
         finally:
@@ -504,7 +504,7 @@ class XPath2TokenTest(XPath1TokenTest):
 
             context = XPathSchemaContext(root=schema.meta_schema)
             obj = list(context.iter_matching_nodes('root'))
-            self.assertListEqual(obj, [])
+            self.assertEqual(obj, [])
 
             root_token = self.parser.parse('@a')
 

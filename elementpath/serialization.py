@@ -281,7 +281,7 @@ def serialize_to_xml(elements: Iterable[Any],
     if 'standalone' in params:
         kwargs['standalone'] = params['standalone']
     if 'cdata_section' in params:
-        cdata_section = {x.expanded_name for x in params['cdata_section']}
+        cdata_section = {x.expanded_name_token for x in params['cdata_section']}
     else:
         cdata_section = ()
 

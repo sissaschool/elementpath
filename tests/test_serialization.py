@@ -210,7 +210,7 @@ class SerializationTest(unittest.TestCase):
 
         params = XPathMap(parser, items={'suppress-indentation': [QName('', 'foo')]})
         result = get_serialization_params(params)
-        self.assertListEqual(list(result.values()), [QName('', 'foo')])
+        self.assertEqual(list(result.values()), [QName('', 'foo')])
 
         params = XPathMap(parser, items={'suppress-indentation': 'foo'})
         with self.assertRaises(TypeError) as ctx:
@@ -391,12 +391,16 @@ class SerializationTest(unittest.TestCase):
 
         elements = [XPathMap(parser, [(1, ['one']), (2, 'two')])]
         result = serialize_to_json(elements)
-        self.assertEqual(result, '{"1":"one","2":"two"}')
+        self.assertEqual(result, '{"1":["one"],"2":"two"}')
 
         elements = [XPathMap(parser, [(1, ['one', 'one']), (2, 'two')])]
-        with self.assertRaises(TypeError) as ctx:
-            serialize_to_json(elements)
-        self.assertIn('SERE0023', str(ctx.exception))
+        result = serialize_to_json(elements)
+        self.assertEqual(result, '{"1":["one","one"],"2":"two"}')
+
+        # Previous result was wrong, because ['one', 'one'] is mapped to an array.
+        # with self.assertRaises(TypeError) as ctx:
+        #    serialize_to_json(elements)
+        # self.assertIn('SERE0023', str(ctx.exception))
 
         elements = [XPathMap(parser, [(QName('', 'one'), 1), ('one', 1)])]
         with self.assertRaises(ValueError) as ctx:

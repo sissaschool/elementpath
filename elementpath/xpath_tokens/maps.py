@@ -51,7 +51,7 @@ class XPathMap(XPathFunction):
                     raise self.error('XQDY0137')
 
                 if isinstance(v, list):
-                    _map[k] = v[0] if len(v) == 1 else v
+                    _map[k] = self.registry.array_token(parser, v)
                 else:
                     _map[k] = v
 
@@ -149,7 +149,7 @@ class XPathMap(XPathFunction):
             args = args[0][0],
         if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
             if isinstance(context, XPathSchemaContext):
-                return []
+                return self.empty_sequence_type()
             raise self.error('XPST0003', 'exactly one atomic argument is expected')
 
         _map: ta.MapDictType
@@ -165,17 +165,17 @@ class XPathMap(XPathFunction):
             else:
                 return _map[key]
         except KeyError:
-            return []
+            return self.empty_sequence_type()
 
     def keys(self, context: ta.ContextType = None) -> list[ta.AtomicType]:
         if self._map is not None:
-            return [self._nan_key if k is None else k for k in self._map.keys()]
-        return [self._nan_key if k is None else k for k in self._evaluate(context).keys()]
+            return self.to_sequence([self._nan_key if k is None else k for k in self._map.keys()])
+        return self.to_sequence([self._nan_key if k is None else k for k in self._evaluate(context).keys()])
 
     def values(self, context: ta.ContextType = None) -> list[ta.ValueType]:
         if self._map is not None:
-            return [v for v in self._map.values()]
-        return [v for v in self._evaluate(context).values()]
+            return self.to_sequence([v for v in self._map.values()])
+        return self.to_sequence([v for v in self._evaluate(context).values()])
 
     def items(self, context: ta.ContextType = None) -> list[tuple[ta.AtomicType, ta.ValueType]]:
         if self._map is not None:
@@ -183,7 +183,7 @@ class XPathMap(XPathFunction):
         else:
             _map = self._evaluate(context)
 
-        return [(self._nan_key, v) if k is None else (k, v) for k, v in _map.items()]
+        return self.to_sequence([(self._nan_key, v) if k is None else (k, v) for k, v in _map.items()])
 
     def match_function_test(self, function_test: ta.SequenceTypesType,
                             as_argument: bool = False) -> bool:

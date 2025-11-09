@@ -67,26 +67,26 @@ class XPathNodesTest(unittest.TestCase):
     def test_elem_iter_strings_function(self):
         root = ElementTree.XML('<A>text1\n<B1>text2</B1>tail1<B2/><B3><C1>text3</C1></B3>tail2</A>')
         result = ['text1\n', 'text2', 'tail1', 'tail2', 'text3']
-        self.assertListEqual(list(etree_iter_strings(root)), result)
+        self.assertEqual(list(etree_iter_strings(root)), result)
 
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
             typed_root = EtreeElementNode(elem=root)
             setattr(typed_root, 'xsd_type', xsd_type)
-            self.assertListEqual(list(etree_iter_strings(typed_root.elem)), result)
+            self.assertEqual(list(etree_iter_strings(typed_root.elem)), result)
 
         norm_result = ['text1', 'text2', 'tail1', 'tail2', 'text3']
         with patch.multiple(DummyXsdType, is_element_only=lambda x: True):
             xsd_type = DummyXsdType()
             typed_root = EtreeElementNode(elem=root)
             setattr(typed_root, 'xsd_type', xsd_type)
-            self.assertListEqual(list(etree_iter_strings(typed_root.elem, True)), norm_result)
+            self.assertEqual(list(etree_iter_strings(typed_root.elem, True)), norm_result)
 
             comment = ElementTree.Comment('foo')
             root[1].append(comment)
-            self.assertListEqual(list(etree_iter_strings(typed_root.elem, True)), norm_result)
+            self.assertEqual(list(etree_iter_strings(typed_root.elem, True)), norm_result)
 
-        self.assertListEqual(list(etree_iter_strings(root)), result)
+        self.assertEqual(list(etree_iter_strings(root)), result)
 
     def test_etree_deep_equal_function(self):
         root = ElementTree.XML('<A><B1>10</B1><B2 max="20"/>end</A>')
@@ -285,14 +285,14 @@ class XPathNodesTest(unittest.TestCase):
         self.assertNotEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns'))
 
     def test_node_children_function(self):
-        self.assertListEqual(EtreeElementNode(self.elem).children, [])
+        self.assertEqual(EtreeElementNode(self.elem).children, [])
         elem = EtreeElementNode(ElementTree.XML("<A><B1/><B2/></A>"))
-        self.assertListEqual(elem.children, [x for x in elem])
+        self.assertEqual(elem.children, [x for x in elem])
 
         document = DocumentNode(ElementTree.parse(io.StringIO("<A><B1/><B2/></A>")))
-        self.assertListEqual(document.children, [])  # not built document
+        self.assertEqual(document.children, [])  # not built document
         EtreeElementNode(document.value.getroot(), document)
-        self.assertListEqual(document.children, [document.getroot()])
+        self.assertEqual(document.children, [document.getroot()])
 
         self.assertIsNone(TextNode('a text node').children)
 
@@ -393,13 +393,13 @@ class XPathNodesTest(unittest.TestCase):
         ]
 
         result = list(context.root.iter())
-        self.assertListEqual(result, expected)
+        self.assertEqual(result, expected)
 
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
         context = XPathContext(root)
 
         # iter includes also xml namespace nodes
-        self.assertListEqual(
+        self.assertEqual(
             list(e.elem for e in context.root.iter() if isinstance(e, ElementNode)),
             list(root.iter())
         )
@@ -409,7 +409,7 @@ class XPathNodesTest(unittest.TestCase):
         doc = ElementTree.ElementTree(root)
         context = XPathContext(doc)
 
-        self.assertListEqual(
+        self.assertEqual(
             list(e.elem for e in context.root.iter() if isinstance(e, ElementNode)),
             list(doc.iter())
         )
@@ -420,15 +420,15 @@ class XPathNodesTest(unittest.TestCase):
         node_tree = get_node_tree(root=xml)
 
         nodes = list(node for node in node_tree.iter_lazy())
-        self.assertListEqual(nodes, [node_tree])
+        self.assertEqual(nodes, [node_tree])
 
         nodes = list(node for node in node_tree.iter())
-        self.assertListEqual(nodes, [
+        self.assertEqual(nodes, [
             node_tree, node_tree.namespace_nodes[0], node_tree.attributes[0]
         ])
 
         nodes = list(node for node in node_tree.iter_lazy())
-        self.assertListEqual(nodes, [
+        self.assertEqual(nodes, [
             node_tree, node_tree.namespace_nodes[0], node_tree.attributes[0]
         ])
 
@@ -458,7 +458,7 @@ class XPathNodesTest(unittest.TestCase):
         root[2].append(ElementTree.Element('c3'))  # duplicated tag
 
         items = list(etree_iter_paths(root))
-        self.assertListEqual(items, [
+        self.assertEqual(items, [
             (root, '.'), (root[0], './Q{}b1[1]'),
             (root[0][0], './Q{}b1[1]/Q{}c1[1]'),
             (root[0][1], './Q{}b1[1]/Q{}c2[1]'),
@@ -467,7 +467,7 @@ class XPathNodesTest(unittest.TestCase):
             (root[2][1], './Q{}b3[1]/comment()[1]'),
             (root[2][2], './Q{}b3[1]/Q{}c3[2]')
         ])
-        self.assertListEqual(list(etree_iter_paths(root, path='')), [
+        self.assertEqual(list(etree_iter_paths(root, path='')), [
             (root, ''), (root[0], 'Q{}b1[1]'),
             (root[0][0], 'Q{}b1[1]/Q{}c1[1]'),
             (root[0][1], 'Q{}b1[1]/Q{}c2[1]'),
@@ -476,7 +476,7 @@ class XPathNodesTest(unittest.TestCase):
             (root[2][1], 'Q{}b3[1]/comment()[1]'),
             (root[2][2], 'Q{}b3[1]/Q{}c3[2]')
         ])
-        self.assertListEqual(list(etree_iter_paths(root, path='/')), [
+        self.assertEqual(list(etree_iter_paths(root, path='/')), [
             (root, '/'), (root[0], '/Q{}b1[1]'),
             (root[0][0], '/Q{}b1[1]/Q{}c1[1]'),
             (root[0][1], '/Q{}b1[1]/Q{}c2[1]'),

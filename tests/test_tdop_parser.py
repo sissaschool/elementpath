@@ -116,13 +116,13 @@ class TdopParserTest(unittest.TestCase):
             self.assertIn(r"(\{http\:\/\/www\.w3\.org\/2000\/09\/xmldsig\#\}", pattern.pattern)
 
     def test_tokenizer_items(self):
-        self.assertListEqual(self.parser.tokenizer.findall('5 56'),
+        self.assertEqual(self.parser.tokenizer.findall('5 56'),
                              [('5', '', '', ''), ('', '', '', ''), ('56', '', '', '')])
-        self.assertListEqual(self.parser.tokenizer.findall('5+56'),
+        self.assertEqual(self.parser.tokenizer.findall('5+56'),
                              [('5', '', '', ''), ('', '+', '', ''), ('56', '', '', '')])
-        self.assertListEqual(self.parser.tokenizer.findall('xy'),
+        self.assertEqual(self.parser.tokenizer.findall('xy'),
                              [('', '', 'xy', '')])
-        self.assertListEqual(self.parser.tokenizer.findall('5x'),
+        self.assertEqual(self.parser.tokenizer.findall('5x'),
                              [('5', '', '', ''), ('', '', 'x', '')])
 
     def test_incompatible_tokenizer(self):
@@ -142,11 +142,11 @@ class TdopParserTest(unittest.TestCase):
     def test_iter_method(self):
         token = self.parser.parse('9 + 7 - 5')
 
-        self.assertListEqual(list(tk.source for tk in token.iter()),
+        self.assertEqual(list(tk.source for tk in token.iter()),
                              ['9', '9 + 7', '7', '9 + 7 - 5', '5'])
-        self.assertListEqual(list(tk.source for tk in token.iter('(integer)')),
+        self.assertEqual(list(tk.source for tk in token.iter('(integer)')),
                              ['9', '7', '5'])
-        self.assertListEqual(list(tk.source for tk in token.iter('(name)')), [])
+        self.assertEqual(list(tk.source for tk in token.iter('(name)')), [])
 
         class SampleParser(Parser):
             pass
@@ -157,9 +157,9 @@ class TdopParserTest(unittest.TestCase):
 
         parser = SampleParser()
         token = parser.parse('.')
-        self.assertListEqual(list(tk.source for tk in token.iter()), ['.'])
-        self.assertListEqual(list(tk.source for tk in token.iter('.')), ['.'])
-        self.assertListEqual(list(tk.source for tk in token.iter('..')), [])
+        self.assertEqual(list(tk.source for tk in token.iter()), ['.'])
+        self.assertEqual(list(tk.source for tk in token.iter('.')), ['.'])
+        self.assertEqual(list(tk.source for tk in token.iter('..')), [])
 
     def test_syntax_errors(self):
         with self.assertRaises(ParseError) as ec:
@@ -227,7 +227,7 @@ class TdopParserTest(unittest.TestCase):
 
         parser.advance()
         self.assertNotEqual(parser.token.symbol, '(start)')
-        self.assertEqual(parser.token.value, 7)
+        self.assertEqual(parser.token.value_token, 7)
         self.assertEqual(parser.position, (1, 4))
         self.assertTrue(parser.is_source_start())
         self.assertTrue(parser.is_line_start())
@@ -240,7 +240,7 @@ class TdopParserTest(unittest.TestCase):
         self.assertFalse(parser.is_line_start())
 
         parser.advance()
-        self.assertEqual(parser.token.value, 8)
+        self.assertEqual(parser.token.value_token, 8)
         self.assertEqual(parser.position, (2, 2))
         self.assertFalse(parser.is_source_start())
         self.assertTrue(parser.is_line_start())
@@ -268,7 +268,7 @@ class TdopParserTest(unittest.TestCase):
         parser.tokens = iter(parser.tokenizer.finditer(parser.source))
         parser.advance()
         self.assertEqual(parser.next_token.symbol, '(integer)')
-        self.assertEqual(parser.next_token.value, 5)
+        self.assertEqual(parser.next_token.value_token, 5)
         parser.advance_until('+')
         self.assertEqual(parser.next_token.symbol, '+')
 
@@ -277,7 +277,7 @@ class TdopParserTest(unittest.TestCase):
         parser.tokens = iter(parser.tokenizer.finditer(parser.source))
         parser.advance()
         self.assertEqual(parser.next_token.symbol, '(integer)')
-        self.assertEqual(parser.next_token.value, 5)
+        self.assertEqual(parser.next_token.value_token, 5)
         parser.advance_until('*')
         self.assertEqual(parser.next_token.symbol, '(end)')
 
@@ -286,7 +286,7 @@ class TdopParserTest(unittest.TestCase):
         parser.tokens = iter(parser.tokenizer.finditer(parser.source))
         parser.advance()
         self.assertEqual(parser.next_token.symbol, '(integer)')
-        self.assertEqual(parser.next_token.value, 5)
+        self.assertEqual(parser.next_token.value_token, 5)
 
         with self.assertRaises(ParseError) as ec:
             parser.advance_until('UNKNOWN')

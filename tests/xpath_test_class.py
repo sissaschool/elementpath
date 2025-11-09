@@ -168,7 +168,7 @@ class XPathTestCase(unittest.TestCase):
                 self.assertTrue(math.isnan(value))
 
         elif isinstance(expected, list):
-            self.assertListEqual(root_token.evaluate(context), expected)
+            self.assertEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, set):
             self.assertEqual(set(root_token.evaluate(context)), expected)
         elif isinstance(expected, XPathFunction) or not callable(expected):
@@ -197,7 +197,7 @@ class XPathTestCase(unittest.TestCase):
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, root_token.select, context)
         elif isinstance(expected, list):
-            self.assertListEqual(list(root_token.select(context)), expected)
+            self.assertEqual(list(root_token.select(context)), expected)
         elif isinstance(expected, set):
             self.assertEqual(set(root_token.select(context)), expected)
         elif callable(expected):
@@ -224,7 +224,7 @@ class XPathTestCase(unittest.TestCase):
         else:
             results = select(root, path, namespaces, self.parser.__class__, **kwargs)
             if isinstance(expected, list):
-                self.assertListEqual(results, expected)
+                self.assertEqual(results, expected)
             elif isinstance(expected, set):
                 self.assertEqual(set(results), expected)
             elif isinstance(expected, float):

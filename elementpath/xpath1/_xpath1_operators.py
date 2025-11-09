@@ -19,7 +19,7 @@ from typing import Any, cast, NoReturn, Optional, Union
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.helpers import node_position
 from elementpath.datatypes import AbstractDateTime, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericProxy, ArithmeticProxy
+    YearMonthDuration, NumericProxy, ArithmeticProxy, to_sequence
 from elementpath.aliases import NumericType, ArithmeticType, \
     ParentNodeType, ContextType, ItemType, XPathTokenType
 from elementpath.xpath_context import XPathSchemaContext
@@ -68,7 +68,7 @@ def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
     except KeyError as err:
         raise self.error('XPST0008', 'unknown variable %r' % str(err)) from None
     else:
-        return value if value is not None else []
+        return value if value is not None else self.empty_sequence_type()
 
 
 ###
@@ -181,19 +181,19 @@ def evaluate_plus_operator(self: XPathToken, context: ContextType = None) \
         -> Union[list[NoReturn], ArithmeticType]:
     if len(self) == 1:
         arg: NumericType = self.get_argument(context, cls=NumericProxy)
-        return [] if arg is None else +arg
+        return self.empty_sequence_type() if arg is None else +arg
     else:
         op1: Optional[ArithmeticType]
         op2: ArithmeticType
         op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
         if op1 is None:
-            return []
+            return self.empty_sequence_type()
 
         try:
             return op1 + op2  # type:ignore[operator]
         except (TypeError, OverflowError) as err:
             if isinstance(context, XPathSchemaContext):
-                return []
+                return self.empty_sequence_type()
             elif isinstance(err, TypeError):
                 raise self.error('XPTY0004', err) from None
             elif isinstance(op1, AbstractDateTime):
@@ -209,19 +209,19 @@ def evaluate_minus_operator(self: XPathToken, context: ContextType = None) \
         -> Union[list[NoReturn], ArithmeticType]:
     if len(self) == 1:
         arg: NumericType = self.get_argument(context, cls=NumericProxy)
-        return [] if arg is None else -arg
+        return self.empty_sequence_type() if arg is None else -arg
     else:
         op1: Optional[ArithmeticType]
         op2: ArithmeticType
         op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
         if op1 is None:
-            return []
+            return self.empty_sequence_type()
 
         try:
             return op1 - op2  # type:ignore[operator]
         except (TypeError, OverflowError) as err:
             if isinstance(context, XPathSchemaContext):
-                return []
+                return self.empty_sequence_type()
             elif isinstance(err, TypeError):
                 raise self.error('XPTY0004', err) from None
             elif isinstance(op1, AbstractDateTime):
@@ -247,14 +247,14 @@ def evaluate_multiply_operator(self: XPathToken, context: ContextType = None) \
     if self:
         op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
         if op1 is None:
-            return []
+            return self.empty_sequence_type()
         try:
             if isinstance(op2, (YearMonthDuration, DayTimeDuration)):
                 return op2 * op1
             return op1 * op2  # type:ignore[operator]
         except TypeError as err:
             if isinstance(context, XPathSchemaContext):
-                return []
+                return self.empty_sequence_type()
 
             if isinstance(op1, (float, decimal.Decimal)):
                 if math.isnan(op1):
@@ -271,11 +271,11 @@ def evaluate_multiply_operator(self: XPathToken, context: ContextType = None) \
             raise self.error('XPTY0004', err) from None
         except ValueError as err:
             if isinstance(context, XPathSchemaContext):
-                return []
+                return self.empty_sequence_type()
             raise self.error('FOCA0005', err) from None
         except OverflowError as err:
             if isinstance(context, XPathSchemaContext):
-                return []
+                return self.empty_sequence_type()
             elif isinstance(op1, AbstractDateTime):
                 raise self.error('FODT0001', err) from None
             elif isinstance(op1, Duration):
@@ -284,7 +284,7 @@ def evaluate_multiply_operator(self: XPathToken, context: ContextType = None) \
                 raise self.error('FOAR0002', err) from None
     else:
         # This is not a multiplication operator but a wildcard select statement
-        return [x for x in self.select(context)]
+        return to_sequence([x for x in self.select(context)])
 
 
 @method(infix('div', bp=45))
@@ -294,7 +294,7 @@ def evaluate_div_operator(self: XPathToken, context: ContextType = None) \
     divisor: ArithmeticType
     dividend, divisor = self.get_operands(context, cls=ArithmeticProxy)
     if dividend is None:
-        return []
+        return self.empty_sequence_type()
     elif divisor != 0:
         try:
             if isinstance(dividend, int) and isinstance(divisor, int):
@@ -332,7 +332,7 @@ def evaluate_mod_operator(self: XPathToken, context: ContextType = None) \
     op2: Optional[NumericType]
     op1, op2 = self.get_operands(context, cls=NumericProxy)
     if op1 is None:
-        return []
+        return self.empty_sequence_type()
     elif op2 is None:
         raise self.error('XPTY0004', '2nd operand is an empty sequence')
     elif op2 == 0 and isinstance(op2, float):

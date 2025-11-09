@@ -111,7 +111,7 @@ def evaluate_map_keys_function(self: XPathFunction, context: ContextType = None)
         context = self.context
 
     map_: XPathMap = self.get_argument(context, required=True, cls=XPathMap)
-    return [x for x in map_.keys(context)]
+    return self.to_sequence([x for x in map_.keys(context)])
 
 
 @method(function('contains', prefix='map', nargs=2,
@@ -641,7 +641,7 @@ def evaluate_sort_function(self: XPathFunction, context: ContextType = None) \
         raise
     except TypeError:
         if isinstance(context, XPathSchemaContext):
-            return []
+            return self.empty_sequence_type()
         raise self.error('XPTY0004')
 
 
@@ -692,7 +692,7 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
     if self.symbol == 'json-doc':
         href = self.get_argument(context, cls=str)
         if href is None:
-            return []
+            return self.empty_sequence_type()
 
         try:
             if urlsplit(href).scheme:
@@ -708,7 +708,7 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
         href = None
         json_text = self.get_argument(context, cls=str)
         if json_text is None:
-            return []
+            return self.empty_sequence_type()
 
     def _fallback(*a: Any, **kw: Any) -> str:
         return '\uFFFD'
@@ -751,7 +751,7 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
 
     def decode_value(value: NotEmptiable[ItemType]) -> Emptiable[ItemType]:
         if value is None:
-            return []
+            return self.empty_sequence_type()
         elif isinstance(value, list):
             return XPathArray(self.parser, [decode_value(x) for x in value])
         elif not isinstance(value, str):
@@ -876,7 +876,7 @@ def evaluate_random_number_generator_function(self: XPathFunction, context: Cont
 
         def __call__(self, *args: Any, **kwargs: Any) -> list[ItemType]:
             if not args:
-                return []
+                return self.empty_sequence_type()
 
             try:
                 seq = [x for x in args[0]]
@@ -932,7 +932,7 @@ def evaluate_parse_ietf_date_function(self: XPathFunction, context: ContextType 
 
     value = self.get_argument(context, cls=str)
     if value is None:
-        return []
+        return self.empty_sequence_type()
 
     # Normalize the input
     value = collapse_white_spaces(value)
@@ -1119,7 +1119,7 @@ def evaluate_xml_to_json_function(self: XPathFunction, context: ContextType = No
 
     input_node = self.get_argument(context, cls=XPathNode)
     if input_node is None:
-        return []
+        return self.empty_sequence_type()
 
     if len(self) > 1:
         options = self.get_argument(context, index=1, required=True, cls=XPathMap)
@@ -1259,7 +1259,7 @@ def evaluate_json_to_xml_function(self: XPathFunction, context: ContextType = No
 
     json_text = self.get_argument(context, cls=str)
     if json_text is None or isinstance(context, XPathSchemaContext):
-        return []
+        return self.empty_sequence_type()
     elif context is not None:
         etree = context.etree
     else:

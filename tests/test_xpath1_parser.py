@@ -1667,11 +1667,11 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         xpath_expr = '//descendant-or-self::text()'
         chunks = select(root, xpath_expr)
-        self.assertListEqual(chunks, ['Achille Compagnoni ', ' and ', 'Lino Lacedelli'])
+        self.assertEqual(chunks, ['Achille Compagnoni ', ' and ', 'Lino Lacedelli'])
 
         xpath_expr = '//text()'
         chunks = select(root, xpath_expr)
-        self.assertListEqual(chunks, ['Achille Compagnoni ', ' and ', 'Lino Lacedelli'])
+        self.assertEqual(chunks, ['Achille Compagnoni ', ' and ', 'Lino Lacedelli'])
 
     def test_get_function(self):
         func = self.parser.get_function('fn:true', 0)

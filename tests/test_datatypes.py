@@ -36,8 +36,7 @@ from elementpath.datatypes import AnyAtomicType, DateTime, DateTime10, Date, Dat
     BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, StringProxy, \
     builtin_atomic_types, builtin_list_types, OrderedDateTime, AtomicTypeMeta
 
-from elementpath.datatypes import XPathSequence, FullSequence, \
-    SingletonSequence, EmptySequence
+from elementpath.datatypes import XPathSequence, SingletonSequence, EmptySequence
 
 from elementpath.decoder import get_atomic_sequence
 
@@ -1959,40 +1958,45 @@ class TypeProxiesTest(unittest.TestCase):
 class XPathSequenceTest(unittest.TestCase):
 
     def test_string_repr(self):
-        self.assertEqual(repr(XPathSequence.from_items([])), '()')
-        self.assertEqual(repr(XPathSequence.from_items([1, 2, 3])), '(1, 2, 3)')
-        self.assertEqual(repr(FullSequence([1, 2, 3])), '(1, 2, 3)')
-        self.assertEqual(str(FullSequence([1, 2, 3])), '(1, 2, 3)')
+        self.assertEqual(repr(XPathSequence([])), 'EmptySequence()')
+        self.assertEqual(repr(XPathSequence([1, 2, 3])), 'XPathSequence(1, 2, 3)')
+        self.assertEqual(repr(XPathSequence.from_iterator((x for x in [1, 2, 3]))),
+                         'XPathSequence(1, 2, 3)')
+        self.assertEqual(repr(XPathSequence([1])), 'SingletonSequence(1)')
+
+        self.assertEqual(str(XPathSequence([1, 2, 3])), '(1, 2, 3)')
+        self.assertEqual(str(XPathSequence([1])), '(1)')
+        self.assertEqual(str(XPathSequence()), '()')
 
     def test_initialization(self):
-        sequence = XPathSequence.from_items([1, 2, 3])
-        self.assertEqual(sequence.items, [1, 2, 3])
-        sequence = FullSequence([1, 2, 3])
+        sequence = XPathSequence([1, 2, 3])
+        self.assertEqual(sequence, [1, 2, 3])
 
     def test_comparison(self):
-        self.assertEqual(EmptySequence(), ())
-        self.assertEqual((), EmptySequence())
+        self.assertEqual(EmptySequence(), [])
+        self.assertNotEqual(EmptySequence(), ())
+        self.assertEqual([], EmptySequence())
         self.assertNotEqual(EmptySequence(), 0)
-        self.assertEqual(EmptySequence(), ())
+        self.assertNotEqual((), EmptySequence())
         self.assertNotEqual(EmptySequence(), 0)
         self.assertNotEqual(EmptySequence(), '')
         self.assertNotEqual(EmptySequence(), 1)
 
-        self.assertEqual(SingletonSequence(1), 1)
-        self.assertEqual(SingletonSequence(1), [1])
-        self.assertNotEqual(SingletonSequence(1), 0)
-        self.assertNotEqual(SingletonSequence(1), [0])
-        self.assertNotEqual(SingletonSequence(1), [0])
-        self.assertNotEqual(SingletonSequence([1]), 1)
+        self.assertEqual(SingletonSequence([1]), 1)
+        self.assertEqual(SingletonSequence([1]), [1])
+        self.assertNotEqual(SingletonSequence.from_item(1), 0)
+        self.assertNotEqual(SingletonSequence.from_item(1), [0])
+        self.assertNotEqual(SingletonSequence.from_item(1), [0])
+        self.assertEqual(SingletonSequence([1]), 1)
 
     def test_concatenation(self):
-        sequence = XPathSequence.from_items([1, 2, 3])
+        sequence = XPathSequence([1, 2, 3])
         self.assertEqual(sequence + [4], [1, 2, 3, 4])
         self.assertEqual([] + sequence, [1, 2, 3])
         self.assertEqual([-1, 0] + sequence, [-1, 0, 1, 2, 3])
 
-        s1 = XPathSequence.from_items([1, 2, 3])
-        s2 = XPathSequence.from_items([4, 5, 6])
+        s1 = XPathSequence([1, 2, 3])
+        s2 = XPathSequence([4, 5, 6])
         self.assertEqual(s1 + s2, [1, 2, 3, 4, 5, 6])
         self.assertEqual(s2 + s1, [4, 5, 6, 1, 2, 3])
 

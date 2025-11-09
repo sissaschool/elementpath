@@ -231,33 +231,33 @@ class HelperFunctionsTest(unittest.TestCase):
         self.assertEqual(unescape_json_string("-\\t-"), '-\t-')
 
     def test_iter_sequence_function(self):
-        self.assertListEqual(list(iter_sequence(None)), [])
-        self.assertListEqual(list(iter_sequence([None, 8])), [8])
-        self.assertListEqual(list(iter_sequence([])), [])
-        self.assertListEqual(list(iter_sequence([[], 8])), [8])
-        self.assertListEqual(list(iter_sequence([[], [], []])), [])
-        self.assertListEqual(list(iter_sequence([[], 8, [9]])), [8, 9])
+        self.assertEqual(list(iter_sequence(None)), [])
+        self.assertEqual(list(iter_sequence([None, 8])), [8])
+        self.assertEqual(list(iter_sequence([])), [])
+        self.assertEqual(list(iter_sequence([[], 8])), [8])
+        self.assertEqual(list(iter_sequence([[], [], []])), [])
+        self.assertEqual(list(iter_sequence([[], 8, [9]])), [8, 9])
 
     def test_split_function_test_function(self):
-        self.assertListEqual(
+        self.assertEqual(
             split_function_test('element(*)'), []
         )
-        self.assertListEqual(
+        self.assertEqual(
             split_function_test('function(*)'), ['*']
         )
-        self.assertListEqual(
+        self.assertEqual(
             split_function_test('function(item()) as xs:anyAtomicType'),
             ['item()', 'xs:anyAtomicType']
         )
-        self.assertListEqual(
+        self.assertEqual(
             split_function_test('function(xs:string) as xs:integer*'),
             ['xs:string', 'xs:integer*']
         )
-        self.assertListEqual(
+        self.assertEqual(
             split_function_test('function() as map(xs:string, item())'),
             ['map(xs:string, item())']
         )
-        self.assertListEqual(
+        self.assertEqual(
             split_function_test('function(item()*, item()*, item()*) as item()*'),
             ['item()*', 'item()*', 'item()*', 'item()*']
         )

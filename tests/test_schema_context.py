@@ -60,7 +60,7 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertIs(element_node.xsd_type, elem_a.type)
 
         result = token.evaluate(context)
-        self.assertListEqual(result, [element_node])
+        self.assertEqual(result, [element_node])
 
         elem_b1 = elem_a.type.content[0]
         token = parser.parse('a/b1')
@@ -71,7 +71,7 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertIs(element_node.xsd_type, elem_b1.type)
 
         result = token.evaluate(context)
-        self.assertListEqual(result, [element_node])
+        self.assertEqual(result, [element_node])
 
     def test_colon_token(self):
         parser = XPath2Parser(namespaces={'tst': "http://xpath.test/ns"})
@@ -81,25 +81,25 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertEqual(token.symbol, ':')
 
         result = token.evaluate(copy(context))
-        self.assertListEqual(result, [context.root[0]])
+        self.assertEqual(result, [context.root[0]])
 
         token = parser.parse('tst:a/b1')
         self.assertEqual(token.symbol, '/')
         self.assertEqual(token[0].symbol, ':')
 
         result = token.evaluate(copy(context))
-        self.assertListEqual(result, [context.root[0][0]])
+        self.assertEqual(result, [context.root[0][0]])
 
         token = parser.parse('tst:a/tst:b1')
         result = token.evaluate(copy(context))
-        self.assertListEqual(result, [])
+        self.assertEqual(result, [])
 
         token = parser.parse('tst:a/tst:b3')
         self.assertEqual(token.symbol, '/')
         self.assertEqual(token[0].symbol, ':')
 
         result = token.evaluate(copy(context))
-        self.assertListEqual(result, [context.root[0][2]])
+        self.assertEqual(result, [context.root[0][2]])
 
     def test_extended_name_token(self):
         parser = XPath2Parser(strict=False)
@@ -112,7 +112,7 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertEqual(token[1].value, 'a')
 
         result = token.evaluate(context)
-        self.assertListEqual(result, [context.root[0]])
+        self.assertEqual(result, [context.root[0]])
 
     def test_wildcard_token(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
@@ -124,7 +124,7 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertEqual(token.symbol, '*')
 
         result = token.evaluate(context)
-        self.assertListEqual([e.value for e in result], [elem_a, elem_b3])
+        self.assertEqual([e.value for e in result], [elem_a, elem_b3])
 
         token = parser.parse('a/*')
         self.assertEqual(token.symbol, '/')
@@ -132,7 +132,7 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertEqual(token[1].symbol, '*')
 
         result = token.evaluate(context)
-        self.assertListEqual([e.value for e in result], elem_a.type.content[:])
+        self.assertEqual([e.value for e in result], elem_a.type.content[:])
 
     def test_dot_shortcut_token(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
@@ -140,18 +140,18 @@ class XMLSchemaContextTest(unittest.TestCase):
 
         token = parser.parse('.')
         result = token.evaluate(context)
-        self.assertListEqual(result, [context.root])
+        self.assertEqual(result, [context.root])
 
         context = XPathSchemaContext(self.schema1, item=self.schema1)
         token = parser.parse('.')
         result = token.evaluate(context)
-        self.assertListEqual(result, [context.root])
+        self.assertEqual(result, [context.root])
 
         context = XPathSchemaContext(self.schema1, item=self.schema2)
         schema2_node = context.item
         token = parser.parse('.')
         result = token.evaluate(context)
-        self.assertListEqual(result, [schema2_node])
+        self.assertEqual(result, [schema2_node])
 
     def test_schema_variables(self):
         variable_types = {'a': 'item()', 'b': 'xs:integer?', 'c': 'xs:string'}
@@ -178,26 +178,26 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertEqual(result, '  alpha\t')
 
         token = parser.parse('$z')
-        self.assertListEqual(token.evaluate(context), [])
+        self.assertEqual(token.evaluate(context), [])
 
     def test_not_applicable_functions(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
         context = XPathSchemaContext(self.schema1)
 
         token = parser.parse("fn:collection('filepath')")
-        self.assertListEqual(token.evaluate(context), [])
+        self.assertEqual(token.evaluate(context), [])
 
         token = parser.parse("fn:doc-available('tns1')")
         self.assertFalse(token.evaluate(context))
 
         token = parser.parse("fn:root(.)")
-        self.assertListEqual(token.evaluate(context), [])
+        self.assertEqual(token.evaluate(context), [])
 
         token = parser.parse("fn:id('ID21256')")
-        self.assertListEqual(token.evaluate(context), [])
+        self.assertEqual(token.evaluate(context), [])
 
         token = parser.parse("fn:idref('ID21256')")
-        self.assertListEqual(token.evaluate(context), [])
+        self.assertEqual(token.evaluate(context), [])
 
     def test_if_statement(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
@@ -205,11 +205,11 @@ class XMLSchemaContextTest(unittest.TestCase):
 
         token = parser.parse('if ($x > 1) then a/b1 else a/b2')
         result = token.evaluate(context)
-        self.assertListEqual(result, [context.root[0][1]])
+        self.assertEqual(result, [context.root[0][1]])
 
         token = parser.parse('if ($x > xs:date("2010-01-01")) then a/b1 else a/b2')
         result = token.evaluate(context)
-        self.assertListEqual(result, [context.root[0][1]])
+        self.assertEqual(result, [context.root[0][1]])
 
 
 if __name__ == '__main__':

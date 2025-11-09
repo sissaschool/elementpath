@@ -28,7 +28,7 @@ class XPathSelectorsTest(unittest.TestCase):
         cls.root = cls.etree.XML('<author>Dickens</author>')
 
     def test_select_function(self):
-        self.assertListEqual(select(self.root, 'text()'), ['Dickens'])
+        self.assertEqual(select(self.root, 'text()'), ['Dickens'])
         self.assertEqual(select(self.root, '$a', variables={'a': 1}), 1)
 
         self.assertEqual(
@@ -36,8 +36,8 @@ class XPathSelectorsTest(unittest.TestCase):
         )
 
     def test_iter_select_function(self):
-        self.assertListEqual(list(iter_select(self.root, 'text()')), ['Dickens'])
-        self.assertListEqual(list(iter_select(self.root, '$a', variables={'a': True})), [True])
+        self.assertEqual(list(iter_select(self.root, 'text()')), ['Dickens'])
+        self.assertEqual(list(iter_select(self.root, '$a', variables={'a': True})), [True])
 
     def test_selector_class(self):
         selector = Selector('/A')
@@ -45,12 +45,12 @@ class XPathSelectorsTest(unittest.TestCase):
         self.assertEqual(selector.namespaces, XPath2Parser.DEFAULT_NAMESPACES)
 
         selector = Selector('text()')
-        self.assertListEqual(selector.select(self.root), ['Dickens'])
-        self.assertListEqual(list(selector.iter_select(self.root)), ['Dickens'])
+        self.assertEqual(selector.select(self.root), ['Dickens'])
+        self.assertEqual(list(selector.iter_select(self.root)), ['Dickens'])
 
         selector = Selector('$a')
         self.assertEqual(selector.select(self.root, variables={'a': 1}), 1)
-        self.assertListEqual(list(selector.iter_select(self.root, variables={'a': 1})), [1])
+        self.assertEqual(list(selector.iter_select(self.root, variables={'a': 1})), [1])
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter('always')
@@ -59,24 +59,24 @@ class XPathSelectorsTest(unittest.TestCase):
             self.assertEqual(w[0].category, DeprecationWarning)
 
         self.assertEqual(selector.select(self.root), 1)
-        self.assertListEqual(list(selector.iter_select(self.root)), [1])
+        self.assertEqual(list(selector.iter_select(self.root)), [1])
 
     def test_issue_001(self):
         selector = Selector("//FullPath[ends-with(., 'Temp')]")
-        self.assertListEqual(selector.select(self.etree.XML('<A/>')), [])
-        self.assertListEqual(selector.select(self.etree.XML('<FullPath/>')), [])
+        self.assertEqual(selector.select(self.etree.XML('<A/>')), [])
+        self.assertEqual(selector.select(self.etree.XML('<FullPath/>')), [])
         root = self.etree.XML('<FullPath>High Temp</FullPath>')
-        self.assertListEqual(selector.select(root), [root])
+        self.assertEqual(selector.select(root), [root])
 
     def test_issue_042(self):
         selector1 = Selector('text()')
         selector2 = Selector('sup[last()]/preceding-sibling::text()')
         root = self.etree.XML('<root>a<sup>1</sup>b<sup>2</sup>c<sup>3</sup></root>')
-        self.assertListEqual(selector1.select(root), selector2.select(root))
+        self.assertEqual(selector1.select(root), selector2.select(root))
 
         selector2 = Selector('sup[1]/following-sibling::text()')
         root = self.etree.XML('<root><sup>1</sup>b<sup>2</sup>c<sup>3</sup>d</root>')
-        self.assertListEqual(selector1.select(root), selector2.select(root))
+        self.assertEqual(selector1.select(root), selector2.select(root))
 
     def test_fragment_argument__issue_081(self):
         # xml1 contains the xml-stylesheet tag
@@ -143,10 +143,10 @@ class LxmlXPathSelectorsTest(XPathSelectorsTest):
         k = None
         for k, p in enumerate(select(doc, '//pb', namespaces), start=1):
             self.assertEqual(p.attrib['n'], f'page{k}')
-            self.assertListEqual(p.xpath('./@n'), [f'page{k}'])
-            self.assertListEqual(select(doc, './@n'), [])
-            self.assertListEqual(select(p, './@n'), [f'page{k}'])
-            self.assertListEqual(select(doc, './@n', item=p), [f'page{k}'])
+            self.assertEqual(p.xpath('./@n'), [f'page{k}'])
+            self.assertEqual(select(doc, './@n'), [])
+            self.assertEqual(select(p, './@n'), [f'page{k}'])
+            self.assertEqual(select(doc, './@n', item=p), [f'page{k}'])
         else:
             self.assertEqual(k, 2)
 
@@ -154,21 +154,21 @@ class LxmlXPathSelectorsTest(XPathSelectorsTest):
         root = lxml_etree.XML("<root><trunk><branch></branch></trunk></root>")
 
         result = select(root, "trunk")
-        self.assertListEqual(result, [root[0]])  # [<Element trunk at 0x...>]
+        self.assertEqual(result, [root[0]])  # [<Element trunk at 0x...>]
 
         result = select(root, "/root/trunk")
-        self.assertListEqual(result, [root[0]])  # [<Element trunk at 0x...>]
+        self.assertEqual(result, [root[0]])  # [<Element trunk at 0x...>]
 
         root = lxml_etree.XML("<!--comment--><root><trunk><branch></branch></trunk></root>")
 
         result = select(root, "trunk")
-        self.assertListEqual(result, [])
+        self.assertEqual(result, [])
 
         result = select(root, "root/trunk")
-        self.assertListEqual(result, [root[0]])  # [<Element trunk at 0x...>]
+        self.assertEqual(result, [root[0]])  # [<Element trunk at 0x...>]
 
         result = select(root, "/root/trunk")
-        self.assertListEqual(result, [root[0]])  # [<Element trunk at 0x...>]
+        self.assertEqual(result, [root[0]])  # [<Element trunk at 0x...>]
 
 
 if __name__ == '__main__':

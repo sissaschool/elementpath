@@ -63,32 +63,32 @@ class TestCodePoints(unittest.TestCase):
 class TestParseCharacterSubset(unittest.TestCase):
 
     def test_expand_ranges(self):
-        self.assertListEqual(
+        self.assertEqual(
             list(iterparse_character_subset('a-e', expand_ranges=True)),
             [ord('a'), ord('b'), ord('c'), ord('d'), ord('e')]
         )
 
     def test_backslash_character(self):
-        self.assertListEqual(list(iterparse_character_subset('\\')), [ord('\\')])
-        self.assertListEqual(list(iterparse_character_subset('2-\\')),
+        self.assertEqual(list(iterparse_character_subset('\\')), [ord('\\')])
+        self.assertEqual(list(iterparse_character_subset('2-\\')),
                              [(ord('2'), ord('\\') + 1)])
-        self.assertListEqual(list(iterparse_character_subset('2-\\\\')),
+        self.assertEqual(list(iterparse_character_subset('2-\\\\')),
                              [(ord('2'), ord('\\') + 1), ord('\\')])
-        self.assertListEqual(list(iterparse_character_subset('2-\\x')),
+        self.assertEqual(list(iterparse_character_subset('2-\\x')),
                              [(ord('2'), ord('\\') + 1), ord('x')])
-        self.assertListEqual(list(iterparse_character_subset('2-\\a-x')),
+        self.assertEqual(list(iterparse_character_subset('2-\\a-x')),
                              [(ord('2'), ord('\\') + 1), (ord('a'), ord('x') + 1)])
-        self.assertListEqual(list(iterparse_character_subset('2-\\{')),
+        self.assertEqual(list(iterparse_character_subset('2-\\{')),
                              [(ord('2'), ord('{') + 1)])
 
     def test_backslash_escapes(self):
-        self.assertListEqual(list(iterparse_character_subset('\\{')), [ord('{')])
-        self.assertListEqual(list(iterparse_character_subset('\\(')), [ord('(')])
-        self.assertListEqual(list(iterparse_character_subset('\\a')), [ord('\\'), ord('a')])
+        self.assertEqual(list(iterparse_character_subset('\\{')), [ord('{')])
+        self.assertEqual(list(iterparse_character_subset('\\(')), [ord('(')])
+        self.assertEqual(list(iterparse_character_subset('\\a')), [ord('\\'), ord('a')])
 
     def test_square_brackets(self):
-        self.assertListEqual(list(iterparse_character_subset('\\[')), [ord('[')])
-        self.assertListEqual(list(iterparse_character_subset('[')), [ord('[')])
+        self.assertEqual(list(iterparse_character_subset('\\[')), [ord('[')])
+        self.assertEqual(list(iterparse_character_subset('[')), [ord('[')])
 
         with self.assertRaises(RegexError) as ctx:
             list(iterparse_character_subset('[ '))
@@ -98,8 +98,8 @@ class TestParseCharacterSubset(unittest.TestCase):
             list(iterparse_character_subset('x['))
         self.assertIn("bad character '['", str(ctx.exception))
 
-        self.assertListEqual(list(iterparse_character_subset('\\]')), [ord(']')])
-        self.assertListEqual(list(iterparse_character_subset(']')), [ord(']')])
+        self.assertEqual(list(iterparse_character_subset('\\]')), [ord(']')])
+        self.assertEqual(list(iterparse_character_subset(']')), [ord(']')])
 
         with self.assertRaises(RegexError) as ctx:
             list(iterparse_character_subset('].'))
@@ -110,9 +110,9 @@ class TestParseCharacterSubset(unittest.TestCase):
         self.assertIn("bad character '['", str(ctx.exception))
 
     def test_character_range(self):
-        self.assertListEqual(list(iterparse_character_subset('A-z')),
+        self.assertEqual(list(iterparse_character_subset('A-z')),
                              [(ord('A'), ord('z') + 1)])
-        self.assertListEqual(list(iterparse_character_subset('\\[-z')),
+        self.assertEqual(list(iterparse_character_subset('\\[-z')),
                              [(ord('['), ord('z') + 1)])
 
     def test_bad_character_range(self):
@@ -125,7 +125,7 @@ class TestParseCharacterSubset(unittest.TestCase):
         self.assertIn('bad character range', str(ctx.exception))
 
     def test_parse_multiple_ranges(self):
-        self.assertListEqual(
+        self.assertEqual(
             list(iterparse_character_subset('a-c-1-4x-z-7-9')),
             [(ord('a'), ord('c') + 1), ord('-'), (ord('1'), ord('4') + 1),
              (ord('x'), ord('z') + 1), ord('-'), (55, 58)]
@@ -198,21 +198,21 @@ class TestUnicodeSubset(unittest.TestCase):
     def test_update_method(self):
         subset = UnicodeSubset()
         subset.update('\\\\')
-        self.assertListEqual(subset.codepoints, [ord('\\')])
+        self.assertEqual(subset.codepoints, [ord('\\')])
         subset.update('\\$')
-        self.assertListEqual(subset.codepoints, [ord('$'), ord('\\')])
+        self.assertEqual(subset.codepoints, [ord('$'), ord('\\')])
 
         subset.clear()
         subset.update('!--')
-        self.assertListEqual(subset.codepoints, [(ord('!'), ord('-') + 1)])
+        self.assertEqual(subset.codepoints, [(ord('!'), ord('-') + 1)])
 
         subset.clear()
         subset.update('!---')
-        self.assertListEqual(subset.codepoints, [(ord('!'), ord('-') + 1)])
+        self.assertEqual(subset.codepoints, [(ord('!'), ord('-') + 1)])
 
         subset.clear()
         subset.update('!--a')
-        self.assertListEqual(subset.codepoints, [(ord('!'), ord('-') + 1), ord('a')])
+        self.assertEqual(subset.codepoints, [(ord('!'), ord('-') + 1), ord('a')])
 
         with self.assertRaises(RegexError):
             subset.update('[[')
@@ -228,8 +228,8 @@ class TestUnicodeSubset(unittest.TestCase):
 
     def test_iterate(self):
         subset = UnicodeSubset('a-d')
-        self.assertListEqual(list(iter(subset)), [ord('a'), ord('b'), ord('c'), ord('d')])
-        self.assertListEqual(list(subset.iter_characters()), ['a', 'b', 'c', 'd'])
+        self.assertEqual(list(iter(subset)), [ord('a'), ord('b'), ord('c'), ord('d')])
+        self.assertEqual(list(subset.iter_characters()), ['a', 'b', 'c', 'd'])
 
     def test_reversed(self):
         subset = UnicodeSubset('0-9ax')
@@ -402,16 +402,16 @@ class TestCharacterClass(unittest.TestCase):
         self.assertNotIn(97.0, char_class)
 
     def test_char_class_split(self):
-        self.assertListEqual(CharacterClass._re_char_set.split(r'2-\\'), [r'2-\\'])
+        self.assertEqual(CharacterClass._re_char_set.split(r'2-\\'), [r'2-\\'])
 
     def test_complement(self):
         char_class = CharacterClass('a-z')
-        self.assertListEqual(char_class.positive.codepoints, [(97, 123)])
-        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(char_class.positive.codepoints, [(97, 123)])
+        self.assertEqual(char_class.negative.codepoints, [])
 
         char_class.complement()
-        self.assertListEqual(char_class.positive.codepoints, [])
-        self.assertListEqual(char_class.negative.codepoints, [(97, 123)])
+        self.assertEqual(char_class.positive.codepoints, [])
+        self.assertEqual(char_class.negative.codepoints, [(97, 123)])
         self.assertEqual(str(char_class), '[^a-z]')
 
         char_class = CharacterClass()
@@ -471,46 +471,46 @@ class TestCharacterClass(unittest.TestCase):
 
     def test_length(self):
         char_class = CharacterClass('0-9A-Z')
-        self.assertListEqual(char_class.positive.codepoints, [(48, 58), (65, 91)])
-        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(char_class.positive.codepoints, [(48, 58), (65, 91)])
+        self.assertEqual(char_class.negative.codepoints, [])
         self.assertEqual(len(char_class), 36)
 
         char_class.complement()
-        self.assertListEqual(char_class.positive.codepoints, [])
-        self.assertListEqual(char_class.negative.codepoints, [(48, 58), (65, 91)])
+        self.assertEqual(char_class.positive.codepoints, [])
+        self.assertEqual(char_class.negative.codepoints, [(48, 58), (65, 91)])
         self.assertEqual(len(char_class), sys.maxunicode + 1 - 36)
 
         char_class.add('k-m')
-        self.assertListEqual(char_class.positive.codepoints, [(107, 110)])
-        self.assertListEqual(char_class.negative.codepoints, [(48, 58), (65, 91)])
+        self.assertEqual(char_class.positive.codepoints, [(107, 110)])
+        self.assertEqual(char_class.negative.codepoints, [(48, 58), (65, 91)])
         self.assertEqual(str(char_class), '[\x00-/:-@\\[-\U0010ffffk-m]')
         self.assertEqual(len(char_class), sys.maxunicode + 1 - 36)
 
         char_class.add('K-M')
-        self.assertListEqual(char_class.positive.codepoints, [(75, 78), (107, 110)])
-        self.assertListEqual(char_class.negative.codepoints, [(48, 58), (65, 91)])
+        self.assertEqual(char_class.positive.codepoints, [(75, 78), (107, 110)])
+        self.assertEqual(char_class.negative.codepoints, [(48, 58), (65, 91)])
         self.assertEqual(len(char_class), sys.maxunicode + 1 - 33)
         self.assertEqual(str(char_class), '[\x00-/:-@\\[-\U0010ffffK-Mk-m]')
 
         char_class.clear()
-        self.assertListEqual(char_class.positive.codepoints, [])
-        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(char_class.positive.codepoints, [])
+        self.assertEqual(char_class.negative.codepoints, [])
         self.assertEqual(len(char_class), 0)
 
     def test_add(self):
         char_class = CharacterClass()
-        self.assertListEqual(char_class.positive.codepoints, [])
-        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(char_class.positive.codepoints, [])
+        self.assertEqual(char_class.negative.codepoints, [])
         self.assertEqual(len(char_class), 0)
 
         char_class.add('0-9')
-        self.assertListEqual(char_class.positive.codepoints, [(48, 58)])
-        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(char_class.positive.codepoints, [(48, 58)])
+        self.assertEqual(char_class.negative.codepoints, [])
         self.assertEqual(len(char_class), 10)
 
         char_class = CharacterClass()
         char_class.add(ord('0'))
-        self.assertListEqual(char_class.positive.codepoints, [48])
+        self.assertEqual(char_class.positive.codepoints, [48])
 
         char_class.add(r'\p{Nd}')
         if unidata_version == '12.1.0':
@@ -533,13 +533,13 @@ class TestCharacterClass(unittest.TestCase):
     def test_discard(self):
         char_class = CharacterClass('0-9')
         char_class.discard('6-9')
-        self.assertListEqual(char_class.positive.codepoints, [(48, 54)])
-        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(char_class.positive.codepoints, [(48, 54)])
+        self.assertEqual(char_class.negative.codepoints, [])
         self.assertEqual(len(char_class), 6)
 
         char_class = CharacterClass('0-9')
         char_class.discard(ord('6'))
-        self.assertListEqual(char_class.positive.codepoints, [(48, 54), (55, 58)])
+        self.assertEqual(char_class.positive.codepoints, [(48, 54), (55, 58)])
 
         char_class.add(r'\p{Nd}')
         if unidata_version == '12.1.0':
@@ -572,11 +572,11 @@ class TestCharacterClass(unittest.TestCase):
         char_class = CharacterClass()
         char_class.complement()
         char_class.discard('\\n')
-        self.assertListEqual(char_class.positive.codepoints, [(0, 10), (11, 1114112)])
-        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(char_class.positive.codepoints, [(0, 10), (11, 1114112)])
+        self.assertEqual(char_class.negative.codepoints, [])
         self.assertEqual(len(char_class), sys.maxunicode)
         char_class.discard('\\s')
-        self.assertListEqual(char_class.positive.codepoints,
+        self.assertEqual(char_class.positive.codepoints,
                              [(0, 9), (11, 13), (14, 32), (33, 1114112)])
         self.assertEqual(len(char_class), sys.maxunicode - 3)
         char_class.discard('\\S')
@@ -585,15 +585,15 @@ class TestCharacterClass(unittest.TestCase):
         char_class.clear()
         char_class.negative.codepoints.append(10)
         char_class.discard('\\s')
-        self.assertListEqual(char_class.positive.codepoints, [])
-        self.assertListEqual(char_class.negative.codepoints, [(9, 11), 13, 32])
+        self.assertEqual(char_class.positive.codepoints, [])
+        self.assertEqual(char_class.negative.codepoints, [(9, 11), 13, 32])
 
         char_class = CharacterClass('\t')
         char_class.complement()
-        self.assertListEqual(char_class.negative.codepoints, [9])
+        self.assertEqual(char_class.negative.codepoints, [9])
         char_class.discard('\\n')
-        self.assertListEqual(char_class.positive.codepoints, [])
-        self.assertListEqual(char_class.negative.codepoints, [(9, 11)])
+        self.assertEqual(char_class.positive.codepoints, [])
+        self.assertEqual(char_class.negative.codepoints, [(9, 11)])
         self.assertEqual(len(char_class), sys.maxunicode - 1)
 
 

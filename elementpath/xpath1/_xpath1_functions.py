@@ -431,12 +431,12 @@ def evaluate_sum_function(self: XPathFunction, context: ContextType = None) \
         if self.parser.version == '1.0':
             return math.nan
         elif isinstance(context, XPathSchemaContext):
-            return []
+            return self.empty_sequence_type()
         raise self.error('FORG0006') from None
 
     if not values:
         zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
-        return [] if zero is None else zero
+        return self.empty_sequence_type() if zero is None else zero
 
     if all(isinstance(x, (decimal.Decimal, int)) for x in values):
         result = sum(values) if len(values) > 1 else values[0]
@@ -458,7 +458,7 @@ def evaluate_sum_function(self: XPathFunction, context: ContextType = None) \
             if self.parser.version == '1.0':
                 return math.nan
             elif isinstance(context, XPathSchemaContext):
-                return []
+                return self.empty_sequence_type()
             raise self.error('FORG0006') from None
 
     assert isinstance(result, AnyAtomicType)
@@ -490,7 +490,7 @@ def evaluate_ceiling_and_floor_functions(self: XPathFunction, context: ContextTy
             return type(arg)(math.ceil(arg))
     except TypeError as err:
         if isinstance(context, XPathSchemaContext):
-            return []
+            return self.empty_sequence_type()
         elif isinstance(arg, str):
             raise self.error('XPTY0004', err) from None
         raise self.error('FORG0006', err) from None
@@ -520,18 +520,18 @@ def evaluate_round_function(self: XPathFunction, context: ContextType = None) \
             return type(arg)(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN'))
     except TypeError as err:
         if isinstance(context, XPathSchemaContext):
-            return []
+            return self.empty_sequence_type()
         raise self.error('FORG0006', err) from None
     except decimal.InvalidOperation:
         if not isinstance(arg, str):
             assert isinstance(arg, (int, float, decimal.Decimal))
             return round(arg)
         elif isinstance(context, XPathSchemaContext):
-            return []
+            return self.empty_sequence_type()
         raise self.error('XPTY0004') from None
     except decimal.DecimalException as err:
         if isinstance(context, XPathSchemaContext):
-            return []
+            return self.empty_sequence_type()
         raise self.error('FOCA0002', err) from None
 
 # XPath 1.0 definitions continue into module xpath1_axes

@@ -29,7 +29,10 @@ class XPathArray(XPathFunction):
     def __init__(self, parser: ta.XPathParserType,
                  items: Optional[Iterable[Any]] = None) -> None:
         if items is not None:
-            self._array = [x for x in items]
+            self._array = self.to_sequence([
+                x if not isinstance(x, list) else XPathArray(parser, x)
+                for x in items
+            ])
         super().__init__(parser)
 
     def __repr__(self) -> str:
@@ -41,7 +44,7 @@ class XPathArray(XPathFunction):
 
     def __str__(self) -> str:
         if self._array is not None:
-            return str(self._array)
+            return f'[{", ".join(map(repr, self._array))}]'
 
         items_desc = f'{len(self)} items' if len(self) != 1 else '1 item'
         if self.symbol == 'array':
@@ -92,9 +95,9 @@ class XPathArray(XPathFunction):
             items: list[ta.ValueType] = []
             for tk in self._items:
                 items.extend(tk.select(context))
-            return items
+            return self.to_sequence(items)
         else:
-            return [tk.evaluate(context) for tk in self._items]
+            return self.to_sequence([tk.evaluate(context) for tk in self._items])
 
     def __call__(self, *args: ta.FunctionArgType, context: ta.ContextType = None) -> ta.ValueType:
         if len(args) != 1 or not isinstance(args[0], int):
@@ -116,7 +119,7 @@ class XPathArray(XPathFunction):
 
     def items(self, context: ta.ContextType = None) -> list[ta.ValueType]:
         if self._array is not None:
-            return self._array.copy()
+            return self._array
         return self._evaluate(context)
 
     def iter_flatten(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
@@ -128,7 +131,7 @@ class XPathArray(XPathFunction):
         for item in items:
             if isinstance(item, XPathArray):
                 yield from item.iter_flatten(context)
-            elif isinstance(item, self.sequence_class):
+            elif isinstance(item, self.registry.base_sequence):
                 yield from item
             else:
                 yield item

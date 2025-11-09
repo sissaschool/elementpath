@@ -85,9 +85,9 @@ class XPathFunction(XPathToken):
         if self.label == 'partial function':
             for arg, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
                 if isinstance(arg, XPathFunction) or not isinstance(arg, XPathToken):
-                    tk.value = self.validated_argument(arg, context)
+                    tk.value_token = self.validated_argument(arg, context)
                 else:
-                    tk.value = arg.evaluate(context)
+                    tk.value_token = arg.evaluate(context)
         else:
             self.clear()
             for arg in args:
@@ -153,10 +153,10 @@ class XPathFunction(XPathToken):
         if context is not None:
             return context.get_value(arg, context.namespaces, self.parser.base_uri, None)
         elif arg is None:
-            return []
+            return self.empty_sequence_type()
         elif not isinstance(arg, (list, tuple)):
             return get_arg_item(arg)
-        return [get_arg_item(x) for x in arg]
+        return self.to_sequence([get_arg_item(x) for x in arg])
 
     def validated_result(self, result: ta.ValueType) -> ta.ValueType:
         if isinstance(result, XPathToken) and result.symbol == '?':
@@ -382,12 +382,12 @@ class XPathFunction(XPathToken):
         return wrapper
 
     def _partial_evaluate(self, context: ta.ContextType = None) -> Any:
-        return [x for x in self._partial_select(context)]
+        return self.to_sequence([x for x in self._partial_select(context)])
 
     def _partial_select(self, context: ta.ContextType = None) -> Iterator[Any]:
         item = self._partial_evaluate(context)
         if item is not None:
-            if isinstance(item, self.sequence_class):
+            if isinstance(item, self.registry.base_sequence):
                 yield from item
             else:
                 if context is not None:

@@ -7,13 +7,13 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from collections.abc import Callable, Sequence  # noqa: F401
-from typing import Any, TypeVar, NoReturn, overload, Iterator
+from collections.abc import Callable, Sequence, Iterable  # noqa: F401
+from typing import Any, overload, TypeVar, NoReturn, Iterator, Union
 
-from elementpath.aliases import ItemType, SequenceType  # noqa: F401
+from elementpath.aliases import ItemType, SequenceType, SequenceArgType  # noqa: F401
 
-__all__ = ['XPathSequence', 'EmptySequence', 'empty_sequence',
-           'FullSequence', 'SingletonSequence']
+__all__ = ['XPathSequence', 'SingletonSequence', 'EmptySequence',
+           'empty_sequence', 'to_sequence', 'iter_sequence']
 
 T = TypeVar('T', bound=ItemType)
 T1 = TypeVar('T1', bound=ItemType)
@@ -22,224 +22,188 @@ T2 = TypeVar('T2', bound=ItemType)
 
 class XPathSequence(Sequence[T]):
     """
-    A class for representing a sequence of XPath items. This is a generalization
-    introduced with XPath 4.0 (draft).
-    """
-    items: list[T]
+    A class for representing a sequence of XPath items, as defined by XQuery and
+    XPath Data Model 4.0. This is derived from <class 'list'> for interoperability,
+    but it's intended to be immutable and for internal processing.
 
-    @classmethod
-    def from_items(cls, items: list[T]) -> 'SequenceType[T]':
-        if not items:
-            try:
-                return empty_sequence
-            except NameError:
-                return object.__new__(EmptySequence)
-        elif len(items) == 1:
-            singleton = object.__new__(SingletonSequence)
-            singleton.item = items[0]
-            return singleton
-        else:
-            sequence = object.__new__(FullSequence)
-            sequence.items = items
-            return sequence
+    Ref: https://qt4cg.org/specifications/xpath-datamodel-40/Overview.html
+    """
+    _items: tuple[T, ...] | tuple[T] | tuple[()]
+    __slots__ = ('_items',)
+
+    def __new__(cls, items: tuple[T, ...] | tuple[T] | tuple[()]) -> 'XPathSequence[T]':
+        obj = super().__new__(cls)
+        obj._items = items
+        return obj
 
     def __str__(self) -> str:
-        return f'({str(self.items)[1:-1]})'
+        return f'({", ".join(map(repr, self))})'
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return f'{self.__class__.__name__}({", ".join(map(repr, self))})'
 
-    ###
-    # XDM 4.0 constructors and accessors.
-    @classmethod
-    def empty_sequence(cls) -> 'EmptySequence':
-        return EmptySequence()
+    @overload
+    def __getitem__(self, index: int, /) -> T: ...
 
-    @classmethod
-    def sequence_concat(cls, s1: 'SequenceType[T]', s2: 'SequenceType[T2]') \
-            -> 'SequenceType[T] | SequenceType[T2] | FullSequence[T | T2]':
-        if isinstance(s2, EmptySequence):
-            return s1
-        elif isinstance(s1, EmptySequence):
-            return s2
-        else:
-            return FullSequence(s1.items + s2.items)
+    @overload
+    def __getitem__(self, index: slice,/ ) -> tuple[T, ...] | tuple[T] | tuple[()]: ...
 
-    @classmethod
-    def count(cls, seq: 'XPathSequence[T1]') -> int:
-        return len(seq)
+    def __getitem__(self, index: int | slice) -> T | tuple[T, ...] | tuple[T] | tuple[()]:
+        return self._items[index]
 
-    @classmethod
-    def iterate_sequence(cls, seq: 'SequenceType[T1]',
-                         action: 'Callable[[T1, int], SequenceType[T2]]') \
-            -> 'SequenceType[T1 | T2]':
-        items: list[T2] = []
-        for position, item in enumerate(seq.items, start=1):
-            items.extend(action(item, position).items)
+    def __len__(self) -> int:
+        return len(self._items)
 
-        if not items:
-            return empty_sequence
-        elif len(items) == 1:
-            singleton = object.__new__(SingletonSequence)
-            singleton.item = items[0]
-            return singleton
-        else:
-            sequence = object.__new__(FullSequence)
-            sequence.items = items
-            return sequence
-
-    def __add__(self, other: 'SequenceType[T1] | list[T1] | Any') \
-            -> 'SequenceType[T | T1]':
-        if isinstance(other, XPathSequence):
-            return XPathSequence[T | T1].from_items(self.items + other.items)
-        elif isinstance(other, list):
-            return XPathSequence[T | T1].from_items(self.items + other)
-        return NotImplemented
-
-    def __radd__(self, other: list[T1] | Any) -> 'SequenceType[T | T1]':
-        if isinstance(other, list):
-            return XPathSequence[T | T1].from_items(other + self.items)
-        return NotImplemented
+    def __iter__(self) -> Iterator[T]:
+        return iter(self._items)
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, XPathSequence):
-            return self.items == other.items
+            return self._items == other._items
+        elif isinstance(other, tuple):
+            return self._items == other
         elif isinstance(other, list):
-            return self.items == other
-        return False
+            return self._items == tuple(other)
+        return False if len(self._items) != 1 else not self._items != other
 
     def __ne__(self, other: Any) -> bool:
         if isinstance(other, XPathSequence):
-            return self.items != other.items
+            return self._items != other._items
+        elif isinstance(other, tuple):
+            return self._items != other
         elif isinstance(other, list):
-            return self.items != other
-        return True
+            return self._items != tuple(other)
+        return True if len(self._items) != 1 else not self._items == other
+
+    def __add__(self, other: 'SequenceType[T] | list[T] | tuple[T, ...]') -> 'SequenceType[T]':
+        if isinstance(other, XPathSequence):
+            return to_sequence(self._items + other[:])
+        elif isinstance(other, (tuple, list)):
+            return to_sequence(self._items + tuple(other))
+        return NotImplemented
+
+    def __radd__(self, other: list[T] | tuple[T, ...]) -> 'SequenceType[T]':
+        if isinstance(other, (tuple, list)):
+            return to_sequence(self._items + tuple(other))
+        return NotImplemented
+
+    ###
+    # XDM 4.0 constructors and accessors.
+    @staticmethod
+    def empty_sequence() -> 'EmptySequence':
+        return EmptySequence()
+
+    @staticmethod
+    def sequence_concat(s1: 'XPathSequence[T]', s2: 'XPathSequence[T]') -> 'SequenceType[T]':
+        items: tuple[T, ...] | tuple[T] | tuple[()] = s1._items + s2._items
+        if not items:
+            return EmptySequence()
+        elif len(items) == 1:
+            return SingletonSequence(items)
+        else:
+            return XPathSequence(items)
+
+    @classmethod
+    def count(cls, seq: 'XPathSequence[T1]') -> int:
+        return len(seq._items)
+
+    @staticmethod
+    def iterate_sequence(seq: 'SequenceType[T]',
+                         action: 'Callable[[T, int], SequenceType[T]]') \
+            -> 'SequenceType[T]':
+        items: list[T] = []
+        for position, item in enumerate(seq, start=1):
+            items.extend(action(item, position))
+
+        if not items:
+            return EmptySequence()
+        elif len(items) == 1:
+            return SingletonSequence((items[0],))
+        else:
+            return XPathSequence(tuple(items))
+
+
+class SingletonSequence(XPathSequence[T]):
+    """A sequence with only one item as defined by XDM 4.0."""
+    _items: tuple[T]
+    __slots__ = ()
+
+    def __new__(cls, items: tuple[T]) -> 'SingletonSequence[T]':
+        if len(items) != 1:
+            raise ValueError(f"{type(items)!r} accepts exactly one item")
+        obj = object.__new__(cls)
+        obj._items = items
+        return obj
+
+    def __len__(self) -> int:
+        return 1
+
+    def __iter__(self) -> Iterator[T]:
+        yield self._items[0]
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, SingletonSequence):
+            return self._items == other._items
+        elif isinstance(other, tuple):
+            return self._items == other
+        elif isinstance(other, list):
+            return len(other) == 1 and self._items[0] == other[0]
+        return not self._items[0] != other
+
+    def __ne__(self, other: Any) -> bool:
+        if isinstance(other, SingletonSequence):
+            return self._items != other._items
+        elif isinstance(other, tuple):
+            return self._items != other
+        elif isinstance(other, list):
+            return len(other) != 1 or self._items[0] != other[0]
+        return not self._items[0] == other
 
 
 class EmptySequence(XPathSequence[NoReturn]):
     """An empty sequence, that is processes as a singleton with no values."""
+    _items: tuple[()]
     __slots__ = ()
 
     def __new__(cls) -> 'EmptySequence':
         try:
             return empty_sequence
         except NameError:
-            return object.__new__(EmptySequence)
-
-    @property
-    def item(self) -> None:
-        return None
-
-    @property
-    def items(self) -> list[NoReturn]:
-        return []
-
-    @items.setter
-    def items(self, items: list[NoReturn] | Any) -> None:
-        if not isinstance(items, list):
-            raise TypeError(f'items must be an empty list not {type(items)}')
-        if items:
-            raise ValueError(f'cannot set {self!r} items with a not empty sequence')
-
-    def __str__(self) -> str:
-        return '()'
+            obj = object.__new__(cls)
+            obj._items = ()
+            return obj
 
     def __len__(self) -> int:
         return 0
 
-    @overload
-    def __getitem__(self, index: int) -> NoReturn: ...
-
-    @overload
-    def __getitem__(self, index: slice) -> list[NoReturn]: ...
-
-    def __getitem__(self, index: int | slice) -> NoReturn | list[NoReturn]:
-        return [][index]
-
-    def __iter__(self):
-        return iter(())
-
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, (EmptySequence, tuple, list)) and len(other) == 0
+        return not other and isinstance(other, (EmptySequence, list, tuple, None.__class__))
 
     def __ne__(self, other: Any) -> bool:
-        return not isinstance(other, (EmptySequence, tuple, list)) or len(other) != 0
+        return other or not isinstance(other, (EmptySequence, list, tuple, None.__class__))
 
 
 empty_sequence = EmptySequence()  # The empty sequence as a singleton
 
 
-class SingletonSequence(XPathSequence[T]):
-    """A singleton sequence."""
-    __slots__ = ('item',)
-    item: T
+def to_sequence(items: SequenceArgType[T] = ()) -> 'SequenceType[T]':
+    """
+    Main constructor that returns an instance of the appropriate subclass, \
+    depending on the number of items.
+    """
+    items = tuple(items)
+    if any(isinstance(x, XPathSequence) for x in items):
+        raise ValueError(f"a sequence instance cannot contain other sequences")
 
-    def __init__(self, item: T) -> None:
-        self.item = item
-
-    def __len__(self) -> int:
-        return 1
-
-    @overload
-    def __getitem__(self, index: int) -> T: ...
-
-    @overload
-    def __getitem__(self, index: slice) -> list[T] | list[NoReturn]: ...
-
-    def __getitem__(self, index: int | slice) -> T | list[T] | list[NoReturn]:
-        return self.item if index == 0 else [self.item][index]
-
-    def __iter__(self):
-        yield self.item
-
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, SingletonSequence):
-            return bool(self.item == other.item)
-        elif isinstance(other, list):
-            return len(other) == 1 and self.item == other[0]
-        return bool(self.items[0] == other)
-
-    def __ne__(self, other: object) -> bool:
-        if isinstance(other, list):
-            return len(other) != 1 or self.item != other[0]
-        return self.item != other
-
-    @property
-    def items(self) -> list[T]:
-        return [self.item]
-
-    @items.setter
-    def items(self, items: list[T] | Any) -> None:
-        if not (isinstance(items, list)):
-            raise TypeError(f'items must be a list, not {type(items)}')
-        if len(items) != 1:
-            raise ValueError(f'cannot set {self!r} items with a list with more than one item')
-        self.item = items[0]
-
-
-class FullSequence(XPathSequence[T]):
-    """A sequence with two or more items."""
-    items: list[T]
-
-    __slots__ = ('items',)
-
-    def __init__(self, items: list[T]) -> None:
-        self.items = items
-
-    def __len__(self) -> int:
-        return len(self.items)
-
-    @overload
-    def __getitem__(self, index: int) -> T: ...
-
-    @overload
-    def __getitem__(self, index: slice) -> list[T] | list[NoReturn]: ...
-
-    def __getitem__(self, index: int | slice) -> T | list[T] | list[NoReturn]:
-        return self.items[index]
-
-    def __iter__(self):
-        return iter(self.items)
+    if not items:
+        try:
+            return empty_sequence
+        except NameError:
+            return EmptySequence()
+    elif len(items) == 1:
+        return SingletonSequence(items)
+    else:
+        return XPathSequence(items)
 
 
 def iter_sequence(obj: Any) -> Iterator[Any]:

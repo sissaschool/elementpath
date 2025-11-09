@@ -619,7 +619,7 @@ class TestCase(object):
         self.use_lxml = use_lxml
         self.etree = lxml.etree if use_lxml else ElementTree
 
-        self.name = test_set.name + "__" + elem.attrib['name']
+        self.name = test_set.name_token + "__" + elem.attrib['name']
         self.description = elem.find('description', namespaces).text
         self.test = elem.find('test', namespaces).text
 
@@ -935,7 +935,7 @@ class Result(object):
         if verbose <= 1:
             return
 
-        print(f'Fail for test case {self.test_case.name!r}')
+        print(f'Fail for test case {self.test_case.name_token!r}')
         print(f'Result failed: {self}')
 
         if verbose < 4:
@@ -1043,7 +1043,7 @@ class Result(object):
             type_check = isinstance(result, XPathMap)
         elif not is_sequence_type(self.value, parser):
             msg = " test-case {}: {!r} is not a valid sequence type"
-            print(msg.format(self.test_case.name, self.value))
+            print(msg.format(self.test_case.name_token, self.value))
             type_check = False
         else:
             context_result = get_context_result(result)
@@ -1296,7 +1296,7 @@ class Result(object):
 
     def assert_xml_validator(self, verbose=1):
         try:
-            if self.test_case.test_set.name == 'fn-parse-xml':
+            if self.test_case.test_set.name_token == 'fn-parse-xml':
                 with working_directory(self.test_case.test_set.workdir):
                     result = self.test_case.run_xpath_test(verbose)
             else:
@@ -1568,15 +1568,15 @@ def main():
                     continue
 
                 # Other test cases to skip for technical limitations
-                if test_case.name in SKIP_TESTS:
+                if test_case.name_token in SKIP_TESTS:
                     count_skip += 1
                     continue
 
-                if test_case.name in SKIP_XP20 and not args.xp30 and not args.xp31:
+                if test_case.name_token in SKIP_XP20 and not args.xp30 and not args.xp31:
                     count_skip += 1
                     continue
 
-                if not args.use_lxml and test_case.name in LXML_ONLY:
+                if not args.use_lxml and test_case.name_token in LXML_ONLY:
                     count_skip += 1
                     continue
 
@@ -1594,7 +1594,7 @@ def main():
 
                 count_run += 1
                 if args.show_test_case:
-                    print(f"Run test case {test_case.name!r}", flush=True)
+                    print(f"Run test case {test_case.name_token!r}", flush=True)
                 elif verbose == 1:
                     print('.', end='', flush=True)
 
@@ -1602,17 +1602,17 @@ def main():
                     case_result = test_case.run(verbose)
                     if case_result is True:
                         if args.report:
-                            report['success'].append(test_case.name)
+                            report['success'].append(test_case.name_token)
                         count_success += 1
                     elif case_result is False:
                         if args.report:
-                            report['failed'].append(test_case.name)
+                            report['failed'].append(test_case.name_token)
                         count_failed += 1
                         if verbose == 1:
                             print('F', end='', flush=True)
                     else:
                         if args.report:
-                            report['unknown'].append(test_case.name)
+                            report['unknown'].append(test_case.name_token)
                         count_unknown += 1
                         if verbose == 1:
                             print('U', end='', flush=True)
@@ -1620,13 +1620,13 @@ def main():
                     if verbose == 1:
                         print('E', end='', flush=True)
                     elif verbose:
-                        print("\nUnexpected failure for test %r" % test_case.name)
+                        print("\nUnexpected failure for test %r" % test_case.name_token)
                         print(type(err), str(err), flush=True)
                         if verbose >= 4:
                             traceback.print_exc()
 
                     if args.report:
-                        report['other_failures'].append(test_case.name)
+                        report['other_failures'].append(test_case.name_token)
                     count_other_failures += 1
 
         elapsed_time = (datetime.datetime.now() - start_time).seconds

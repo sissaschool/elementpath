@@ -13,7 +13,11 @@ axes, maps, arrays). XPath's error creation and node helper functions are embedd
 XPathToken class, in order to raise errors related to token instances.
 """
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import Any
+
+import elementpath.aliases as ta
+import elementpath.datatypes as dt
 
 from .base import XPathToken
 from .axes import XPathAxis
@@ -25,24 +29,33 @@ from .tokens import ValueToken, ProxyToken, NameToken, \
     PrefixedReferenceToken, ExpandedNameToken
 
 __all__ = ['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor',
-           'XPathMap', 'XPathArray', 'ValueToken', 'ProxyToken',
-           'NameToken', 'PrefixedReferenceToken', 'ExpandedNameToken', 'TokenBaseClasses']
+           'XPathMap', 'XPathArray', 'ValueToken', 'ProxyToken', 'NameToken',
+           'PrefixedReferenceToken', 'ExpandedNameToken', 'TokenRegistry']
+
+MakeSequenceType = Callable[[ta.SequenceArgType[Any]], dt.XPathSequence[Any]]
 
 
 @dataclass(frozen=True, slots=True)
-class TokenBaseClasses:
-    """A register of XPath token base classes."""
-    base: type[XPathToken] = XPathToken
-    axis: type[XPathAxis] = XPathAxis
-    function: type[XPathFunction] = XPathFunction
-    constructor: type[XPathConstructor] = XPathConstructor
-    array: type[XPathArray] = XPathArray
-    map: type[XPathMap] = XPathMap
-    value: type[ValueToken] = ValueToken
-    proxy: type[ProxyToken] = ProxyToken
-    name: type[NameToken] = NameToken
-    prefixed_ref: type[PrefixedReferenceToken] = PrefixedReferenceToken
-    expanded_name: type[ExpandedNameToken] = ExpandedNameToken
+class TokenRegistry:
+    """A registry of classes, helpers and instances used commonly by XPath tokens."""
+
+    # Token base classes
+    base_token: type[XPathToken] = XPathToken
+    axis_token: type[XPathAxis] = XPathAxis
+    function_token: type[XPathFunction] = XPathFunction
+    constructor_token: type[XPathConstructor] = XPathConstructor
+    array_token: type[XPathArray] = XPathArray
+    map_token: type[XPathMap] = XPathMap
+    value_token: type[ValueToken] = ValueToken
+    proxy_token: type[ProxyToken] = ProxyToken
+    name_token: type[NameToken] = NameToken
+    prefixed_ref_token: type[PrefixedReferenceToken] = PrefixedReferenceToken
+    expanded_name_token: type[ExpandedNameToken] = ExpandedNameToken
+
+    # XPath sequences (formally introduced with XPath 4.0)
+    empty_sequence: dt.EmptySequence = dt.empty_sequence
+    sequence_class: type[dt.XPathSequence] = dt.XPathSequence
+    to_sequence: MakeSequenceType = dt.to_sequence
 
     class __Name:
         name: str | None = None
@@ -57,4 +70,4 @@ class TokenBaseClasses:
         raise AttributeError("Can't delete attribute {!r}".format(self.__Name.name))
 
 
-XPathToken.token_classes = TokenBaseClasses()
+XPathToken.registry = TokenRegistry()

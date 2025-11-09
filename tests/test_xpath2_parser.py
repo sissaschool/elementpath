@@ -596,7 +596,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         context = XPathSchemaContext(schema)
         token = self.parser.parse('/namespace::*')
-        self.assertListEqual(token.evaluate(context), [])
+        self.assertEqual(token.evaluate(context), [])
 
     def test_unknown_axis(self):
         self.wrong_syntax('unknown::node()', 'XPST0003')

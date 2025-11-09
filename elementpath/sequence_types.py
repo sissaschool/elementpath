@@ -275,16 +275,16 @@ def match_sequence_type(value: Any,
                 return all(match_st(x, st) for x in v)
         elif st == 'item()':
             return isinstance(v, (XPathNode, AnyAtomicType, list,
-                                  XPathToken.token_classes.function))
+                                  XPathToken.registry.function_token))
         elif st == 'numeric' or st == 'xs:numeric':
             return isinstance(v, NumericProxy)
         elif st.startswith('function('):
-            if not isinstance(v, XPathToken.token_classes.function):
+            if not isinstance(v, XPathToken.registry.function_token):
                 return False
             return v.match_function_test(st)
 
         elif st.startswith('array('):
-            if not isinstance(v, XPathToken.token_classes.array):
+            if not isinstance(v, XPathToken.registry.array_token):
                 return False
             if st == 'array(*)':
                 return True
@@ -293,7 +293,7 @@ def match_sequence_type(value: Any,
             return all(match_st(x, item_st) for x in v.items())
 
         elif st.startswith('map('):
-            if not isinstance(v, XPathToken.token_classes.map):
+            if not isinstance(v, XPathToken.registry.map_class):
                 return False
             if st == 'map(*)':
                 return True

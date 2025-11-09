@@ -270,17 +270,17 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(token.evaluate(context), [7])
 
     def test_picture_pattern(self):
-        self.assertListEqual(PICTURE_PATTERN.findall(''), [])
-        self.assertListEqual(PICTURE_PATTERN.findall('a'), [])
-        self.assertListEqual(PICTURE_PATTERN.findall('[y]'), ['[y]'])
-        self.assertListEqual(PICTURE_PATTERN.findall('[h01][m01][z,2-6]'),
+        self.assertEqual(PICTURE_PATTERN.findall(''), [])
+        self.assertEqual(PICTURE_PATTERN.findall('a'), [])
+        self.assertEqual(PICTURE_PATTERN.findall('[y]'), ['[y]'])
+        self.assertEqual(PICTURE_PATTERN.findall('[h01][m01][z,2-6]'),
                              ['[h01]', '[m01]', '[z,2-6]'])
-        self.assertListEqual(PICTURE_PATTERN.findall('[H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
+        self.assertEqual(PICTURE_PATTERN.findall('[H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
                              ['[H٠]', '[m٠]', '[s٠٠]', '[f٠٠٠]'])
-        self.assertListEqual(PICTURE_PATTERN.split(' [H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
+        self.assertEqual(PICTURE_PATTERN.split(' [H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
                              [' ', ':', ':', ':', ''])
-        self.assertListEqual(PICTURE_PATTERN.findall('[y'), [])
-        self.assertListEqual(PICTURE_PATTERN.findall('[[y]'), ['[y]'])
+        self.assertEqual(PICTURE_PATTERN.findall('[y'), [])
+        self.assertEqual(PICTURE_PATTERN.findall('[[y]'), ['[y]'])
 
     def test_int_to_roman(self):
         self.assertRaises(TypeError, int_to_roman, 3.0)
@@ -973,10 +973,10 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         self.assertEqual(self.parser.parse('fn:head(())').evaluate(), [])
 
     def test_tail_function(self):
-        self.assertListEqual(self.parser.parse('fn:tail(1 to 5)').evaluate(), [2, 3, 4, 5])
-        self.assertListEqual(self.parser.parse('fn:tail(("a", "b", "c"))').evaluate(), ['b', 'c'])
-        self.assertListEqual(self.parser.parse('fn:tail(("a"))').evaluate(), [])
-        self.assertListEqual(self.parser.parse('fn:tail(())').evaluate(), [])
+        self.assertEqual(self.parser.parse('fn:tail(1 to 5)').evaluate(), [2, 3, 4, 5])
+        self.assertEqual(self.parser.parse('fn:tail(("a", "b", "c"))').evaluate(), ['b', 'c'])
+        self.assertEqual(self.parser.parse('fn:tail(("a"))').evaluate(), [])
+        self.assertEqual(self.parser.parse('fn:tail(())').evaluate(), [])
 
     def test_generate_id_function(self):
         with self.assertRaises(MissingContextError):
@@ -1017,11 +1017,11 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             # Checks before that the resource text file is accessible and its content is as expected
             with filepath.open() as fp:
                 text = fp.read()
-            self.assertListEqual([x.strip() for x in text.strip().split('\n')], file_lines)
+            self.assertEqual([x.strip() for x in text.strip().split('\n')], file_lines)
 
             path = 'fn:unparsed-text("file://{}")'.format(str(filepath))
             text = self.parser.parse(path).evaluate()
-            self.assertListEqual([x.strip() for x in text.strip().split('\n')], file_lines)
+            self.assertEqual([x.strip() for x in text.strip().split('\n')], file_lines)
 
             path = 'fn:unparsed-text("file://{}", "unknown")'.format(str(filepath))
             with self.assertRaises(ValueError) as ctx:
@@ -1055,7 +1055,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         path = 'fn:available-environment-variables()'
         self.assertEqual(self.parser.parse(path).evaluate(context), [])
         context = XPathContext(root=root, allow_environment=True)
-        self.assertListEqual(self.parser.parse(path).evaluate(context), list(os.environ))
+        self.assertEqual(self.parser.parse(path).evaluate(context), list(os.environ))
 
     def test_inline_function_expression(self):
         expression = "function() as xs:integer+ {2, 3, 5, 7, 11, 13}"
@@ -1071,7 +1071,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root, variables={'a': 9.0, 'b': 3.0})
-        self.assertListEqual(token(context=context), [2, 3, 5, 7, 11, 13])
+        self.assertEqual(token(context=context), [2, 3, 5, 7, 11, 13])
 
         expression = "function($a as xs:double, $b as xs:double) " \
                      "as xs:double {$a * $b} (9.0, 3.0)"
@@ -1163,13 +1163,13 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root)
-        self.assertListEqual(token.evaluate(context), [1, 4, 9, 16, 25])
+        self.assertEqual(token.evaluate(context), [1, 4, 9, 16, 25])
 
         token = self.parser.parse('fn:for-each(("john", "jane"), fn:string-to-codepoints#1)')
-        self.assertListEqual(token.evaluate(context), [106, 111, 104, 110, 106, 97, 110, 101])
+        self.assertEqual(token.evaluate(context), [106, 111, 104, 110, 106, 97, 110, 101])
 
         token = self.parser.parse('fn:for-each(("23", "29"), xs:int#1)')
-        self.assertListEqual(token.evaluate(context), [23, 29])
+        self.assertEqual(token.evaluate(context), [23, 29])
 
     def test_filter(self):
         expression = 'fn:filter(1 to 10, function($a) {$a mod 2 = 0})'
@@ -1185,7 +1185,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root)
-        self.assertListEqual(token.evaluate(context), [2, 4, 6, 8, 10])
+        self.assertEqual(token.evaluate(context), [2, 4, 6, 8, 10])
 
     def test_fold_left(self):
         expression = 'fn:fold-left(1 to 5, 0, function($a, $b) {$a + $b})'
@@ -1201,30 +1201,30 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root)
-        self.assertListEqual(token.evaluate(context), [15])
+        self.assertEqual(token.evaluate(context), [15])
 
         token = self.parser.parse('fn:fold-left((2,3,5,7), 1, function($a, $b) { $a * $b })')
-        self.assertListEqual(token.evaluate(context), [210])
+        self.assertEqual(token.evaluate(context), [210])
 
         token = self.parser.parse(
             'fn:fold-left((true(), false(), false()), false(), function($a, $b) { $a or $b })')
-        self.assertListEqual(token.evaluate(context), [True])
+        self.assertEqual(token.evaluate(context), [True])
 
         token = self.parser.parse(
             'fn:fold-left((true(), false(), false()), false(), function($a, $b) { $a and $b })')
-        self.assertListEqual(token.evaluate(context), [False])
+        self.assertEqual(token.evaluate(context), [False])
 
         token = self.parser.parse(
             'fn:fold-left(1 to 5, (), function($a, $b) {($b, $a)})')
-        self.assertListEqual(token.evaluate(context), [5, 4, 3, 2, 1])
+        self.assertEqual(token.evaluate(context), [5, 4, 3, 2, 1])
 
         token = self.parser.parse(
             'fn:fold-left(1 to 5, "", fn:concat(?, ".", ?))')
-        self.assertListEqual(token.evaluate(context), [".1.2.3.4.5"])
+        self.assertEqual(token.evaluate(context), [".1.2.3.4.5"])
 
         token = self.parser.parse(
             'fn:fold-left(1 to 5, "$zero", fn:concat("$f(", ?, ", ", ?, ")"))')
-        self.assertListEqual(token.evaluate(context),
+        self.assertEqual(token.evaluate(context),
                              ["$f($f($f($f($f($zero, 1), 2), 3), 4), 5)"])
 
     def test_fold_right(self):
@@ -1241,14 +1241,14 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root)
-        self.assertListEqual(token.evaluate(context), [15])
+        self.assertEqual(token.evaluate(context), [15])
 
         token = self.parser.parse('fn:fold-right(1 to 5, "", fn:concat(?, ".", ?))')
-        self.assertListEqual(token.evaluate(context), ["1.2.3.4.5."])
+        self.assertEqual(token.evaluate(context), ["1.2.3.4.5."])
 
         token = self.parser.parse(
             'fn:fold-right(1 to 5, "$zero", concat("$f(", ?, ", ", ?, ")"))')
-        self.assertListEqual(token.evaluate(context), ["$f(1, $f(2, $f(3, $f(4, $f(5, $zero)))))"])
+        self.assertEqual(token.evaluate(context), ["$f(1, $f(2, $f(3, $f(4, $f(5, $zero)))))"])
 
     def test_for_each_pair(self):
         expression = 'fn:for-each-pair(("a", "b", "c"), ("x", "y", "z"), concat#2)'
@@ -1258,7 +1258,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             repr(token[1]), f'<XPathFunction fn:for-each-pair#3 at {hex(id(token[1]))}>'
         )
         self.assertEqual(str(token[1]), "'fn:for-each-pair' function")
-        self.assertListEqual(token.evaluate(), ["ax", "by", "cz"])
+        self.assertEqual(token.evaluate(), ["ax", "by", "cz"])
 
         token = self.parser.parse('fn:for-each-pair(1 to 5, 1 to 5, function($a, $b){10*$a + $b})')
 
@@ -1267,7 +1267,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root)
-        self.assertListEqual(token.evaluate(context), [11, 22, 33, 44, 55])
+        self.assertEqual(token.evaluate(context), [11, 22, 33, 44, 55])
 
     def test_format_integer(self):
         self.check_value("format-integer(57, 'I')", 'LVII')
@@ -1303,7 +1303,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             '/Q{}root[1]/Q{}item[1]/Q{}name[1]',
             '/Q{}root[1]/Q{}item[1]/Q{}value[1]'
         ]
-        self.assertListEqual(paths, expected)
+        self.assertEqual(paths, expected)
 
         root = self.etree.XML(xml_sample)
         paths = select(root, '//*/path()', parser=self.parser.__class__)
@@ -1314,7 +1314,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             'Q{http://www.w3.org/2005/xpath-functions}root()/Q{}item[1]/Q{}name[1]',
             'Q{http://www.w3.org/2005/xpath-functions}root()/Q{}item[1]/Q{}value[1]'
         ]
-        self.assertListEqual(paths, expected)
+        self.assertEqual(paths, expected)
 
     def test_path_function_with_namespaces(self):
         xml_sample = dedent("""
@@ -1333,7 +1333,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             '/Q{http://xpath.test/ns}root[1]/Q{}item[1]/Q{}name[1]',
             '/Q{http://xpath.test/ns}root[1]/Q{}item[1]/Q{bar}value[1]'
         ]
-        self.assertListEqual(paths, expected)
+        self.assertEqual(paths, expected)
 
         root = self.etree.XML(xml_sample)
         paths = select(root, '//*/path()', parser=self.parser.__class__)
@@ -1344,7 +1344,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             'Q{http://www.w3.org/2005/xpath-functions}root()/Q{}item[1]/Q{}name[1]',
             'Q{http://www.w3.org/2005/xpath-functions}root()/Q{}item[1]/Q{bar}value[1]'
         ]
-        self.assertListEqual(paths, expected)
+        self.assertEqual(paths, expected)
 
     def test_path_function_with_same_child(self):
         xml_sample = dedent("""
@@ -1371,7 +1371,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             '/Q{http://xpath.test/ns}root[1]/Q{}item2[1]',
             '/Q{http://xpath.test/ns}root[1]/Q{}item[2]',
         ]
-        self.assertListEqual(paths, expected)
+        self.assertEqual(paths, expected)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

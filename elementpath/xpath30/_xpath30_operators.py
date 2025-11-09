@@ -95,7 +95,7 @@ def led_parenthesized_expression(self: XPathToken, left: XPathToken) -> XPathTok
 def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = None) \
         -> Union[ItemType, list[ItemType], XPathToken]:
     if not self:
-        return []
+        return self.empty_sequence_type()
 
     value = self[0].evaluate(context)
     if isinstance(value, list) and len(value) == 1:

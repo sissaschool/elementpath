@@ -23,14 +23,14 @@ from elementpath.namespaces import XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE, XSD_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE
 from elementpath.datatypes import AnyURI, UntypedAtomic, AnyAtomicType, Integer, \
     AbstractDateTime, Duration, DayTimeDuration, Timezone, DateTime, Date, QName, \
-    DecimalProxy, empty_sequence
+    DecimalProxy, empty_sequence, XPathSequence, EmptySequence, to_sequence
 from elementpath.tdop import Token, MultiLabel
 from elementpath.helpers import ordinal, get_double
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.xpath_nodes import XPathNode, NamespaceNode, DocumentNode, ElementNode
 
 if TYPE_CHECKING:
-    from . import XPathFunction, XPathArray, XPathConstructor, TokenBaseClasses  # noqa: F401
+    from . import XPathFunction, XPathArray, XPathConstructor, TokenRegistry  # noqa: F401
 
 
 _XSD_SPECIAL_TYPES = frozenset((XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE))
@@ -47,10 +47,11 @@ _LEAF_ELEMENTS_TOKENS = frozenset((
 
 class XPathToken(Token[ta.XPathTokenType]):
     """Base class for XPath tokens."""
-    token_classes: ClassVar['TokenBaseClasses']
-    sequence_class = list
-    to_sequence = list
-    empty_sequence = list
+    registry: ClassVar['TokenRegistry']
+
+    to_sequence = to_sequence
+    empty_sequence = empty_sequence
+    empty_sequence_type = EmptySequence
 
     parser: ta.XPathParserType
     value: ta.ValueType
@@ -105,7 +106,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         elif symbol == '{' or symbol == 'Q{':
             return '%s%s}%s' % (symbol, self[0].value, self[1].source)
         elif symbol == '=>':
-            if isinstance(self[1], self.token_classes.function):
+            if isinstance(self[1], self.registry.function_token):
                 return '%s => %s%s' % (self[0].source, self[1].symbol, self[2].source)
             return '%s => %s%s' % (self[0].source, self[1].source, self[2].source)
         elif symbol == 'if':
@@ -180,7 +181,7 @@ class XPathToken(Token[ta.XPathTokenType]):
 
         :param context: The XPath dynamic context.
         """
-        return [x for x in self.select(context)]
+        return self.to_sequence([x for x in self.select(context)])
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         """
@@ -189,7 +190,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         :param context: The XPath dynamic context.
         """
         item = self.evaluate(context)
-        if isinstance(item, self.sequence_class):
+        if isinstance(item, self.registry.base_sequence):
             yield from item
         else:
             yield item
@@ -197,7 +198,7 @@ class XPathToken(Token[ta.XPathTokenType]):
     def select_flatten(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         """A select that flattens XPath results, including arrays."""
         for item in self.select(context):
-            if isinstance(item, self.sequence_class):
+            if isinstance(item, self.registry.base_sequence):
                 yield from item
             elif isinstance(item, XPathToken) and hasattr(item, 'iter_flatten'):
                 yield from item.iter_flatten(context)
@@ -382,16 +383,16 @@ class XPathToken(Token[ta.XPathTokenType]):
                 return tokens[::-1]
 
     def get_function(self, context: ta.ContextType, arity: int = 0) -> 'XPathFunction':
-        if isinstance(self, self.token_classes.function):
+        if isinstance(self, self.registry.function_token):
             func = self
-        elif self.symbol in (':', 'Q{') and isinstance(self[1], self.token_classes.function):
+        elif self.symbol in (':', 'Q{') and isinstance(self[1], self.registry.function_token):
             func = self[1]
         elif self.symbol == '(name)':
             msg = f'unknown function: {self.value}#{arity}'
             raise self.error('XPST0017', msg)
         else:
             item = self.evaluate(context)
-            if not isinstance(item, self.token_classes.function):
+            if not isinstance(item, self.registry.function_token):
                 msg = f'unknown function: {item}#{arity}'
                 raise self.error('XPST0017', msg)
             func = item
@@ -435,7 +436,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 except (TypeError, ValueError):
                     pass
 
-            if value is None or value is empty_sequence or not value and isinstance(value, list):
+            if value == self.registry.empty_sequence:
                 code = 'FOTY0012'
             else:
                 code = 'XPTY0004'
@@ -482,7 +483,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 value = item.compat_string_value
                 yield value
 
-        elif isinstance(item, self.sequence_class):
+        elif isinstance(item, self.registry.base_sequence):
             for v in item:
                 yield from self.atomize_item(v)
 
@@ -669,7 +670,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         a function or a constructor, otherwise a syntax error is raised. Functions
         and constructors must be limited to their namespaces.
         """
-        if self.symbol in ('(name)', '*') or isinstance(self, self.token_classes.proxy):
+        if self.symbol in ('(name)', '*') or isinstance(self, self.registry.proxy_token):
             pass
         elif namespace == self.parser.function_namespace:
             if self.label != 'function':
@@ -689,7 +690,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 raise self.wrong_syntax(msg, code='XPST0017')
             elif isinstance(self.label, MultiLabel):
                 self.label = 'math function'
-        elif not isinstance(self, self.token_classes.function):
+        elif not isinstance(self, self.registry.function_token):
             msg = "a name, a wildcard or a function expected"
             raise self.wrong_syntax(msg, code='XPST0017')
         elif self.namespace and namespace != self.namespace:
@@ -716,7 +717,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         if len(self) == 1:
             item = self.get_argument(context, cls=cls)
             if item is None:
-                return []
+                return self.empty_sequence_type()
             timezone = getattr(context, 'timezone', None)
         else:
             item = self.get_argument(context, cls=cls)
@@ -731,7 +732,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                     else:
                         raise self.error('FODT0003', str(err)) from None
             if item is None:
-                return []
+                return self.empty_sequence_type()
 
         _item = copy(item)
         _tzinfo = _item.tzinfo
@@ -796,8 +797,8 @@ class XPathToken(Token[ta.XPathTokenType]):
             else:
                 return v
 
-        if isinstance(value, self.sequence_class):
-            return [cast_value(x) for x in value]
+        if isinstance(value, self.registry.base_sequence):
+            return self.to_sequence([cast_value(x) for x in value])
         else:
             return cast_value(value)
 
@@ -807,7 +808,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         """
         The effective boolean value, as computed by fn:boolean().
         """
-        if isinstance(obj, self.sequence_class):
+        if isinstance(obj, (self.registry.base_sequence, list)):
             if not obj:
                 return False
             elif isinstance(obj[0], XPathNode):
@@ -891,7 +892,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 return value.upper()
             return value
 
-        elif isinstance(obj, self.token_classes.function):
+        elif isinstance(obj, self.registry.function_token):
             if self.symbol in ('concat', '||'):
                 raise self.error('FOTY0013', f"an argument of {self} is a function")
             else:

@@ -283,13 +283,13 @@ class TestElementTree(unittest.TestCase):
     def test_etree_iter_paths_function(self):
         root = ElementTree.XML('<root><child/></root>')
         result = list(etree_iter_paths(root))
-        self.assertListEqual(
+        self.assertEqual(
             result, [(root, '.'), (root[0], './Q{}child[1]')]
         )
 
         root = ElementTree.XML('<root><tns:child xmlns:tns="http://xpath.test/ns"/></root>')
         result = list(etree_iter_paths(root))
-        self.assertListEqual(
+        self.assertEqual(
             result, [(root, '.'), (root[0], './Q{http://xpath.test/ns}child[1]')]
         )
 
@@ -299,7 +299,7 @@ class TestElementTree(unittest.TestCase):
             )
             root = ElementTree.XML('<root><!-- comment --></root>', parser)
             result = list(etree_iter_paths(root))
-            self.assertListEqual(
+            self.assertEqual(
                 result, [(root, '.'), (root[0], './comment()[1]')]
             )
             parser = ElementTree.XMLParser(
@@ -309,14 +309,14 @@ class TestElementTree(unittest.TestCase):
                 '<root><?xml-stylesheet type="text/xsl" href="style.xsl"?></root>', parser
             )
             result = list(etree_iter_paths(root))
-            self.assertListEqual(
+            self.assertEqual(
                 result, [(root, '.'), (root[0], './processing-instruction(xml-stylesheet)[1]')]
             )
 
         if lxml_etree is not None:
             root = lxml_etree.XML('<root><!-- comment --></root>')
             result = list(etree_iter_paths(root))
-            self.assertListEqual(
+            self.assertEqual(
                 result, [(root, '.'), (root[0], './comment()[1]')]
             )
 
@@ -324,7 +324,7 @@ class TestElementTree(unittest.TestCase):
                 '<root><?xml-stylesheet type="text/xsl" href="style.xsl"?></root>'
             )
             result = list(etree_iter_paths(root))
-            self.assertListEqual(
+            self.assertEqual(
                 result, [(root, '.'), (root[0], './processing-instruction(xml-stylesheet)[1]')]
             )
 

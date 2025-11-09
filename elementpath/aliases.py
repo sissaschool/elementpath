@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """Type annotation aliases for elementpath."""
-from collections.abc import MutableMapping
+from collections.abc import MutableMapping, Iterator
 from decimal import Decimal
 from typing import Any, Optional, NoReturn, TYPE_CHECKING, TypeVar, Union
 
@@ -18,8 +18,7 @@ if TYPE_CHECKING:
     from .protocols import DocumentType, ElementType, SchemaElemType  # noqa: F401
     from .datatypes import AnyAtomicType, AbstractDateTime  # noqa: F401
     from .datatypes import Duration, UntypedAtomic  # noqa: F401
-    from .datatypes import XPathSequence, FullSequence  # noqa: F401
-    from .datatypes import SingletonSequence, EmptySequence  # noqa: F401
+    from .datatypes import XPathSequence, SingletonSequence, EmptySequence  # noqa: F401
     from .xpath_nodes import XPathNode, ElementNode, AttributeNode  # noqa: F401
     from .xpath_nodes import TextNode, DocumentNode, NamespaceNode  # noqa: F401
     from .xpath_nodes import CommentNode, ProcessingInstructionNode  # noqa: F401
@@ -50,8 +49,11 @@ ItemType = Union['XPathNode', AtomicType, 'XPathFunction']
 _T = TypeVar('_T', bound=ItemType)
 
 Emptiable = Union[_T, 'SingletonSequence[_T]', list[NoReturn], 'EmptySequence']
-NotEmptiable = Union[_T, 'SingletonSequence[_T]', list[_T], 'FullSequence[_T]']
-SequenceType = Union['EmptySequence', 'SingletonSequence[_T]', 'FullSequence[_T]']
+NotEmptiable = Union[_T, 'SingletonSequence[_T]', list[_T], 'XPathSequence[_T]']
+SequenceType = Union['XPathSequence[_T]', 'SingletonSequence[_T]', 'EmptySequence']
+SequenceArgType = Union[
+    Iterator[_T], list[_T], list[NoReturn], tuple[_T, ...], tuple[_T], tuple[()]
+]
 InputType = Union[None, _T, list[_T], tuple[_T, ...]]
 
 ValueType = Union[ItemType, 'SequenceType[ItemType]', list[ItemType]]
