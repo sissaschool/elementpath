@@ -15,16 +15,17 @@ import operator
 from copy import copy
 from collections.abc import Iterator
 from decimal import Decimal, DivisionByZero
-from typing import cast, Union
+from typing import cast
 
-from elementpath.aliases import AtomicType, NumericType, Emptiable, NotEmptiable, \
-    ContextType, ItemType
+import elementpath.aliases as ta
+import elementpath.datatypes as datatypes
+import elementpath.namespaces as ns
+
 from elementpath.protocols import XsdAttributeProtocol
 from elementpath.exceptions import ElementPathError
 from elementpath.helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal, \
     node_position, get_double
-from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
-    XSD_UNTYPED, get_namespace, get_expanded_name
+from elementpath.namespaces import get_namespace, get_expanded_name
 from elementpath.datatypes import builtin_atomic_types, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
 from elementpath.decoder import get_atomic_sequence
@@ -66,8 +67,8 @@ def nud_variable_reference(self: XPathToken) -> XPathToken:
 
 
 @method('$')
-def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
-        -> Emptiable[NotEmptiable[ItemType]]:
+def evaluate_variable_reference(self: XPathToken, context: ta.ContextType = None) \
+        -> ta.ValueItem:
     if context is None:
         raise self.missing_context()
 
@@ -84,13 +85,13 @@ def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
     except KeyError:
         pass
     else:
-        return value if value is not None else self.empty_sequence_type()
+        return value if value is not None else datatypes.empty_sequence
 
     if isinstance(context, XPathSchemaContext):
         try:
             sequence_type = self.parser.variable_types[varname].strip()  # type: ignore[index]
         except (TypeError, KeyError):
-            return self.empty_sequence_type()
+            return datatypes.empty_sequence
         else:
             if sequence_type[-1] in OCCURRENCE_INDICATORS:
                 sequence_type = sequence_type[:-1]
@@ -107,7 +108,7 @@ def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
                         if len(result) == 1:
                             return result[0]
                         else:
-                            return cast(Emptiable[AtomicType], result)
+                            return cast(ta.OneAtomicOrEmpty, result)
 
             return UntypedAtomic('1')
 
@@ -121,7 +122,7 @@ XPath2Parser.duplicate('|', 'union')
 
 @method(infix('intersect', bp=55))
 @method(infix('except', bp=55))
-def select_intersect_and_except_operators(self: XPathToken, context: ContextType = None) \
+def select_intersect_and_except_operators(self: XPathToken, context: ta.ContextType = None) \
         -> Iterator[XPathNode]:
     if context is None:
         raise self.missing_context()
@@ -155,8 +156,8 @@ def nud_if_expression(self: XPathToken) -> XPathToken:
 
 
 @method('if')
-def evaluate_if_expression(self: XPathToken, context: ContextType = None) \
-        -> Union[ItemType, list[ItemType]]:
+def evaluate_if_expression(self: XPathToken, context: ta.ContextType = None) \
+        -> ta.OneOrMoreItems:
     if self.boolean_value(self[0].select_sequence(context)):
         if isinstance(context, XPathSchemaContext):
             self[2].evaluate(context)
@@ -168,8 +169,8 @@ def evaluate_if_expression(self: XPathToken, context: ContextType = None) \
 
 
 @method('if')
-def select_if_expression(self: XPathToken, context: ContextType = None) \
-        -> Iterator[ItemType]:
+def select_if_expression(self: XPathToken, context: ta.ContextType = None) \
+        -> Iterator[ta.ItemType]:
     if self.boolean_value(self[0].select_sequence(context)):
         if isinstance(context, XPathSchemaContext):
             self[2].evaluate(context)
@@ -211,7 +212,7 @@ def nud_quantified_expressions(self: XPathToken) -> XPathToken:
 
 @method('some')
 @method('every')
-def evaluate_quantified_expressions(self: XPathToken, context: ContextType = None) -> bool:
+def evaluate_quantified_expressions(self: XPathToken, context: ta.ContextType = None) -> bool:
     if context is None:
         raise self.missing_context()
 
@@ -260,7 +261,7 @@ def nud_for_expression(self: XPathToken) -> XPathToken:
 
 
 @method('for')
-def select_for_expression(self: XPathToken, context: ContextType = None) -> Iterator[ItemType]:
+def select_for_expression(self: XPathToken, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
     if context is None:
         raise self.missing_context()
 
@@ -284,7 +285,7 @@ def led_sequence_type_based_expressions(self: XPathToken, left: XPathToken) -> X
 
 
 @method('instance')
-def evaluate_instance_expression(self: XPathToken, context: ContextType = None) -> bool:
+def evaluate_instance_expression(self: XPathToken, context: ta.ContextType = None) -> bool:
     occurs = self[1].occurrence
     position = None
 
@@ -331,8 +332,8 @@ def evaluate_instance_expression(self: XPathToken, context: ContextType = None) 
 
 
 @method('treat')
-def evaluate_treat_expression(self: XPathToken, context: ContextType = None) \
-        -> list[ItemType]:
+def evaluate_treat_expression(self: XPathToken, context: ta.ContextType = None) \
+        -> ta.ValueItem:
     occurs = self[1].occurrence
     position = None
     castable_expr = []
@@ -342,7 +343,7 @@ def evaluate_treat_expression(self: XPathToken, context: ContextType = None) \
     elif self[1].label in ('kind test', 'sequence type', 'function test'):
         for position, item in enumerate(self[0].select(context)):
             result = self[1].evaluate(context)
-            if isinstance(result, self.registry.base_sequence) and not result:
+            if isinstance(result, datatypes.XPathSequence) and not result:
                 raise self.error('XPDY0050')
             elif position and (occurs is None or occurs == '?'):
                 raise self.error('XPDY0050', "more than one item in sequence")
@@ -376,7 +377,7 @@ def evaluate_treat_expression(self: XPathToken, context: ContextType = None) \
             if position is None and occurs not in ('*', '?'):
                 raise self.error('XPDY0050', "the sequence cannot be empty")
 
-    return self.to_sequence(castable_expr)
+    return datatypes.to_sequence(castable_expr)
 
 
 ###
@@ -398,7 +399,7 @@ class _CastableOperator(XPathToken):
             self.parser.advance()
 
         type_name = self[1][1].name if self[1].symbol == ':' else self[1].name
-        if type_name in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
+        if type_name in (ns.XSD_NOTATION, ns.XSD_ANY_ATOMIC_TYPE):
             raise self.error('XPST0080')
         elif type_name in builtin_atomic_types:
             builtin_type = builtin_atomic_types[type_name]
@@ -418,7 +419,7 @@ class _CastableOperator(XPathToken):
 
         return self
 
-    def evaluate(self, context: ContextType = None) -> Emptiable[AtomicType]:
+    def evaluate(self, context: ta.ContextType = None) -> ta.OneAtomicOrEmpty:
         result = [res for res in self[0].select(context)]
         if len(result) > 1:
             return False
@@ -448,17 +449,17 @@ class _CastOperator(_CastableOperator):
     lbp = 63
     rbp = 63
 
-    def evaluate(self, context: ContextType = None) -> Emptiable[AtomicType]:
+    def evaluate(self, context: ta.ContextType = None) -> ta.OneAtomicOrEmpty:
         result = [res for res in self[0].select(context)]
         if len(result) > 1:
             raise self.error('XPTY0004', "more than one value in expression")
         elif not result:
             if self[1].occurrence == '?':
-                return self.empty_sequence_type()
+                return datatypes.empty_sequence
             raise self.error('XPTY0004', "an atomic value is required")
 
         arg = self.data_value(result[0])
-        value: Emptiable[AtomicType]
+        value: ta.OneAtomicOrEmpty
         try:
             if hasattr(self.constructor, 'cast'):
                 if self.constructor.symbol == 'QName':
@@ -471,7 +472,7 @@ class _CastOperator(_CastableOperator):
                 type_name = self[1].name
                 value = self.parser.schema.cast_as(self.string_value(arg), type_name)
             else:
-                value = self.empty_sequence_type()
+                value = datatypes.empty_sequence
 
         except ElementPathError:
             if isinstance(context, XPathSchemaContext):
@@ -504,19 +505,19 @@ def led_cast_expressions(self: XPathToken, left: XPathToken) -> XPathToken:
 
 @method('castable')
 @method('cast')
-def evaluate_cast_expressions(self: XPathToken, context: ContextType = None) \
-        -> Emptiable[AtomicType]:
+def evaluate_cast_expressions(self: XPathToken, context: ta.ContextType = None) \
+        -> ta.OneAtomicOrEmpty:
     type_name = self[1].source.rstrip('+*?')
     try:
         atomic_type = get_expanded_name(type_name, self.parser.namespaces)
     except KeyError as err:
         raise self.error('XPST0081', 'prefix {} not found'.format(str(err)))
 
-    if atomic_type in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
+    if atomic_type in (ns.XSD_NOTATION, ns.XSD_ANY_ATOMIC_TYPE):
         raise self.error('XPST0080')
 
     namespace = get_namespace(atomic_type)
-    if namespace != XSD_NAMESPACE and \
+    if namespace != ns.XSD_NAMESPACE and \
             (self.parser.schema is None or self.parser.schema.get_type(atomic_type) is None):
         msg = f"atomic type {atomic_type!r} not found in the in-scope schema types"
         raise self.error('XPST0051', msg)
@@ -528,20 +529,20 @@ def evaluate_cast_expressions(self: XPathToken, context: ContextType = None) \
         raise self.error('XPTY0004', "more than one value in expression")
     elif not result:
         if self[1].occurrence == '?':
-            return self.empty_sequence_type() if self.symbol == 'cast' else True
+            return datatypes.empty_sequence if self.symbol == 'cast' else True
         elif self.symbol != 'cast':
             return False
         else:
             raise self.error('XPTY0004', "an atomic value is required")
 
     arg = self.data_value(result[0])
-    value: Emptiable[AtomicType]
+    value: ta.OneAtomicOrEmpty
     try:
-        if namespace != XSD_NAMESPACE:
+        if namespace != ns.XSD_NAMESPACE:
             if self.parser.schema is not None:
                 value = self.parser.schema.cast_as(self.string_value(arg), atomic_type)
             else:
-                value = self.empty_sequence_type()
+                value = datatypes.empty_sequence
         else:
             local_name = atomic_type.split('}')[1]
             try:
@@ -584,8 +585,8 @@ def evaluate_cast_expressions(self: XPathToken, context: ContextType = None) \
 ###
 # Comma operator - concatenate items or sequences
 @method(infix(',', bp=5))
-def evaluate_comma_operator(self: XPathToken, context: ContextType = None) \
-        -> list[ItemType]:
+def evaluate_comma_operator(self: XPathToken, context: ta.ContextType = None) \
+        -> list[ta.ItemType]:
     results = []
     for op in self:
         result = op.evaluate(context)
@@ -593,11 +594,11 @@ def evaluate_comma_operator(self: XPathToken, context: ContextType = None) \
             results.extend(result)
         elif result is not None:
             results.append(result)
-    return self.to_sequence(results)
+    return datatypes.to_sequence(results)
 
 
 @method(',')
-def select_comma_operator(self: XPathToken, context: ContextType = None) -> Iterator[ItemType]:
+def select_comma_operator(self: XPathToken, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
     for op in self:
         yield from op.select_sequence(context)
 
@@ -622,7 +623,7 @@ def led_parenthesized_expression(self: XPathToken, left: XPathToken) -> XPathTok
             raise left.error('XPST0017', 'unknown function {!r}'.format(left.value))
 
     elif left.symbol == ':' and left[1].symbol == '(name)':
-        if left[1].namespace == XSD_NAMESPACE:
+        if left[1].namespace == ns.XSD_NAMESPACE:
             msg = 'unknown constructor function {!r}'.format(left[1].value)
             raise left[1].error('XPST0017', msg)
         raise left.error('XPST0017', 'unknown function {!r}'.format(left.value))
@@ -636,14 +637,14 @@ def led_parenthesized_expression(self: XPathToken, left: XPathToken) -> XPathTok
 
 
 @method('(')
-def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = None) \
-        -> Union[ItemType, list[ItemType]]:
-    return self[0].evaluate(context) if self else self.empty_sequence_type()
+def evaluate_parenthesized_expression(self: XPathToken, context: ta.ContextType = None) \
+        -> ta.ValueItem:
+    return self[0].evaluate(context) if self else datatypes.empty_sequence
 
 
 @method('(')
-def select_parenthesized_expression(self: XPathToken, context: ContextType = None) \
-        -> Iterator[ItemType]:
+def select_parenthesized_expression(self: XPathToken, context: ta.ContextType = None) \
+        -> Iterator[ta.ItemType]:
     return self[0].select(context) if self else iter(())
 
 
@@ -671,12 +672,12 @@ def led_value_comparison_operators(self: XPathToken, left: XPathToken) -> XPathT
 @method('gt')
 @method('le')
 @method('ge')
-def evaluate_value_comparison_operators(self: XPathToken, context: ContextType = None) \
-        -> Emptiable[bool]:
+def evaluate_value_comparison_operators(self: XPathToken, context: ta.ContextType = None) \
+        -> ta.OneOrEmpty[bool]:
     operands = [self[0].get_atomized_operand(context), self[1].get_atomized_operand(context)]
 
     if any(x is None for x in operands):
-        return self.empty_sequence_type()
+        return datatypes.empty_sequence
     elif any(isinstance(x, XPathFunction) for x in operands):
         raise self.error('FOTY0013', "cannot compare a function item")
     elif all(isinstance(x, DoubleProxy10) for x in operands):
@@ -704,9 +705,9 @@ def evaluate_value_comparison_operators(self: XPathToken, context: ContextType =
         pass
     elif all(isinstance(x, (float, Decimal, int)) for x in operands):
         if isinstance(operands[0], float):
-            operands[1] = get_double(cast(NumericType, operands[1]), self.parser.xsd_version)
+            operands[1] = get_double(cast(ta.NumericType, operands[1]), self.parser.xsd_version)
         else:
-            operands[0] = get_double(cast(NumericType, operands[0]), self.parser.xsd_version)
+            operands[0] = get_double(cast(ta.NumericType, operands[0]), self.parser.xsd_version)
     elif all(isinstance(x, Duration) for x in operands) and self.symbol in ('eq', 'ne'):
         pass
     elif (issubclass(cls0, cls1) or issubclass(cls1, cls0)) and not issubclass(cls0, Duration):
@@ -734,18 +735,18 @@ def led_node_comparison(self: XPathToken, left: XPathToken) -> XPathToken:
 @method('is')
 @method(infix('<<', bp=30))
 @method(infix('>>', bp=30))
-def evaluate_node_comparison(self: XPathToken, context: ContextType = None) -> Emptiable[bool]:
+def evaluate_node_comparison(self: XPathToken, context: ta.ContextType = None) -> ta.OneOrEmpty[bool]:
     symbol = self.symbol
 
     left = [x for x in self[0].select(context)]
     if not left:
-        return self.empty_sequence_type()
+        return datatypes.empty_sequence
     elif len(left) > 1 or not isinstance(left[0], XPathNode):
         raise self[0].error('XPTY0004', f"left operand of {symbol!r} must be a single node")
 
     right = [x for x in self[1].select(context)]
     if not right:
-        return self.empty_sequence_type()
+        return datatypes.empty_sequence
     elif len(right) > 1 or not isinstance(right[0], XPathNode):
         raise self[0].error('XPTY0004', "right operand of %r must be a single node" % symbol)
 
@@ -780,23 +781,23 @@ def led_range_expression(self: XPathToken, left: XPathToken) -> XPathToken:
 
 
 @method('to')
-def evaluate_range_expression(self: XPathToken, context: ContextType = None) -> list[int]:
+def evaluate_range_expression(self: XPathToken, context: ta.ContextType = None) -> ta.SequenceType[int]:
     start, stop = self.get_operands(context, cls=Integer)
     try:
-        return self.to_sequence([x for x in range(start, stop + 1)])
+        return datatypes.to_sequence([x for x in range(start, stop + 1)])
     except TypeError:
-        return self.empty_sequence_type()
+        return datatypes.empty_sequence
 
 
 @method('to')
-def select_range_expression(self: XPathToken, context: ContextType = None) -> Iterator[int]:
-    yield from cast(list[int], self.evaluate(context))
+def select_range_expression(self: XPathToken, context: ta.ContextType = None) -> Iterator[int]:
+    yield from cast(ta.SequenceType[int], self.evaluate(context))
 
 
 ###
 # Numerical operators
 @method(infix('idiv', bp=45))
-def evaluate_idiv_operator(self: XPathToken, context: ContextType = None) -> int:
+def evaluate_idiv_operator(self: XPathToken, context: ta.ContextType = None) -> int:
     op1, op2 = self.get_operands(context)
     if op1 is None or op2 is None:
         raise self.error('XPST0005')
@@ -849,7 +850,7 @@ def nud_disambiguation_of_infix_operators(self: XPathToken) -> XPathToken:
 ###
 # Kind tests (sequence types that can appear also in XPath expressions)
 @method(function('document-node', nargs=(0, 1), label='kind test'))
-def select_document_node_kind_test(self: XPathFunction, context: ContextType = None) \
+def select_document_node_kind_test(self: XPathFunction, context: ta.ContextType = None) \
         -> Iterator[DocumentNode]:
     if context is None:
         raise self.missing_context()
@@ -879,7 +880,7 @@ def nud_document_node_kind_test(self: XPathFunction) -> XPathFunction:
 
 
 @method(function('element', nargs=(0, 2), label='kind test'))
-def select_element_kind_test(self: XPathFunction, context: ContextType = None) \
+def select_element_kind_test(self: XPathFunction, context: ta.ContextType = None) \
         -> Iterator[ElementNode]:
     if context is None:
         raise self.missing_context()
@@ -897,7 +898,7 @@ def select_element_kind_test(self: XPathFunction, context: ContextType = None) \
                     if self[1].occurrence in ('*', '?'):
                         yield item
                 elif item.type_name == type_annotation:
-                    if type_annotation != XSD_UNTYPED:
+                    if type_annotation != ns.XSD_UNTYPED:
                         yield item
                     elif self[0].symbol != '*':
                         yield item
@@ -924,7 +925,7 @@ def nud_element_kind_test(self: XPathFunction) -> XPathFunction:
 
 
 @method(function('schema-attribute', nargs=1, label='kind test'))
-def select_schema_attribute_kind_test(self: XPathFunction, context: ContextType = None) \
+def select_schema_attribute_kind_test(self: XPathFunction, context: ta.ContextType = None) \
         -> Iterator[AttributeNode]:
     if context is None:
         raise self.missing_context()
@@ -948,7 +949,7 @@ def select_schema_attribute_kind_test(self: XPathFunction, context: ContextType 
 
 
 @method(function('schema-element', nargs=1, label='kind test'))
-def select_schema_element_kind_test(self: XPathFunction, context: ContextType = None) \
+def select_schema_element_kind_test(self: XPathFunction, context: ta.ContextType = None) \
         -> Iterator[ElementNode]:
     if context is None:
         raise self.missing_context()
@@ -1026,8 +1027,8 @@ def nud_attribute_kind_test_or_axis(self: XPathToken) -> XPathToken:
 
 
 @method('attribute')
-def select_attribute_kind_test_or_axis(self: XPathToken, context: ContextType = None) \
-        -> Iterator[Union[AtomicType, AttributeNode, XsdAttributeProtocol]]:
+def select_attribute_kind_test_or_axis(self: XPathToken, context: ta.ContextType = None) \
+        -> Iterator[ta.AtomicType | AttributeNode | XsdAttributeProtocol]:
     if context is None:
         raise self.missing_context()
     elif self.label == 'axis':
@@ -1051,7 +1052,7 @@ def select_attribute_kind_test_or_axis(self: XPathToken, context: ContextType = 
                 if isinstance(context, XPathSchemaContext):
                     continue
 
-                if type_name == XSD_UNTYPED == attribute.type_name:
+                if type_name == ns.XSD_UNTYPED == attribute.type_name:
                     if name != '*':
                         yield attribute
                 elif not type_name or attribute.type_name == type_name or \

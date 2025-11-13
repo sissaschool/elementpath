@@ -55,7 +55,6 @@ class TokenRegistry:
     # XPath sequences (formally introduced with XPath 4.0)
     empty_sequence: dt.EmptySequence = dt.empty_sequence
     sequence_class: type[dt.XPathSequence] = dt.XPathSequence
-    to_sequence: MakeSequenceType = dt.to_sequence
 
     class __Name:
         name: str | None = None

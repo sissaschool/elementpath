@@ -10,7 +10,8 @@
 from typing import Any, Optional, Union
 
 import elementpath.aliases as ta
-from elementpath.datatypes import AnyAtomicType, ListType, UntypedAtomic
+import elementpath.datatypes as dt
+
 from elementpath.exceptions import ElementPathError
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from .functions import XPathFunction
@@ -20,7 +21,7 @@ class XPathConstructor(XPathFunction):
     """
     A token for processing XPath 2.0+ constructors.
     """
-    type_class: type[AnyAtomicType | ListType]
+    type_class: type[dt.AnyAtomicType | dt.ListType]
 
     @staticmethod
     def cast(value: Any) -> ta.AtomicType:
@@ -51,17 +52,17 @@ class XPathConstructor(XPathFunction):
 
         arg = self.data_value(self.get_argument(context))
         if arg is None:
-            return self.empty_sequence_type()
+            return dt.empty_sequence
         elif arg == '?' and self[0].symbol == '?':
             raise self.error('XPTY0004', "cannot evaluate a partial function")
 
         try:
-            if isinstance(arg, UntypedAtomic):
+            if isinstance(arg, dt.UntypedAtomic):
                 return self.cast(arg.value)
             return self.cast(arg)
         except ElementPathError:
             raise
         except (TypeError, ValueError) as err:
             if isinstance(context, XPathSchemaContext):
-                return self.empty_sequence_type()
+                return dt.empty_sequence
             raise self.error('FORG0001', err) from None

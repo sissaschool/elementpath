@@ -11,6 +11,8 @@ from collections.abc import Iterable, Iterator
 from typing import Any, Optional
 
 import elementpath.aliases as ta
+import elementpath.datatypes as dt
+
 from elementpath.exceptions import ElementPathValueError
 from elementpath.helpers import split_function_test
 from elementpath.sequence_types import match_sequence_type
@@ -29,7 +31,7 @@ class XPathArray(XPathFunction):
     def __init__(self, parser: ta.XPathParserType,
                  items: Optional[Iterable[Any]] = None) -> None:
         if items is not None:
-            self._array = self.to_sequence([
+            self._array = dt.to_sequence([
                 x if not isinstance(x, list) else XPathArray(parser, x)
                 for x in items
             ])
@@ -95,9 +97,9 @@ class XPathArray(XPathFunction):
             items: list[ta.ValueType] = []
             for tk in self._items:
                 items.extend(tk.select(context))
-            return self.to_sequence(items)
+            return dt.to_sequence(items)
         else:
-            return self.to_sequence([tk.evaluate(context) for tk in self._items])
+            return dt.to_sequence([tk.evaluate(context) for tk in self._items])
 
     def __call__(self, *args: ta.FunctionArgType, context: ta.ContextType = None) -> ta.ValueType:
         if len(args) != 1 or not isinstance(args[0], int):
@@ -131,7 +133,7 @@ class XPathArray(XPathFunction):
         for item in items:
             if isinstance(item, XPathArray):
                 yield from item.iter_flatten(context)
-            elif isinstance(item, self.registry.base_sequence):
+            elif isinstance(item, dt.XPathSequence):
                 yield from item
             else:
                 yield item

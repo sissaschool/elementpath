@@ -343,7 +343,7 @@ class XPathContext:
 
     @deprecated("inner_focus_select() is deprecated and will be removed in future versions.")
     def inner_focus_select(self, token: 'XPathToken',
-                           predicate: bool = False) -> Iterator[ItemType]:
+                           predicate: bool = False) -> Iterator[ta.ItemType]:
         return token.select_with_focus(self)
 
     def iter_product(self, selectors: Sequence[Callable[[Any], Any]],
@@ -384,7 +384,7 @@ class XPathContext:
     ##
     # Context item iterators for axis
 
-    def iter_self(self) -> Iterator[ItemType]:
+    def iter_self(self) -> Iterator[ta.ItemType]:
         """Iterator for 'self' axis and '.' shortcut."""
         if self.item is not None:
             status = self.axis
@@ -411,7 +411,7 @@ class XPathContext:
 
             self.item, self.axis = status
 
-    def iter_children_or_self(self) -> Iterator[ItemType]:
+    def iter_children_or_self(self) -> Iterator[ta.ItemType]:
         """Iterator for 'child' forward axis and '/' step."""
         if self.item is not None:
             if self.axis is not None:

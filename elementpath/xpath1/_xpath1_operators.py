@@ -13,19 +13,17 @@ XPath 1.0 implementation - part 2 (operators and expressions)
 import math
 import decimal
 import operator
-from collections.abc import Iterator, Sequence
-from typing import Any, cast, NoReturn, Optional, Union
+from collections.abc import Iterator
+from typing import Any, cast
+
+import elementpath.aliases as _ta
+import elementpath.datatypes as _types
+import elementpath.xpath_nodes as _nodes
 
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.helpers import node_position
-from elementpath.datatypes import AbstractDateTime, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericProxy, ArithmeticProxy, to_sequence
-from elementpath.aliases import NumericType, ArithmeticType, \
-    ParentNodeType, ContextType, ItemType, XPathTokenType
 from elementpath.xpath_context import XPathSchemaContext
-from elementpath.xpath_nodes import XPathNode, \
-    ElementNode, AttributeNode, DocumentNode
-from elementpath.xpath_tokens import XPathToken
+from elementpath.xpath_tokens import XPathToken, NameToken
 
 from .xpath1_parser import XPath1Parser
 
@@ -52,14 +50,14 @@ method = XPath1Parser.method
 def nud_variable_reference(self: XPathToken) -> XPathToken:
     self.parser.expected_next('(name)')
     self[:] = self.parser.expression(rbp=90),
-    if not isinstance(self[0].value, str) or ':' in self[0].value:
+    if not isinstance(value := self[0].value, str) or ':' in value:
         raise self[0].wrong_syntax("variable reference requires a simple reference name")
     return self
 
 
 @method('$')
-def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
-        -> Union[ItemType, list[ItemType]]:
+def evaluate_variable_reference(self: XPathToken, context: _ta.ContextType = None) \
+        -> _ta.AnyItemsOrEmpty:
     if context is None:
         raise self.missing_context()
 
@@ -68,17 +66,17 @@ def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
     except KeyError as err:
         raise self.error('XPST0008', 'unknown variable %r' % str(err)) from None
     else:
-        return value if value is not None else self.empty_sequence_type()
+        return value if value is not None else _types.empty_sequence
 
 
 ###
 # Nullary operators (use only the context)
 @method(nullary('*'))
-def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[ItemType]:
+def select_wildcard(self: XPathToken, context: _ta.ContextType = None) -> Iterator[_ta.ItemType]:
     if self:
         # Product operator
         item = self.evaluate(context)
-        if not isinstance(item, list):
+        if not isinstance(item, (_types.XPathSequence, _types.EmptySequence)):
             if context is not None:
                 context.item = item
             yield item
@@ -97,28 +95,29 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
             if item is None:
                 pass  # '*' wildcard doesn't match document nodes
             elif context.axis == 'attribute':
-                if isinstance(item, AttributeNode):
+                if isinstance(item, _nodes.AttributeNode):
                     yield item
-            elif isinstance(item, ElementNode):
+            elif isinstance(item, _nodes.ElementNode):
                 yield item
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
             if context.is_principal_node_kind():
-                if isinstance(item, (ElementNode, AttributeNode)):
+                if isinstance(item, (_nodes.ElementNode, _nodes.AttributeNode)):
                     yield item
 
 
 @method(nullary('.'))
-def select_self_shortcut(self: XPathToken, context: ContextType = None) -> Iterator[ItemType]:
+def select_self_shortcut(self: XPathToken, context: _ta.ContextType = None) \
+        -> Iterator[_ta.ItemType]:
     if context is None:
         raise self.missing_context()
     yield from context.iter_self()
 
 
 @method(nullary('..'))
-def select_parent_shortcut(self: XPathToken, context: ContextType = None) \
-        -> Iterator[ParentNodeType]:
+def select_parent_shortcut(self: XPathToken, context: _ta.ContextType = None) \
+        -> Iterator[_ta.ParentNodeType]:
     if context is None:
         raise self.missing_context()
     yield from context.iter_parent()
@@ -127,13 +126,13 @@ def select_parent_shortcut(self: XPathToken, context: ContextType = None) \
 ###
 # Logical Operators
 @method(infix('or', bp=20))
-def evaluate_or_operator(self: XPathToken, context: ContextType = None) -> bool:
+def evaluate_or_operator(self: XPathToken, context: _ta.ContextType = None) -> bool:
     return self.boolean_value(self[0].select_sequence(context)) or \
         self.boolean_value(self[1].select_sequence(context))
 
 
 @method(infix('and', bp=25))
-def evaluate_and_operator(self: XPathToken, context: ContextType = None) -> bool:
+def evaluate_and_operator(self: XPathToken, context: _ta.ContextType = None) -> bool:
     return self.boolean_value(self[0].select_sequence(context)) and \
         self.boolean_value(self[1].select_sequence(context))
 
@@ -159,7 +158,7 @@ def led_comparison_operators(self: XPathToken, left: XPathToken) -> XPathToken:
 @method('>')
 @method('<=')
 @method('>=')
-def evaluate_comparison_operators(self: XPathToken, context: ContextType = None) -> bool:
+def evaluate_comparison_operators(self: XPathToken, context: _ta.ContextType = None) -> bool:
     op = OPERATORS_MAP[self.symbol]
     try:
         return any(op(x1, x2) for x1, x2 in self.iter_comparison_data(context))
@@ -177,56 +176,56 @@ def evaluate_comparison_operators(self: XPathToken, context: ContextType = None)
 ###
 # Numerical operators
 @method(infix('+', bp=40))
-def evaluate_plus_operator(self: XPathToken, context: ContextType = None) \
-        -> Union[list[NoReturn], ArithmeticType]:
+def evaluate_plus_operator(self: XPathToken, context: _ta.ContextType = None) \
+        -> _ta.OneArithmeticOrEmpty:
     if len(self) == 1:
-        arg: NumericType = self.get_argument(context, cls=NumericProxy)
-        return self.empty_sequence_type() if arg is None else +arg
+        arg: _ta.NumericType = self.get_argument(context, cls=_types.NumericProxy)
+        return _types.empty_sequence if arg is None else +arg
     else:
-        op1: Optional[ArithmeticType]
-        op2: ArithmeticType
-        op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
+        op1: _ta.ArithmeticType | None
+        op2: _ta.ArithmeticType
+        op1, op2 = self.get_operands(context, cls=_types.ArithmeticProxy)
         if op1 is None:
-            return self.empty_sequence_type()
+            return _types.empty_sequence
 
         try:
             return op1 + op2  # type:ignore[operator]
         except (TypeError, OverflowError) as err:
             if isinstance(context, XPathSchemaContext):
-                return self.empty_sequence_type()
+                return _types.empty_sequence
             elif isinstance(err, TypeError):
                 raise self.error('XPTY0004', err) from None
-            elif isinstance(op1, AbstractDateTime):
+            elif isinstance(op1, _types.AbstractDateTime):
                 raise self.error('FODT0001', err) from None
-            elif isinstance(op1, Duration):
+            elif isinstance(op1, _types.Duration):
                 raise self.error('FODT0002', err) from None
             else:
                 raise self.error('FOAR0002', err) from None
 
 
 @method(infix('-', bp=40))
-def evaluate_minus_operator(self: XPathToken, context: ContextType = None) \
-        -> Union[list[NoReturn], ArithmeticType]:
+def evaluate_minus_operator(self: XPathToken, context: _ta.ContextType = None) \
+        -> _ta.OneArithmeticOrEmpty:
     if len(self) == 1:
-        arg: NumericType = self.get_argument(context, cls=NumericProxy)
-        return self.empty_sequence_type() if arg is None else -arg
+        arg: _ta.NumericType = self.get_argument(context, cls=_types.NumericProxy)
+        return _types.empty_sequence if arg is None else -arg
     else:
-        op1: Optional[ArithmeticType]
-        op2: ArithmeticType
-        op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
+        op1: _ta.ArithmeticType | None
+        op2: _ta.ArithmeticType
+        op1, op2 = self.get_operands(context, cls=_types.ArithmeticProxy)
         if op1 is None:
-            return self.empty_sequence_type()
+            return _types.empty_sequence
 
         try:
             return op1 - op2  # type:ignore[operator]
         except (TypeError, OverflowError) as err:
             if isinstance(context, XPathSchemaContext):
-                return self.empty_sequence_type()
+                return _types.empty_sequence
             elif isinstance(err, TypeError):
                 raise self.error('XPTY0004', err) from None
-            elif isinstance(op1, AbstractDateTime):
+            elif isinstance(op1, _types.AbstractDateTime):
                 raise self.error('FODT0001', err) from None
-            elif isinstance(op1, Duration):
+            elif isinstance(op1, _types.Duration):
                 raise self.error('FODT0002', err) from None
             else:
                 raise self.error('FOAR0002', err) from None
@@ -240,21 +239,21 @@ def nud_plus_minus_operators(self: XPathToken) -> XPathToken:
 
 
 @method(infix('*', bp=45))
-def evaluate_multiply_operator(self: XPathToken, context: ContextType = None) \
-        -> Union[ArithmeticType, list[ItemType]]:
-    op1: Optional[ArithmeticType]
-    op2: ArithmeticType
+def evaluate_multiply_operator(self: XPathToken, context: _ta.ContextType = None) \
+        -> _ta.AnyArithmeticOrEmpty | _ta.AnyItemsOrEmpty:
+    op1: _ta.ArithmeticType | None
+    op2: _ta.ArithmeticType
     if self:
-        op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
+        op1, op2 = self.get_operands(context, cls=_types.ArithmeticProxy)
         if op1 is None:
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         try:
-            if isinstance(op2, (YearMonthDuration, DayTimeDuration)):
+            if isinstance(op2, (_types.YearMonthDuration, _types.DayTimeDuration)):
                 return op2 * op1
             return op1 * op2  # type:ignore[operator]
         except TypeError as err:
             if isinstance(context, XPathSchemaContext):
-                return self.empty_sequence_type()
+                return _types.empty_sequence
 
             if isinstance(op1, (float, decimal.Decimal)):
                 if math.isnan(op1):
@@ -271,30 +270,30 @@ def evaluate_multiply_operator(self: XPathToken, context: ContextType = None) \
             raise self.error('XPTY0004', err) from None
         except ValueError as err:
             if isinstance(context, XPathSchemaContext):
-                return self.empty_sequence_type()
+                return _types.empty_sequence
             raise self.error('FOCA0005', err) from None
         except OverflowError as err:
             if isinstance(context, XPathSchemaContext):
-                return self.empty_sequence_type()
-            elif isinstance(op1, AbstractDateTime):
+                return _types.empty_sequence
+            elif isinstance(op1, _types.AbstractDateTime):
                 raise self.error('FODT0001', err) from None
-            elif isinstance(op1, Duration):
+            elif isinstance(op1, _types.Duration):
                 raise self.error('FODT0002', err) from None
             else:
                 raise self.error('FOAR0002', err) from None
     else:
         # This is not a multiplication operator but a wildcard select statement
-        return to_sequence([x for x in self.select(context)])
+        return self.to_sequence([x for x in self.select(context)])
 
 
 @method(infix('div', bp=45))
-def evaluate_div_operator(self: XPathToken, context: ContextType = None) \
-        -> Union[int, float, decimal.Decimal, list[Any]]:
-    dividend: Optional[ArithmeticType]
-    divisor: ArithmeticType
-    dividend, divisor = self.get_operands(context, cls=ArithmeticProxy)
+def evaluate_div_operator(self: XPathToken, context: _ta.ContextType = None) \
+        -> int | float | decimal.Decimal | _ta.AnyItemsOrEmpty:
+    dividend: _ta.ArithmeticType | None
+    divisor: _ta.ArithmeticType
+    dividend, divisor = self.get_operands(context, cls=_types.ArithmeticProxy)
     if dividend is None:
-        return self.empty_sequence_type()
+        return _types.empty_sequence
     elif divisor != 0:
         try:
             if isinstance(dividend, int) and isinstance(divisor, int):
@@ -309,9 +308,9 @@ def evaluate_div_operator(self: XPathToken, context: ContextType = None) \
         except (ZeroDivisionError, decimal.DivisionByZero):
             raise self.error('FOAR0001') from None
 
-    elif isinstance(dividend, AbstractDateTime):
+    elif isinstance(dividend, _types.AbstractDateTime):
         raise self.error('FODT0001')
-    elif isinstance(dividend, Duration):
+    elif isinstance(dividend, _types.Duration):
         raise self.error('FODT0002')
     elif not self.parser.compatibility_mode and \
             isinstance(dividend, (int, decimal.Decimal)) and \
@@ -326,13 +325,13 @@ def evaluate_div_operator(self: XPathToken, context: ContextType = None) \
 
 
 @method(infix('mod', bp=45))
-def evaluate_mod_operator(self: XPathToken, context: ContextType = None) \
-        -> Union[list[NoReturn], ArithmeticType]:
-    op1: Optional[NumericType]
-    op2: Optional[NumericType]
-    op1, op2 = self.get_operands(context, cls=NumericProxy)
+def evaluate_mod_operator(self: XPathToken, context: _ta.ContextType = None) \
+        -> _ta.ArithmeticType | _ta.EmptySequenceType:
+    op1: _ta.NumericType | None
+    op2: _ta.NumericType | None
+    op1, op2 = self.get_operands(context, cls=_types.NumericProxy)
     if op1 is None:
-        return self.empty_sequence_type()
+        return _types.empty_sequence
     elif op2 is None:
         raise self.error('XPTY0004', '2nd operand is an empty sequence')
     elif op2 == 0 and isinstance(op2, float):
@@ -355,7 +354,7 @@ def evaluate_mod_operator(self: XPathToken, context: ContextType = None) \
 @method('and')
 @method('div')
 @method('mod')
-def nud_disambiguation_of_infix_operators(self: XPathToken) -> XPathTokenType:
+def nud_disambiguation_of_infix_operators(self: XPathToken) -> NameToken:
     return self.as_name()
 
 
@@ -370,18 +369,18 @@ def led_union_operator(self: XPathToken, left: XPathToken) -> XPathToken:
 
 
 @method('|')
-def select_union_operator(self: XPathToken, context: ContextType = None) \
-        -> Iterator[XPathNode]:
+def select_union_operator(self: XPathToken, context: _ta.ContextType = None) \
+        -> Iterator[_nodes.XPathNode]:
     if context is None:
         raise self.missing_context()
 
     results = {item for k in range(2) for item in self[k].select_sequence(context)}
-    if any(not isinstance(x, XPathNode) for x in results):
+    if any(not isinstance(x, _nodes.XPathNode) for x in results):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
     elif self.concatenated:
-        yield from cast(set[XPathNode], results)
+        yield from cast(set[_nodes.XPathNode], results)
     else:
-        yield from cast(list[XPathNode], sorted(results, key=node_position))
+        yield from cast(list[_nodes.XPathNode], sorted(results, key=node_position))
 
 
 ###
@@ -424,37 +423,37 @@ def led_child_or_descendant_path(self: XPathToken, left: XPathToken) -> XPathTok
 
 
 @method('/')
-def select_child_path(self: XPathToken, context: ContextType = None) \
-        -> Iterator[ItemType]:
+def select_child_path(self: XPathToken, context: _ta.ContextType = None) \
+        -> Iterator[_ta.ItemType]:
     """
     Child path expression. Selects child:: axis as default (when bind to '*' or '(name)').
     """
     if context is None:
         raise self.missing_context()
     elif not self:
-        if isinstance(context.root, DocumentNode):
+        if isinstance(context.root, _nodes.DocumentNode):
             yield context.root
     elif len(self) == 1:
-        if isinstance(context.document, DocumentNode):
+        if isinstance(context.document, _nodes.DocumentNode):
             context.item = context.document
-        elif context.root is None or isinstance(context.root.parent, ElementNode):
+        elif context.root is None or isinstance(context.root.parent, _nodes.ElementNode):
             return  # No root or a rooted subtree -> document root produce []
         else:
             context.item = context.root  # A fragment or a schema node
         yield from self[0].select(context)
     else:
-        items: set[ItemType] = set()
+        items: set[_ta.ItemType] = set()
         for _ in self[0].select_with_focus(context):
-            if not isinstance(context.item, XPathNode):
+            if not isinstance(context.item, _nodes.XPathNode):
                 msg = f"Intermediate step contains an atomic value {context.item!r}"
                 raise self.error('XPTY0019', msg)
 
             for result in self[1].select(context):
-                if not isinstance(result, XPathNode):
+                if not isinstance(result, _nodes.XPathNode):
                     yield result
                 elif result in items:
                     pass
-                elif isinstance(result, ElementNode):
+                elif isinstance(result, _nodes.ElementNode):
                     if result.value not in items:
                         items.add(result)
                         yield result
@@ -464,24 +463,24 @@ def select_child_path(self: XPathToken, context: ContextType = None) \
 
 
 @method('//')
-def select_descendant_path(self: XPathToken, context: ContextType = None) \
-        -> Iterator[ItemType]:
+def select_descendant_path(self: XPathToken, context: _ta.ContextType = None) \
+        -> Iterator[_ta.ItemType]:
     """Operator '//' is a short equivalent to /descendant-or-self::node()/"""
     if context is None:
         raise self.missing_context()
     elif len(self) == 2:
-        items: set[ItemType] = set()
+        items: set[_ta.ItemType] = set()
         for _ in self[0].select_with_focus(context):
-            if not isinstance(context.item, XPathNode):
+            if not isinstance(context.item, _nodes.XPathNode):
                 raise self.error('XPTY0019')
 
             for _ in context.iter_descendants():
                 for result in self[1].select(context):
-                    if not isinstance(result, XPathNode):
+                    if not isinstance(result, _nodes.XPathNode):
                         yield result
                     elif result in items:
                         pass
-                    elif isinstance(result, ElementNode):
+                    elif isinstance(result, _nodes.ElementNode):
                         if result.value not in items:
                             items.add(result)
                             yield result
@@ -490,9 +489,9 @@ def select_descendant_path(self: XPathToken, context: ContextType = None) \
                         yield result
 
     else:
-        if isinstance(context.document, DocumentNode):
+        if isinstance(context.document, _nodes.DocumentNode):
             context.item = context.document
-        elif context.root is None or isinstance(context.root.parent, ElementNode):
+        elif context.root is None or isinstance(context.root.parent, _nodes.ElementNode):
             return  # No root or a rooted subtree -> document root produce []
         else:
             context.item = context.root  # A fragment or a schema node
@@ -500,11 +499,11 @@ def select_descendant_path(self: XPathToken, context: ContextType = None) \
         items = set()
         for _ in context.iter_descendants():
             for result in self[0].select(context):
-                if not isinstance(result, XPathNode):
+                if not isinstance(result, _nodes.XPathNode):
                     items.add(result)
                 elif result in items:
                     pass
-                elif isinstance(result, ElementNode):
+                elif isinstance(result, _nodes.ElementNode):
                     if result.value not in items:
                         items.add(result)
                 else:
@@ -523,19 +522,19 @@ def led_predicate(self: XPathToken, left: XPathToken) -> XPathToken:
 
 
 @method('[')
-def select_predicate(self: XPathToken, context: ContextType = None) -> Iterator[ItemType]:
+def select_predicate(self: XPathToken, context: _ta.ContextType = None) -> Iterator[_ta.ItemType]:
     if context is None:
         raise self.missing_context()
 
     for _ in self[0].select_with_focus(context):
         if (self[1].label in ('axis', 'kind test') or self[1].symbol == '..') \
-                and not isinstance(context.item, XPathNode):
+                and not isinstance(context.item, _nodes.XPathNode):
             raise self.error('XPTY0020')
 
-        predicate: Sequence[NumericType]
-        predicate = [x for x in cast(Iterator[NumericType], self[1].select_sequence(context))]
+        predicate: list[_ta.NumericType]
+        predicate = [x for x in cast(Iterator[_ta.NumericType], self[1].select_sequence(context))]
 
-        if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
+        if len(predicate) == 1 and isinstance(predicate[0], _types.NumericProxy):
             if context.position == predicate[0]:
                 yield context.item
         elif self.boolean_value(predicate):
@@ -552,12 +551,12 @@ def nud_parenthesized_expr(self: XPathToken) -> XPathToken:
 
 
 @method('(')
-def evaluate_parenthesized_expr(self: XPathToken, context: ContextType = None) -> Any:
+def evaluate_parenthesized_expr(self: XPathToken, context: _ta.ContextType = None) -> Any:
     return self[0].evaluate(context)
 
 
 @method('(')
-def select_parenthesized_expr(self: XPathToken, context: ContextType = None) -> Iterator[Any]:
+def select_parenthesized_expr(self: XPathToken, context: _ta.ContextType = None) -> Iterator[Any]:
     return self[0].select(context)
 
 # XPath 1.0 definitions continue into module xpath1_functions

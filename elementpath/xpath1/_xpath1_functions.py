@@ -13,13 +13,14 @@ XPath 1.0 implementation - part 3 (functions)
 import math
 import decimal
 from collections.abc import Iterator
-from typing import Any, Union
+from typing import Any
 
-from elementpath.aliases import AtomicType, NumericType, Emptiable, ContextType
+import elementpath.aliases as _ta
+import elementpath.namespaces as _ns
+import elementpath.datatypes as _types
+import elementpath.xpath_nodes as _nodes
+
 from elementpath.helpers import get_double
-from elementpath.datatypes import Duration, DayTimeDuration, YearMonthDuration, \
-    StringProxy, AnyURI, Float, AnyAtomicType
-from elementpath.namespaces import XML_ID, XML_LANG
 from elementpath.xpath_nodes import XPathNode, ElementNode, TextNode, CommentNode, \
     ProcessingInstructionNode, DocumentNode, EtreeElementNode
 from elementpath.xpath_context import XPathSchemaContext
@@ -36,7 +37,7 @@ function = XPath1Parser.function
 ###
 # Kind tests (for matching of node types in XPath 1.0 or sequence types in XPath 2.0)
 @method(function('node', nargs=0, label='kind test'))
-def select_node_kind_test(self: XPathFunction, context: ContextType = None) \
+def select_node_kind_test(self: XPathFunction, context: _ta.ContextType = None) \
         -> Iterator[XPathNode]:
     if context is None:
         raise self.missing_context()
@@ -57,7 +58,7 @@ def nud_item_sequence_type(self: XPathFunction) -> XPathFunction:
 
 
 @method(function('processing-instruction', nargs=(0, 1), bp=79, label='kind test'))
-def select_pi_kind_test(self: XPathFunction, context: ContextType = None) \
+def select_pi_kind_test(self: XPathFunction, context: _ta.ContextType = None) \
         -> Iterator[ProcessingInstructionNode]:
     if context is None:
         raise self.missing_context()
@@ -66,9 +67,7 @@ def select_pi_kind_test(self: XPathFunction, context: ContextType = None) \
         if isinstance(item, ProcessingInstructionNode):
             if not self:
                 yield item
-            else:
-                name = self[0].value
-                assert isinstance(name, str)
+            elif isinstance(name := self[0].value, str):
                 if item.name == ' '.join(name.strip().split()):
                     yield item
 
@@ -84,7 +83,7 @@ def nud_pi_kind_test(self: XPathFunction) -> XPathFunction:
 
 
 @method(function('comment', nargs=0, label='kind test'))
-def select_comment_kind_test(self: XPathFunction, context: ContextType = None) \
+def select_comment_kind_test(self: XPathFunction, context: _ta.ContextType = None) \
         -> Iterator[CommentNode]:
     if context is None:
         raise self.missing_context()
@@ -95,7 +94,7 @@ def select_comment_kind_test(self: XPathFunction, context: ContextType = None) \
 
 
 @method(function('text', nargs=0, label='kind test'))
-def select_text_kind_test(self: XPathFunction, context: ContextType = None) \
+def select_text_kind_test(self: XPathFunction, context: _ta.ContextType = None) \
         -> Iterator[TextNode]:
     if context is None:
         raise self.missing_context()
@@ -108,7 +107,7 @@ def select_text_kind_test(self: XPathFunction, context: ContextType = None) \
 ###
 # Node set functions
 @method(function('last', nargs=0, sequence_types=('xs:integer',)))
-def evaluate_last_function(self: XPathFunction, context: ContextType = None) -> int:
+def evaluate_last_function(self: XPathFunction, context: _ta.ContextType = None) -> int:
     if self.context is not None:
         context = self.context
     elif context is None:
@@ -120,7 +119,7 @@ def evaluate_last_function(self: XPathFunction, context: ContextType = None) -> 
 
 @method(function('position', nargs=0,
                  sequence_types=('xs:integer',)))
-def evaluate_position_function(self: XPathFunction, context: ContextType = None) -> int:
+def evaluate_position(self: XPathFunction, context: _ta.ContextType = None) -> int:
     if self.context is not None:
         context = self.context
     elif context is None:
@@ -129,12 +128,12 @@ def evaluate_position_function(self: XPathFunction, context: ContextType = None)
 
 
 @method(function('count', nargs=1, sequence_types=('item()*', 'xs:integer')))
-def evaluate_count_function(self: XPathFunction, context: ContextType = None) -> int:
+def evaluate_count(self: XPathFunction, context: _ta.ContextType = None) -> int:
     return len([x for x in self[0].select(self.context or context)])
 
 
 @method(function('id', nargs=1, sequence_types=('xs:string*', 'element()*')))
-def select_id_function(self: XPathFunction, context: ContextType = None) \
+def select_id(self: XPathFunction, context: _ta.ContextType = None) \
         -> Iterator[ElementNode]:
     if self.context is not None:
         context = self.context
@@ -148,15 +147,15 @@ def select_id_function(self: XPathFunction, context: ContextType = None) \
 
     if isinstance(item, (ElementNode, DocumentNode)):
         for element in item.iter_descendants():
-            if isinstance(element, EtreeElementNode) and element.value.get(XML_ID) == value:
+            if isinstance(element, EtreeElementNode) and element.value.get(_ns.XML_ID) == value:
                 yield element
 
 
 @method(function('name', nargs=(0, 1), sequence_types=('node()?', 'xs:string')))
 @method(function('local-name', nargs=(0, 1), sequence_types=('node()?', 'xs:string')))
 @method(function('namespace-uri', nargs=(0, 1), sequence_types=('node()?', 'xs:anyURI')))
-def evaluate_name_related_functions(self: XPathFunction, context: ContextType = None) \
-        -> Union[str, AnyURI]:
+def evaluate_name_related_functions(self: XPathFunction, context: _ta.ContextType = None) \
+        -> str | _types.AnyURI:
     if self.context is not None:
         context = self.context
     elif context is None:
@@ -183,13 +182,13 @@ def evaluate_name_related_functions(self: XPathFunction, context: ContextType = 
     elif self.parser.version == '1.0':
         return '' if not name or name[0] != '{' else name.split('}')[0][1:]
     else:
-        return AnyURI('') if not name or name[0] != '{' else AnyURI(name.split('}')[0][1:])
+        return _types.AnyURI('') if not name or name[0] != '{' else _types.AnyURI(name.split('}')[0][1:])
 
 
 ###
 # String functions
 @method(function('string', nargs=(0, 1), sequence_types=('item()?', 'xs:string')))
-def evaluate_string_function(self: XPathFunction, context: ContextType = None) -> str:
+def evaluate_string(self: XPathFunction, context: _ta.ContextType = None) -> str:
     if self.context is not None:
         context = self.context
 
@@ -202,7 +201,7 @@ def evaluate_string_function(self: XPathFunction, context: ContextType = None) -
 
 @method(function('contains', nargs=2,
                  sequence_types=('xs:string?', 'xs:string?', 'xs:boolean')))
-def evaluate_contains_function(self: XPathFunction, context: ContextType = None) -> bool:
+def evaluate_contains(self: XPathFunction, context: _ta.ContextType = None) -> bool:
     if self.context is not None:
         context = self.context
 
@@ -213,7 +212,7 @@ def evaluate_contains_function(self: XPathFunction, context: ContextType = None)
 
 @method(function('concat', nargs=(2, None),
                  sequence_types=('xs:anyAtomicType?', 'xs:anyAtomicType?', 'xs:string')))
-def evaluate_concat_function(self: XPathFunction, context: ContextType = None) -> str:
+def evaluate_concat(self: XPathFunction, context: _ta.ContextType = None) -> str:
     if self.context is not None:
         context = self.context
 
@@ -224,7 +223,7 @@ def evaluate_concat_function(self: XPathFunction, context: ContextType = None) -
 
 @method(function('string-length', nargs=(0, 1),
                  sequence_types=('xs:string?', 'xs:integer')))
-def evaluate_string_length_function(self: XPathFunction, context: ContextType = None) -> int:
+def evaluate_string_length(self: XPathFunction, context: _ta.ContextType = None) -> int:
     if self.context is not None:
         context = self.context
 
@@ -238,7 +237,7 @@ def evaluate_string_length_function(self: XPathFunction, context: ContextType = 
 
 @method(function('normalize-space', nargs=(0, 1),
                  sequence_types=('xs:string?', 'xs:string')))
-def evaluate_normalize_space_function(self: XPathFunction, context: ContextType = None) -> str:
+def evaluate_normalize_space(self: XPathFunction, context: _ta.ContextType = None) -> str:
     if self.context is not None:
         context = self.context
 
@@ -251,7 +250,7 @@ def evaluate_normalize_space_function(self: XPathFunction, context: ContextType 
 
 @method(function('starts-with', nargs=2,
                  sequence_types=('xs:string?', 'xs:string?', 'xs:boolean')))
-def evaluate_starts_with_function(self: XPathFunction, context: ContextType = None) -> bool:
+def evaluate_starts_with(self: XPathFunction, context: _ta.ContextType = None) -> bool:
     if self.context is not None:
         context = self.context
 
@@ -262,7 +261,7 @@ def evaluate_starts_with_function(self: XPathFunction, context: ContextType = No
 
 @method(function('translate', nargs=3,
                  sequence_types=('xs:string?', 'xs:string', 'xs:string', 'xs:string')))
-def evaluate_translate_function(self: XPathFunction, context: ContextType = None) -> str:
+def evaluate_translate(self: XPathFunction, context: _ta.ContextType = None) -> str:
     if self.context is not None:
         context = self.context
 
@@ -289,7 +288,7 @@ def evaluate_translate_function(self: XPathFunction, context: ContextType = None
 
 @method(function('substring', nargs=(2, 3),
                  sequence_types=('xs:string?', 'xs:double', 'xs:double', 'xs:string')))
-def evaluate_substring_function(self: XPathFunction, context: ContextType = None) -> str:
+def evaluate_substring(self: XPathFunction, context: _ta.ContextType = None) -> str:
     if self.context is not None:
         context = self.context
 
@@ -331,7 +330,7 @@ def evaluate_substring_function(self: XPathFunction, context: ContextType = None
 @method(function('substring-after', nargs=2,
                  sequence_types=('xs:string?', 'xs:string?', 'xs:string')))
 def evaluate_substring_before_or_after_functions(
-        self: XPathFunction, context: ContextType = None) -> str:
+        self: XPathFunction, context: _ta.ContextType = None) -> str:
     if self.context is not None:
         context = self.context
 
@@ -351,28 +350,28 @@ def evaluate_substring_before_or_after_functions(
 # Boolean functions
 @method(function('boolean', nargs=1,
                  sequence_types=('item()*', 'xs:boolean')))
-def evaluate_boolean_function(self: XPathFunction, context: ContextType = None) -> bool:
+def evaluate_boolean(self: XPathFunction, context: _ta.ContextType = None) -> bool:
     return self.boolean_value(self[0].select(self.context or context))
 
 
 @method(function('not', nargs=1, sequence_types=('item()*', 'xs:boolean')))
-def evaluate_not_function(self: XPathFunction, context: ContextType = None) -> bool:
+def evaluate_not(self: XPathFunction, context: _ta.ContextType = None) -> bool:
     return not self.boolean_value(self[0].select(self.context or context))
 
 
 @method(function('true', nargs=0, sequence_types=('xs:boolean',)))
-def evaluate_true_function(self: XPathFunction, context: ContextType = None) -> bool:
+def evaluate_true(self: XPathFunction, context: _ta.ContextType = None) -> bool:
     return True
 
 
 @method(function('false', nargs=0, sequence_types=('xs:boolean',)))
-def evaluate_false_function(self: XPathFunction, context: ContextType = None) -> bool:
+def evaluate_false(self: XPathFunction, context: _ta.ContextType = None) -> bool:
     return False
 
 
 @method(function('lang', nargs=1,
                  sequence_types=('xs:string?', 'xs:boolean')))
-def evaluate_lang_function(self: XPathFunction, context: ContextType = None) -> bool:
+def evaluate_lang(self: XPathFunction, context: _ta.ContextType = None) -> bool:
     if self.context is not None:
         context = self.context
     elif context is None:
@@ -382,11 +381,11 @@ def evaluate_lang_function(self: XPathFunction, context: ContextType = None) -> 
         return False
     else:
         try:
-            attr = context.item.value.attrib[XML_LANG]
+            attr = context.item.value.attrib[_ns.XML_LANG]
         except KeyError:
             for e in context.iter_ancestors():
-                if isinstance(e, EtreeElementNode) and XML_LANG in e.value.attrib:
-                    lang = e.value.attrib[XML_LANG]
+                if isinstance(e, EtreeElementNode) and _ns.XML_LANG in e.value.attrib:
+                    lang = e.value.attrib[_ns.XML_LANG]
                     if not isinstance(lang, str):
                         return False
                     break
@@ -409,15 +408,14 @@ def evaluate_lang_function(self: XPathFunction, context: ContextType = None) -> 
 ###
 # Number functions
 @method(function('number', nargs=(0, 1), sequence_types=('xs:anyAtomicType?', 'xs:double')))
-def evaluate_number_function(self: XPathFunction, context: ContextType = None) -> float:
+def evaluate_number(self: XPathFunction, context: _ta.ContextType = None) -> float:
     arg = self.get_argument(self.context or context, default_to_context=True)
     return self.number_value(arg)
 
 
 @method(function('sum', nargs=(1, 2),
                  sequence_types=('xs:anyAtomicType*', 'xs:anyAtomicType?', 'xs:anyAtomicType?')))
-def evaluate_sum_function(self: XPathFunction, context: ContextType = None) \
-        -> Emptiable[AtomicType]:
+def evaluate_sum(self: XPathFunction, context: _ta.ContextType = None) -> _ta.OneAtomicOrEmpty:
     if self.context is not None:
         context = self.context
 
@@ -431,25 +429,25 @@ def evaluate_sum_function(self: XPathFunction, context: ContextType = None) \
         if self.parser.version == '1.0':
             return math.nan
         elif isinstance(context, XPathSchemaContext):
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         raise self.error('FORG0006') from None
 
     if not values:
         zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
-        return self.empty_sequence_type() if zero is None else zero
+        return _types.empty_sequence if zero is None else zero
 
     if all(isinstance(x, (decimal.Decimal, int)) for x in values):
         result = sum(values) if len(values) > 1 else values[0]
-    elif all(isinstance(x, DayTimeDuration) for x in values) or \
-            all(isinstance(x, YearMonthDuration) for x in values):
+    elif all(isinstance(x, _types.DayTimeDuration) for x in values) or \
+            all(isinstance(x, _types.YearMonthDuration) for x in values):
         result = sum(values[1:], start=values[0])
-    elif any(isinstance(x, Duration) for x in values):
+    elif any(isinstance(x, _types.Duration) for x in values):
         raise self.error('FORG0006', 'invalid sum of duration values')
-    elif any(isinstance(x, (StringProxy, AnyURI)) for x in values):
+    elif any(isinstance(x, (_types.StringProxy, _types.AnyURI)) for x in values):
         raise self.error('FORG0006', 'cannot apply fn:sum() to string-based types')
     elif any(isinstance(x, float) and math.isnan(x) for x in values):
         return math.nan
-    elif all(isinstance(x, Float) for x in values):
+    elif all(isinstance(x, _types.Float) for x in values):
         result = sum(values)
     else:
         try:
@@ -458,17 +456,17 @@ def evaluate_sum_function(self: XPathFunction, context: ContextType = None) \
             if self.parser.version == '1.0':
                 return math.nan
             elif isinstance(context, XPathSchemaContext):
-                return self.empty_sequence_type()
+                return _types.empty_sequence
             raise self.error('FORG0006') from None
 
-    assert isinstance(result, AnyAtomicType)
+    assert isinstance(result, _types.AnyAtomicType)
     return result
 
 
 @method(function('ceiling', nargs=1, sequence_types=('xs:numeric?', 'xs:numeric?')))
 @method(function('floor', nargs=1, sequence_types=('xs:numeric?', 'xs:numeric?')))
-def evaluate_ceiling_and_floor_functions(self: XPathFunction, context: ContextType = None) \
-        -> Emptiable[NumericType]:
+def evaluate_ceiling_and_floor_functions(self: XPathFunction, context: _ta.ContextType = None) \
+        -> _ta.OneNumericOrEmpty:
     if self.context is not None:
         context = self.context
 
@@ -490,15 +488,14 @@ def evaluate_ceiling_and_floor_functions(self: XPathFunction, context: ContextTy
             return type(arg)(math.ceil(arg))
     except TypeError as err:
         if isinstance(context, XPathSchemaContext):
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         elif isinstance(arg, str):
             raise self.error('XPTY0004', err) from None
         raise self.error('FORG0006', err) from None
 
 
 @method(function('round', nargs=1, sequence_types=('xs:numeric?', 'xs:numeric?')))
-def evaluate_round_function(self: XPathFunction, context: ContextType = None) \
-        -> Emptiable[NumericType]:
+def evaluate_round(self: XPathFunction, context: _ta.ContextType = None) -> _ta.OneNumericOrEmpty:
     if self.context is not None:
         context = self.context
 
@@ -520,18 +517,18 @@ def evaluate_round_function(self: XPathFunction, context: ContextType = None) \
             return type(arg)(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN'))
     except TypeError as err:
         if isinstance(context, XPathSchemaContext):
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         raise self.error('FORG0006', err) from None
     except decimal.InvalidOperation:
         if not isinstance(arg, str):
             assert isinstance(arg, (int, float, decimal.Decimal))
             return round(arg)
         elif isinstance(context, XPathSchemaContext):
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         raise self.error('XPTY0004') from None
     except decimal.DecimalException as err:
         if isinstance(context, XPathSchemaContext):
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         raise self.error('FOCA0002', err) from None
 
 # XPath 1.0 definitions continue into module xpath1_axes

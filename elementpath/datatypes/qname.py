@@ -7,14 +7,16 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import Any, Optional
+from typing import Any, Optional, cast, TypeVar
 
-from elementpath.aliases import XPath2ParserType
+from elementpath.aliases import XPathParserType
 from elementpath.helpers import LazyPattern
 from .any_types import AnyAtomicType
 from .untyped import UntypedAtomic
 
 __all__ = ['AbstractQName', 'QName', 'Notation']
+
+T = TypeVar('T', bound='AbstractQName')
 
 
 class AbstractQName(AnyAtomicType):
@@ -31,13 +33,13 @@ class AbstractQName(AnyAtomicType):
     )
 
     @classmethod
-    def make(cls, value: Any,
+    def make(cls: type[T], value: Any,
              namespaces: dict[str, str] | None = None,
-             parser: XPath2ParserType | None = None,
-             **kwargs: Any) -> 'AbstractQName':
+             parser: XPathParserType | None = None,
+             **kwargs: Any) -> T:
 
         if isinstance(value, AbstractQName):
-            return value
+            return cast(T, value)
         elif isinstance(value, UntypedAtomic) and parser and parser.version >= '3.0':
             value = value.value
         elif not isinstance(value, str):
@@ -83,6 +85,10 @@ class AbstractQName(AnyAtomicType):
     @property
     def namespace(self) -> str:
         return self.uri
+
+    @namespace.setter
+    def namespace(self, uri: str) -> None:
+        self.uri = uri
 
     @property
     def expanded_name(self) -> str:

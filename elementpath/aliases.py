@@ -43,20 +43,39 @@ NumericType = Union[int, float, Decimal]
 ArithmeticType = Union[NumericType, 'AbstractDateTime', 'Duration', 'UntypedAtomic']
 
 ###
-# Sequence and item/value types
+# Sequence and item/value types (specifics and generics)
+EmptySequenceType = Union['EmptySequence', list[NoReturn], tuple[()]]
 ItemType = Union['XPathNode', AtomicType, 'XPathFunction']
 
 _T = TypeVar('_T', bound=ItemType)
 
-Emptiable = Union[_T, 'SingletonSequence[_T]', list[NoReturn], 'EmptySequence']
-NotEmptiable = Union[_T, 'SingletonSequence[_T]', list[_T], 'XPathSequence[_T]']
 SequenceType = Union['XPathSequence[_T]', 'SingletonSequence[_T]', 'EmptySequence']
+
+OneOrEmpty = Union[_T, 'SingletonSequence[_T]', EmptySequenceType]
+OneOrMore = Union[_T, 'SingletonSequence[_T]', 'XPathSequence[_T]']
+AnyOrEmpty = Union[_T, 'SequenceType[_T]']
+
 SequenceArgType = Union[
     Iterator[_T], list[_T], list[NoReturn], tuple[_T, ...], tuple[_T], tuple[()]
 ]
 InputType = Union[None, _T, list[_T], tuple[_T, ...]]
 
-ValueType = Union[ItemType, 'SequenceType[ItemType]', list[ItemType]]
+OneAtomicOrEmpty = OneOrEmpty[AtomicType]
+OneNumericOrEmpty = OneOrEmpty[NumericType]
+OneArithmeticOrEmpty = OneOrEmpty[ArithmeticType]
+OneItemOrEmpty = OneOrEmpty[ItemType]
+
+OneOrMoreAtomic = OneOrMore[AtomicType]
+OneOrMoreNumeric = OneOrMore[NumericType]
+OneOrMoreArithmetic = OneOrMore[ArithmeticType]
+OneOrMoreItems = OneOrMore[ItemType]
+
+AnyAtomicOrEmpty = AnyOrEmpty[AtomicType]
+AnyNumericOrEmpty = AnyOrEmpty[NumericType]
+AnyArithmeticOrEmpty = AnyOrEmpty[ArithmeticType]
+AnyItemsOrEmpty = AnyOrEmpty[ItemType]
+
+ValueType = Union[ItemType, 'SequenceType[ItemType]']  # equivalent to AnyItemsOrEmpty
 ResultType = Union[
     AtomicType, 'ElementProtocol', 'XsdAttributeProtocol', tuple[Optional[str], str],
     'DocumentProtocol', 'DocumentNode', 'XPathFunction', object

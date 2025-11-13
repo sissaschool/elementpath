@@ -11,11 +11,11 @@
 XPath 2.0 implementation - part 4 (XSD constructors)
 """
 import decimal
-from typing import cast, Optional, Union
+from typing import cast
 
-import elementpath.aliases as ta
+import elementpath.aliases as _ta
+import elementpath.datatypes as _types
 
-from elementpath.aliases import Emptiable, AtomicType, ContextType
 from elementpath.exceptions import ElementPathError, ElementPathSyntaxError
 from elementpath.namespaces import XSD_NAMESPACE
 from elementpath.datatypes import AbstractDateTime, Duration, Date, DateTime, \
@@ -41,7 +41,7 @@ constructor = XPath2Parser.constructor
 @constructor('IDREF')
 @constructor('ENTITY')
 @constructor('anyURI')
-def cast_string_types(self: XPathConstructor, value: AtomicType) -> Union[str, AnyURI]:
+def cast_string_types(self: XPathConstructor, value: _ta.AtomicType) -> str | AnyURI:
     try:
         result = self.type_class(value)
     except ValueError as err:
@@ -54,7 +54,7 @@ def cast_string_types(self: XPathConstructor, value: AtomicType) -> Union[str, A
 @constructor('decimal')
 @constructor('double')
 @constructor('float')
-def cast_numeric_types(self: XPathConstructor, value: AtomicType) -> ta.NumericType:
+def cast_numeric_types(self: XPathConstructor, value: _ta.AtomicType) -> _ta.NumericType:
     try:
         result = self.type_class.make(value, parser=self.parser)
     except ValueError as err:
@@ -81,7 +81,7 @@ def cast_numeric_types(self: XPathConstructor, value: AtomicType) -> ta.NumericT
 @constructor('unsignedInt')
 @constructor('unsignedShort')
 @constructor('unsignedByte')
-def cast_integer_types(self: XPathConstructor, value: AtomicType) -> int:
+def cast_integer_types(self: XPathConstructor, value: _ta.AtomicType) -> int:
     try:
         return cast(int, self.type_class(value))
     except ValueError:
@@ -101,7 +101,7 @@ def cast_integer_types(self: XPathConstructor, value: AtomicType) -> int:
 @constructor('gYearMonth')
 @constructor('time')
 @constructor('dateTimeStamp')
-def cast_other_datetime_types(self: XPathConstructor, value: AtomicType) -> AbstractDateTime:
+def cast_other_datetime_types(self: XPathConstructor, value: _ta.AtomicType) -> AbstractDateTime:
     try:
         return cast(AbstractDateTime, self.type_class).make(value, parser=self.parser)
     except OverflowError as err:
@@ -117,20 +117,20 @@ def cast_other_datetime_types(self: XPathConstructor, value: AtomicType) -> Abst
 @method('gYear')
 @method('gYearMonth')
 @method('time')
-def evaluate_other_datetime_types(self: XPathConstructor, context: ContextType = None) \
-        -> Emptiable[AbstractDateTime]:
+def evaluate_other_datetime_types(self: XPathConstructor, context: _ta.ContextType = None) \
+        -> _ta.OneOrEmpty[AbstractDateTime]:
     if self.context is not None:
         context = self.context
 
     arg = self.data_value(self.get_argument(context))
     if arg is None:
-        return self.empty_sequence_type()
+        return _types.empty_sequence
 
     try:
         return cast(AbstractDateTime, self.cast(arg))
     except (TypeError, OverflowError) as err:
         if isinstance(context, XPathSchemaContext):
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         elif isinstance(err, TypeError):
             raise self.error('FORG0006', err) from None
         else:
@@ -138,14 +138,14 @@ def evaluate_other_datetime_types(self: XPathConstructor, context: ContextType =
 
 
 @method('dateTimeStamp')
-def evaluate_datetime_stamp_type(self: XPathConstructor, context: ContextType = None) \
-        -> Emptiable[DateTimeStamp]:
+def evaluate_datetime_stamp_type(self: XPathConstructor, context: _ta.ContextType = None) \
+        -> _ta.OneOrEmpty[DateTimeStamp]:
     if self.context is not None:
         context = self.context
 
     arg = self.data_value(self.get_argument(context))
     if arg is None:
-        return self.empty_sequence_type()
+        return _types.empty_sequence
 
     if isinstance(arg, UntypedAtomic):
         result = self.cast(arg.value)
@@ -179,7 +179,7 @@ def nud_datetime_stamp_type(self: XPathConstructor) -> XPathConstructor:
 @constructor('duration')
 @constructor('yearMonthDuration')
 @constructor('dayTimeDuration')
-def cast_duration_types(self: XPathConstructor, value: AtomicType) -> Duration:
+def cast_duration_types(self: XPathConstructor, value: _ta.AtomicType) -> Duration:
     try:
         return cast(Duration, self.type_class).make(value)
     except OverflowError as err:
@@ -192,7 +192,7 @@ def cast_duration_types(self: XPathConstructor, value: AtomicType) -> Duration:
 # Constructors for binary XSD types
 @constructor('base64Binary')
 @constructor('hexBinary')
-def cast_binary_types(self: XPathConstructor, value: AtomicType) -> Base64Binary | HexBinary:
+def cast_binary_types(self: XPathConstructor, value: _ta.AtomicType) -> Base64Binary | HexBinary:
     try:
         result = self.type_class.make(value, parser=self.parser)
     except ValueError as err:
@@ -206,23 +206,23 @@ def cast_binary_types(self: XPathConstructor, value: AtomicType) -> Base64Binary
 
 @method('base64Binary')
 @method('hexBinary')
-def evaluate_binary_types(self: XPathConstructor, context: ContextType = None) \
-        -> Emptiable[Union[HexBinary, Base64Binary]]:
+def evaluate_binary_types(self: XPathConstructor, context: _ta.ContextType = None) \
+        -> _ta.OneOrEmpty[HexBinary | Base64Binary]:
     arg = self.data_value(self.get_argument(self.context or context))
     if arg is None:
-        return self.empty_sequence_type()
+        return _types.empty_sequence
 
     try:
-        return cast(Union[HexBinary, Base64Binary], self.cast(arg))
+        return cast(HexBinary | Base64Binary, self.cast(arg))
     except ElementPathError as err:
         if isinstance(context, XPathSchemaContext):
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         err.token = self
         raise
 
 
 @constructor('NOTATION')
-def cast_notation_type(self: XPathConstructor, value: AtomicType) -> Notation:
+def cast_notation_type(self: XPathConstructor, value: _ta.AtomicType) -> Notation:
     raise NotImplementedError("No value is castable to xs:NOTATION")
 
 
@@ -252,7 +252,7 @@ unregister('boolean')
 
 @constructor('boolean', label=('function', 'constructor function'),
              sequence_types=('item()*', 'xs:boolean'))
-def cast_boolean_type(self: XPathConstructor, value: AtomicType) -> bool:
+def cast_boolean_type(self: XPathConstructor, value: _ta.AtomicType) -> bool:
     try:
         return cast(bool, BooleanProxy(value))
     except ValueError as err:
@@ -279,8 +279,8 @@ def nud_boolean_type_and_function(self: XPathConstructor) -> XPathConstructor:
 
 
 @method('boolean')
-def evaluate_boolean_type_and_function(self: XPathConstructor, context: ContextType = None) \
-        -> Emptiable[bool]:
+def evaluate_boolean_type_and_function(self: XPathConstructor, context: _ta.ContextType = None) \
+        -> _ta.OneOrEmpty[bool]:
     if self.context is not None:
         context = self.context
 
@@ -290,13 +290,13 @@ def evaluate_boolean_type_and_function(self: XPathConstructor, context: ContextT
     # xs:boolean constructor
     arg = self.data_value(self.get_argument(context))
     if arg is None:
-        return self.empty_sequence_type()
+        return _types.empty_sequence
 
     try:
         return cast(bool, self.cast(arg))
     except ElementPathError as err:
         if isinstance(context, XPathSchemaContext):
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         err.token = self
         raise
 
@@ -308,7 +308,7 @@ unregister('string')
 
 @constructor('string', label=('function', 'constructor function'),
              nargs=(0, 1), sequence_types=('item()?', 'xs:string'))
-def cast_string_type(self: XPathConstructor, value: AtomicType) -> str:
+def cast_string_type(self: XPathConstructor, value: _ta.AtomicType) -> str:
     return self.string_value(value)
 
 
@@ -329,8 +329,8 @@ def nud_string_type_and_function(self: XPathConstructor) -> XPathConstructor:
 
 
 @method('string')
-def evaluate_string_type_and_function(self: XPathConstructor, context: ContextType = None) \
-        -> Emptiable[str]:
+def evaluate_string_type_and_function(self: XPathConstructor, context: _ta.ContextType = None) \
+        -> _ta.OneOrEmpty[str]:
     if self.context is not None:
         context = self.context
 
@@ -342,7 +342,7 @@ def evaluate_string_type_and_function(self: XPathConstructor, context: ContextTy
         return self.string_value(self.get_argument(context))
     else:
         item = self.get_argument(context)
-        return self.empty_sequence_type() if item is None else self.string_value(item)
+        return _types.empty_sequence if item is None else self.string_value(item)
 
 
 # Case 3 and 4: In XPath 2.0 the XSD 'QName' and 'dateTime' types have special
@@ -354,13 +354,13 @@ def evaluate_string_type_and_function(self: XPathConstructor, context: ContextTy
 #
 @constructor('QName', bp=90, label=('function', 'constructor function'),
              nargs=(1, 2), sequence_types=('xs:string?', 'xs:string', 'xs:QName'))
-def cast_qname_type(self: XPathConstructor, value: AtomicType) -> QName:
+def cast_qname_type(self: XPathConstructor, value: _ta.AtomicType) -> QName:
     return self.cast_to_qname(value)
 
 
 @constructor('dateTime', bp=90, label=('function', 'constructor function'),
              nargs=(1, 2), sequence_types=('xs:date?', 'xs:time?', 'xs:dateTime?'))
-def cast_datetime_type(self: XPathConstructor, value: AtomicType) -> Optional[DateTime]:
+def cast_datetime_type(self: XPathConstructor, value: _ta.AtomicType) -> DateTime | None:
     try:
         result = cast(DateTime, self.type_class).make(value, parser=self.parser)
     except OverflowError as err:
@@ -399,15 +399,15 @@ def nud_qname_and_datetime(self: XPathConstructor) -> XPathConstructor:
 
 
 @method('QName')
-def evaluate_qname_type_and_function(self: XPathConstructor, context: ContextType = None) \
-        -> Emptiable[QName]:
+def evaluate_qname_type_and_function(self: XPathConstructor, context: _ta.ContextType = None) \
+        -> _ta.OneOrEmpty[QName]:
     if self.context is not None:
         context = self.context
 
     if self.label == 'constructor function':
         arg = self.data_value(self.get_argument(context))
         if arg is None:
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         value = self.cast(arg)
         assert isinstance(value, QName)
         return value
@@ -418,7 +418,7 @@ def evaluate_qname_type_and_function(self: XPathConstructor, context: ContextTyp
             return QName(uri, qname)
         except (TypeError, ValueError) as err:
             if isinstance(context, XPathSchemaContext):
-                return self.empty_sequence_type()
+                return _types.empty_sequence
             elif isinstance(err, TypeError):
                 raise self.error('XPTY0004', err)
             else:
@@ -426,21 +426,21 @@ def evaluate_qname_type_and_function(self: XPathConstructor, context: ContextTyp
 
 
 @method('dateTime')
-def evaluate_datetime_type_and_function(self: XPathConstructor, context: ContextType = None) \
-        -> Emptiable[DateTime]:
+def evaluate_datetime_type_and_function(self: XPathConstructor, context: _ta.ContextType = None) \
+        -> _ta.OneOrEmpty[DateTime]:
     if self.context is not None:
         context = self.context
 
     if self.label == 'constructor function':
         arg = self.data_value(self.get_argument(context))
         if arg is None:
-            return self.empty_sequence_type()
+            return _types.empty_sequence
 
         try:
             result = self.cast(arg)
         except (ValueError, TypeError) as err:
             if isinstance(context, XPathSchemaContext):
-                return self.empty_sequence_type()
+                return _types.empty_sequence
             elif isinstance(err, ValueError):
                 raise self.error('FORG0001', err) from None
             else:
@@ -452,7 +452,7 @@ def evaluate_datetime_type_and_function(self: XPathConstructor, context: Context
         dt = self.get_argument(context, cls=Date)
         tm = self.get_argument(context, 1, cls=Time)
         if dt is None or tm is None:
-            return self.empty_sequence_type()
+            return _types.empty_sequence
         elif dt.tzinfo == tm.tzinfo or tm.tzinfo is None:
             tzinfo = dt.tzinfo
         elif dt.tzinfo is None:
@@ -466,16 +466,16 @@ def evaluate_datetime_type_and_function(self: XPathConstructor, context: Context
 
 
 @constructor('untypedAtomic')
-def cast_untyped_atomic(self: XPathConstructor, value: AtomicType) -> UntypedAtomic:
+def cast_untyped_atomic(self: XPathConstructor, value: _ta.AtomicType) -> UntypedAtomic:
     return UntypedAtomic(value)
 
 
 @method('untypedAtomic')
-def evaluate_untyped_atomic(self: XPathConstructor, context: ContextType = None) \
-        -> Emptiable[UntypedAtomic]:
+def evaluate_untyped_atomic(self: XPathConstructor, context: _ta.ContextType = None) \
+        -> _ta.OneOrEmpty[UntypedAtomic]:
     arg = self.data_value(self.get_argument(self.context or context))
     if arg is None:
-        return self.empty_sequence_type()
+        return _types.empty_sequence
     elif isinstance(arg, UntypedAtomic):
         return arg
     else:
@@ -495,7 +495,7 @@ def evaluate_untyped_atomic(self: XPathConstructor, context: ContextType = None)
 # TODO: apply sequence_types=('xs:anyAtomicType?', 'xs:error?') for xs:error
 @constructor('error', bp=90, label=('function', 'constructor function'), nargs=(0, 3),
              sequence_types=('xs:QName?', 'xs:string', 'item()*', 'none'))
-def cast_error_type(self: XPathConstructor, value: AtomicType) -> Emptiable[None]:
+def cast_error_type(self: XPathConstructor, value: _ta.AtomicType) -> _ta.OneOrEmpty[None]:
     try:
         return self.type_class.make(value, parser=self.parser)
     except (TypeError, ValueError) as err:
@@ -533,11 +533,11 @@ def nud_error_type_and_function(self: XPathConstructor) -> XPathConstructor:
 
 
 @method('error')
-def evaluate_error_type_and_function(self: XPathConstructor, context: ContextType = None) -> None:
+def evaluate_error_type_and_function(self: XPathConstructor, context: _ta.ContextType = None) -> None:
     if self.context is not None:
         context = self.context
 
-    error: Optional[QName]
+    error: QName | None
     if self.label == 'constructor function':
         self.cast(self.get_argument(context))
     elif not self:
@@ -549,7 +549,7 @@ def evaluate_error_type_and_function(self: XPathConstructor, context: ContextTyp
         raise self.error(error or 'FOER0000')
     else:
         error = self.get_argument(context, cls=QName)
-        description: Optional[str] = self.get_argument(context, index=1, cls=str)
+        description: str | None = self.get_argument(context, index=1, cls=str)
         raise self.error(error or 'FOER0000', description)
 
 
@@ -557,7 +557,7 @@ def evaluate_error_type_and_function(self: XPathConstructor, context: ContextTyp
 # XSD list-based constructors
 
 @constructor('NMTOKENS', sequence_types=('xs:NMTOKEN*',))
-def cast_nmtokens_list_type(self: XPathConstructor, value: AtomicType) -> ta.SequenceType[NMToken]:
+def cast_nmtokens(self: XPathConstructor, value: _ta.AtomicType) -> _ta.SequenceType[NMToken]:
     if isinstance(value, UntypedAtomic):
         values = value.value.split() or [value.value]
     elif hasattr(value, 'split'):
@@ -572,7 +572,7 @@ def cast_nmtokens_list_type(self: XPathConstructor, value: AtomicType) -> ta.Seq
 
 
 @constructor('IDREFS', sequence_types=('xs:IDREF*',))
-def cast_idrefs_list_type(self: XPathConstructor, value: AtomicType) -> list[Idref]:
+def cast_idrefs(self: XPathConstructor, value: _ta.AtomicType) -> _ta.SequenceType[Idref]:
     if isinstance(value, UntypedAtomic):
         values = value.value.split() or [value.value]
     elif hasattr(value, 'split'):
@@ -581,13 +581,13 @@ def cast_idrefs_list_type(self: XPathConstructor, value: AtomicType) -> list[Idr
         raise self.error('FORG0001')
 
     try:
-        return self.to_sequence([Idref(x) for x in values])
+        return _types.to_sequence([Idref(x) for x in values])
     except ValueError as err:
         raise self.error('FORG0001', err) from None
 
 
 @constructor('ENTITIES', sequence_types=('xs:ENTITY*',))
-def cast_entities_list_type(self: XPathConstructor, value: AtomicType) -> list[Entity]:
+def cast_entities(self: XPathConstructor, value: _ta.AtomicType) -> _ta.SequenceType[Entity]:
     if isinstance(value, UntypedAtomic):
         values = value.value.split() or [value.value]
     elif hasattr(value, 'split'):

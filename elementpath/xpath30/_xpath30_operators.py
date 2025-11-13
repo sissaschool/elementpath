@@ -14,11 +14,11 @@ from copy import copy
 from collections.abc import Iterator
 from typing import Any, cast, Union
 
-from elementpath.aliases import InputType, ContextType, ItemType
-from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
+import elementpath.aliases as ta
+import elementpath.namespaces as ns
+import elementpath.datatypes as datatypes
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, \
     XPathMap, XPathArray
-from elementpath.datatypes import QName
 
 from .xpath30_parser import XPath30Parser
 
@@ -43,7 +43,7 @@ def nud_placeholder_symbol(self: ValueToken) -> ValueToken:
 
 
 @method('?')
-def evaluate_placeholder_symbol(self: ValueToken, context: ContextType = None) -> ValueToken:
+def evaluate_placeholder_symbol(self: ValueToken, context: ta.ContextType = None) -> ValueToken:
     return self
 
 
@@ -78,7 +78,7 @@ def led_parenthesized_expression(self: XPathToken, left: XPathToken) -> XPathTok
             raise left.error('XPST0017', 'unknown function {!r}'.format(left.value))
 
     elif left.symbol == ':' and left[1].symbol == '(name)':
-        if left[1].namespace == XSD_NAMESPACE:
+        if left[1].namespace == ns.XSD_NAMESPACE:
             msg = 'unknown constructor function {!r}'.format(left[1].value)
             raise left[1].error('XPST0017', msg)
         raise left.error('XPST0017', 'unknown function {!r}'.format(left.value))
@@ -92,10 +92,10 @@ def led_parenthesized_expression(self: XPathToken, left: XPathToken) -> XPathTok
 
 
 @method('(')
-def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = None) \
-        -> Union[ItemType, list[ItemType], XPathToken]:
+def evaluate_parenthesized_expression(self: XPathToken, context: ta.ContextType = None) \
+        -> ta.ValueItem | XPathToken:
     if not self:
-        return self.empty_sequence_type()
+        return datatypes.empty_sequence
 
     value = self[0].evaluate(context)
     if isinstance(value, list) and len(value) == 1:
@@ -114,7 +114,7 @@ def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = N
                 func.to_partial_function()
                 return func
 
-            arguments: list[InputType[ItemType]]
+            arguments: list[ta.InputType[ta.ItemType]]
             arguments = [tk.evaluate(context) for tk in tokens]
 
             if func.label == 'partial function' and func[0].symbol == '?' and len(func[0]):
@@ -143,15 +143,15 @@ def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = N
 
 
 @method(infix('||', bp=32))
-def evaluate_union_operator(self: XPathToken, context: ContextType = None) -> str:
+def evaluate_union_operator(self: XPathToken, context: ta.ContextType = None) -> str:
 
     return self.string_value(self.get_argument(context)) + \
         self.string_value(self.get_argument(context, index=1))
 
 
 @method(infix('!', bp=72))
-def select_simple_map_operator(self: XPathToken, context: ContextType = None) \
-        -> Iterator[ItemType]:
+def select_simple_map_operator(self: XPathToken, context: ta.ContextType = None) \
+        -> Iterator[ta.ItemType]:
     if context is None:
         raise self.missing_context()
 
@@ -186,8 +186,8 @@ def nud_let_expression(self: XPathToken) -> XPathToken:
 
 
 @method('let')
-def select_let_expression(self: XPathToken, context: ContextType = None) \
-        -> Iterator[ItemType]:
+def select_let_expression(self: XPathToken, context: ta.ContextType = None) \
+        -> Iterator[ta.ItemType]:
     if context is None:
         raise self.missing_context()
 
@@ -210,7 +210,7 @@ def led_function_reference(self: XPathToken, left: XPathToken) -> XPathToken:
 
 
 @method('#')
-def evaluate_function_reference(self: XPathToken, context: ContextType = None) -> XPathFunction:
+def evaluate_function_reference(self: XPathToken, context: ta.ContextType = None) -> XPathFunction:
     token_class: type[Union[XPathFunction, XPathToken]]
     namespace: Any
     name: Any
@@ -222,10 +222,10 @@ def evaluate_function_reference(self: XPathToken, context: ContextType = None) -
         token_class = self[0].__class__
         namespace = self[0].namespace
         name = self[0].name
-        if isinstance(name, QName):
+        if isinstance(name, datatypes.QName):
             qname = name
         else:
-            qname = QName(None, f'anonymous {self[0].label}'.replace(' ', '-'))
+            qname = datatypes.QName(None, f'anonymous {self[0].label}'.replace(' ', '-'))
     else:
         if self[0].symbol == ':':
             namespace = self[0][1].namespace
@@ -234,7 +234,7 @@ def evaluate_function_reference(self: XPathToken, context: ContextType = None) -
             namespace = self[0][0].value
             name = self[0][1].value
         elif self[0].value not in self.parser.RESERVED_FUNCTION_NAMES:
-            namespace = XPATH_FUNCTIONS_NAMESPACE
+            namespace = ns.XPATH_FUNCTIONS_NAMESPACE
             name = self[0].value
         else:
             msg = f"{self[0].value!r} is not allowed as function name"
@@ -242,16 +242,16 @@ def evaluate_function_reference(self: XPathToken, context: ContextType = None) -
 
         assert isinstance(name, str)
         assert isinstance(namespace, str) or namespace is None
-        qname = QName(namespace, name)
+        qname = datatypes.QName(namespace, name)
         namespace = qname.namespace
         local_name = qname.local_name
 
         # Generic rule for XSD constructor functions
-        if namespace == XSD_NAMESPACE and arity != 1:
+        if namespace == ns.XSD_NAMESPACE and arity != 1:
             raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
 
         # Special checks for multirole tokens
-        if namespace == XPATH_FUNCTIONS_NAMESPACE and \
+        if namespace == ns.XPATH_FUNCTIONS_NAMESPACE and \
                 local_name in ('QName', 'dateTime') and arity == 1:
             raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
 

@@ -17,15 +17,15 @@ from collections.abc import Callable, MutableMapping
 from urllib.parse import urlparse
 from typing import cast, Any, ClassVar, Optional, Union
 
-from elementpath.aliases import NamespacesType, NargsType
+import elementpath.aliases as ta
+import elementpath.namespaces as ns
+import elementpath.datatypes as datatypes
+
 from elementpath.helpers import upper_camel_case, is_ncname, ordinal
 from elementpath.exceptions import ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
-from elementpath.namespaces import XSD_NAMESPACE, XML_NAMESPACE, \
-    XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
-    XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
+from elementpath.namespaces import get_prefixed_name
 from elementpath.collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
-from elementpath.datatypes import builtin_atomic_types, QName
 from elementpath.aliases import AtomicType
 from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathConstructor
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
@@ -76,10 +76,10 @@ class XPath2Parser(XPath1Parser):
     version = '2.0'
 
     DEFAULT_NAMESPACES: ClassVar[dict[str, str]] = {
-        'xml': XML_NAMESPACE,
-        'xs': XSD_NAMESPACE,
-        'fn': XPATH_FUNCTIONS_NAMESPACE,
-        'err': XQT_ERRORS_NAMESPACE
+        'xml': ns.XML_NAMESPACE,
+        'xs': ns.XSD_NAMESPACE,
+        'fn': ns.XPATH_FUNCTIONS_NAMESPACE,
+        'err': ns.XQT_ERRORS_NAMESPACE
     }
 
     PATH_STEP_LABELS = ('axis', 'function', 'kind test')
@@ -94,23 +94,24 @@ class XPath2Parser(XPath1Parser):
         'schema-element', 'text', 'typeswitch',
     }
 
-    function_signatures: dict[tuple[QName, int], str] = XPath1Parser.function_signatures.copy()
+    function_signatures: dict[tuple[datatypes.QName, int], str] \
+        = XPath1Parser.function_signatures.copy()
     namespaces: dict[str, str]
     token: XPathToken
     next_token: XPathToken
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
+    def __init__(self, namespaces: ta.NamespacesType | None = None,
                  strict: bool = True,
                  compatibility_mode: bool = False,
-                 default_collation: Optional[str] = None,
-                 default_namespace: Optional[str] = None,
-                 function_namespace: Optional[str] = None,
-                 xsd_version: Optional[str] = None,
-                 schema: Optional[AbstractSchemaProxy] = None,
-                 base_uri: Optional[str] = None,
-                 variable_types: Optional[dict[str, str]] = None,
-                 document_types: Optional[dict[str, str]] = None,
-                 collection_types: Optional[NamespacesType] = None,
+                 default_collation: str | None = None,
+                 default_namespace: str | None = None,
+                 function_namespace: str | None = None,
+                 xsd_version: str | None = None,
+                 schema: AbstractSchemaProxy | None = None,
+                 base_uri: str | None = None,
+                 variable_types: dict[str, str] | None = None,
+                 document_types: dict[str, str] | None = None,
+                 collection_types: ta.NamespacesType | None = None,
                  default_collection_type: str = 'node()*') -> None:
 
         super(XPath2Parser, self).__init__(namespaces, strict)
@@ -176,7 +177,7 @@ class XPath2Parser(XPath1Parser):
             args.append('compatibility_mode=True')
         if self.default_collation != UNICODE_CODEPOINT_COLLATION:
             args.append(f'default_collation={self.default_collation!r}')
-        if self.function_namespace != XPATH_FUNCTIONS_NAMESPACE:
+        if self.function_namespace != ns.XPATH_FUNCTIONS_NAMESPACE:
             args.append(f'function_namespace={self.function_namespace!r}')
         if self._xsd_version != '1.0':
             args.append(f'xsd_version={self._xsd_version!r}')
@@ -216,7 +217,7 @@ class XPath2Parser(XPath1Parser):
         except (AttributeError, NotImplementedError):
             return self._xsd_version
 
-    def advance(self, *symbols: str,  message: Optional[str] = None) -> XPathToken:
+    def advance(self, *symbols: str,  message: str | None = None) -> XPathToken:
         super(XPath2Parser, self).advance(*symbols, message=message)
 
         if self.next_token.symbol == '(:':
@@ -268,7 +269,7 @@ class XPath2Parser(XPath1Parser):
         return token
 
     @classmethod
-    def constructor(cls, symbol: str, bp: int = 90, nargs: NargsType = 1,
+    def constructor(cls, symbol: str, bp: int = 90, nargs: ta.NargsType = 1,
                     sequence_types: Union[tuple[()], tuple[str, ...], list[str]] = (),
                     label: Union[str, tuple[str, ...]] = 'constructor function') \
             -> Callable[[Callable[..., Any]], Callable[..., Any]]:
@@ -280,7 +281,7 @@ class XPath2Parser(XPath1Parser):
             assert nargs == 1
             sequence_types = ('xs:anyAtomicType?', 'xs:%s?' % symbol)
 
-        type_name = f'{{{XSD_NAMESPACE}}}{symbol}'
+        type_name = f'{{{ns.XSD_NAMESPACE}}}{symbol}'
         kwargs = {
             'bases': (XPathConstructor,),
             'label': label,
@@ -289,7 +290,7 @@ class XPath2Parser(XPath1Parser):
             'rbp': bp,
             'sequence_types': sequence_types,
             'name': type_name,
-            'type_class': builtin_atomic_types.get(type_name),
+            'type_class': datatypes.builtin_atomic_types.get(type_name),
         }
         token_class = cls.register(symbol, **kwargs)
 
@@ -304,7 +305,7 @@ class XPath2Parser(XPath1Parser):
     def schema_constructor(self, atomic_type_name: str, bp: int = 90) \
             -> type[XPathFunction]:
         """Dynamically registers a token class for a schema atomic type constructor function."""
-        if atomic_type_name in (XSD_ANY_ATOMIC_TYPE, XSD_NOTATION):
+        if atomic_type_name in (ns.XSD_ANY_ATOMIC_TYPE, ns.XSD_NOTATION):
             raise xpath_error('XPST0080')
 
         def nud_(self_: XPathFunction) -> XPathFunction:
@@ -319,17 +320,17 @@ class XPath2Parser(XPath1Parser):
             return self_
 
         def evaluate_(self_: XPathFunction, context: Optional[XPathContext] = None) \
-                -> Union[list[None], AtomicType]:
+                -> Union[datatypes.EmptySequence, AtomicType]:
             arg = self_.get_argument(context)
             if arg is None or self_.parser.schema is None:
-                return self_.empty_sequence_type()
+                return datatypes.empty_sequence
 
             value = self_.string_value(arg)
             try:
                 return self_.parser.schema.cast_as(value, atomic_type_name)
             except (TypeError, ValueError) as err:
                 if isinstance(context, XPathSchemaContext):
-                    return self_.empty_sequence_type()
+                    return datatypes.empty_sequence
                 raise self_.error('FORG0001', err)
 
         symbol = get_prefixed_name(atomic_type_name, self.namespaces)
@@ -360,8 +361,8 @@ class XPath2Parser(XPath1Parser):
 
     def external_function(self,
                           callback: Callable[..., Any],
-                          name: Optional[str] = None,
-                          prefix: Optional[str] = None,
+                          name: str | None = None,
+                          prefix: str | None = None,
                           sequence_types: tuple[str, ...] = (),
                           bp: int = 90) -> type[XPathFunction]:
         """Registers a token class for an external function."""
@@ -373,7 +374,7 @@ class XPath2Parser(XPath1Parser):
         elif symbol in self.RESERVED_FUNCTION_NAMES:
             raise ElementPathValueError(f'{symbol!r} is a reserved function name')
 
-        nargs: NargsType
+        nargs: ta.NargsType
         spec = inspect.getfullargspec(callback)
         if spec.varargs is not None:
             if spec.args:
@@ -387,10 +388,10 @@ class XPath2Parser(XPath1Parser):
 
         if prefix:
             namespace = self.namespaces[prefix]
-            qname = QName(namespace, f'{prefix}:{symbol}')
+            qname = datatypes.QName(namespace, f'{prefix}:{symbol}')
         else:
-            namespace = XPATH_FUNCTIONS_NAMESPACE
-            qname = QName(XPATH_FUNCTIONS_NAMESPACE, f'fn:{symbol}')
+            namespace = ns.XPATH_FUNCTIONS_NAMESPACE
+            qname = datatypes.QName(ns.XPATH_FUNCTIONS_NAMESPACE, f'fn:{symbol}')
 
         class_name = f'{upper_camel_case(qname.qname)}ExternalFunction'
         lookup_name = qname.expanded_name

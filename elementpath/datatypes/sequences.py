@@ -54,6 +54,9 @@ class XPathSequence(Sequence[T]):
     def __len__(self) -> int:
         return len(self._items)
 
+    def __hash__(self) -> int:
+        return hash(self._items)
+
     def __iter__(self) -> Iterator[T]:
         return iter(self._items)
 
@@ -138,6 +141,9 @@ class SingletonSequence(XPathSequence[T]):
     def __len__(self) -> int:
         return 1
 
+    def __hash__(self) -> int:
+        return hash(self._items[0])
+
     def __iter__(self) -> Iterator[T]:
         yield self._items[0]
 
@@ -164,6 +170,9 @@ class EmptySequence(XPathSequence[NoReturn]):
     """An empty sequence, that is processes as a singleton with no values."""
     _items: tuple[()]
     __slots__ = ()
+
+    def __hash__(self) -> int:
+        return hash(self._items)
 
     def __new__(cls) -> 'EmptySequence':
         try:

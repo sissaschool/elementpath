@@ -11,10 +11,9 @@
 XPath 3.1 implementation - part 2 (operators and constructors)
 """
 from collections.abc import Iterator, Iterable
-from typing import cast, Optional, Union
+from typing import cast, Union
 
-from elementpath.aliases import AtomicType, NotEmptiable, XPathParserType, \
-    ContextType, ItemType, ValueType
+import elementpath.aliases as ta
 from elementpath.datatypes.sequences import iter_sequence
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.xpath_tokens import XPathToken, ProxyToken, \
@@ -86,7 +85,7 @@ def nud_sequence_type_or_curly_array_constructor(self: XPathFunction) -> XPathTo
 
 @method('map')
 @method('array')
-def select_map_or_array_kind_test(self: XPathFunction, context: ContextType = None) \
+def select_map_or_array_kind_test(self: XPathFunction, context: ta.ContextType = None) \
         -> Iterator[Union[XPathMap, XPathArray]]:
     if context is None:
         raise self.missing_context()
@@ -126,7 +125,7 @@ class LookupOperatorToken(XPathToken):
     lbp = 85
     rbp = 85
 
-    def __init__(self, parser: XPathParserType, value: Optional[AtomicType] = None) -> None:
+    def __init__(self, parser: ta.XPathParserType, value: ta.AtomicType | None = None) -> None:
         super().__init__(parser, value)
         if self.parser.token.symbol in ('(', ','):
             # It's a placeholder symbol or a unary lookup operator
@@ -166,15 +165,15 @@ class LookupOperatorToken(XPathToken):
             self[:] = left, self.parser.expression(85)
             return self
 
-    def evaluate(self, context: ContextType = None) -> NotEmptiable[ItemType]:
+    def evaluate(self, context: ta.ContextType = None) -> ta.OneOrMore[ta.ItemType]:
         if not self:
             return self.value  # a placeholder token
         return [x for x in self.select(context)]
 
-    def select(self, context: ContextType = None) -> Iterator[ItemType]:
+    def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
 
         # flatten sequences, don't flatten arrays.
-        def flatten(v: ValueType) -> Iterator[ItemType]:
+        def flatten(v: ta.ValueType) -> Iterator[ta.ItemType]:
             if isinstance(v, list):
                 yield from v
             else:
@@ -184,7 +183,7 @@ class LookupOperatorToken(XPathToken):
             yield from iter_sequence(self.value)
             return
 
-        items: Iterable[ItemType]
+        items: Iterable[ta.ItemType]
         if len(self) == 1:
             # unary lookup operator (used in predicates)
             if context is None:
@@ -257,8 +256,8 @@ def led_arrow_operator(self: XPathToken, left: XPathToken) -> XPathToken:
 
 
 @method('=>')
-def evaluate_arrow_operator(self: XPathToken, context: ContextType = None) \
-        -> NotEmptiable[ItemType]:
+def evaluate_arrow_operator(self: XPathToken, context: ta.ContextType = None) \
+        -> ta.OneOrMore[ta.ItemType]:
     tokens = [self[0]]
     if self[2]:
         tokens.extend(self[2][0].get_argument_tokens())
