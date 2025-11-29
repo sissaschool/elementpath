@@ -21,6 +21,7 @@ from elementpath.datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
 from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
     NamespaceNode, TextNode, CommentNode
 from elementpath.xpath_nodes import EtreeElementNode
+from elementpath.sequences import XSequence
 from elementpath.xpath_tokens import XPathToken, XPathMap, XPathArray
 from elementpath.protocols import EtreeElementProtocol, LxmlElementProtocol
 
@@ -68,7 +69,7 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 # TODO: doesn't work within element nodes
                 if isinstance(value, XPathArray):
                     value = value.items()
-                if not isinstance(value, list) or not all(isinstance(x, QName) for x in value):
+                if not isinstance(value, (XSequence, list)) or not all(isinstance(x, QName) for x in value):
                     raise xpath_error('XPTY0004', token=token)
                 kwargs['cdata_section'] = value
 
@@ -102,13 +103,13 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                         character_map[k] = v
 
             elif key == 'suppress-indentation':  # pragma: no cover
-                if isinstance(value, QName) or isinstance(value, list) \
+                if isinstance(value, QName) or isinstance(value, (list, XSequence)) \
                         and all(isinstance(x, QName) for x in value):
                     kwargs[key] = value
                 else:
                     raise xpath_error('XPTY0004', token=token)
             elif key == 'standalone':
-                if not value and isinstance(value, list):
+                if not value and isinstance(value, (list, XSequence)):
                     pass
                 elif isinstance(value, bool):
                     kwargs['standalone'] = value
@@ -281,7 +282,7 @@ def serialize_to_xml(elements: Iterable[Any],
     if 'standalone' in params:
         kwargs['standalone'] = params['standalone']
     if 'cdata_section' in params:
-        cdata_section = {x.expanded_name_token for x in params['cdata_section']}
+        cdata_section = {x.expanded_name for x in params['cdata_section']}
     else:
         cdata_section = ()
 
@@ -397,6 +398,8 @@ def serialize_to_json(elements: Iterable[Any],
                 return str(obj)
             elif isinstance(obj, Decimal):
                 return float(Decimal(obj).quantize(Decimal("0.01"), ROUND_UP))
+            elif isinstance(obj, XSequence):
+                return [v for v in obj]
             else:
                 return super().default(obj)
 

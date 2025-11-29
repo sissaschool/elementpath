@@ -39,7 +39,7 @@ class Float(float, AnyAtomicType):
         else:
             return Float(value, xsd_version)
 
-    def __new__(cls, value: FloatArgType, xsd_version: str | None = None) -> 'Float':
+    def __new__(cls, value: FloatArgType | str, xsd_version: str | None = None) -> 'Float':
         if isinstance(value, str):
             value = collapse_white_spaces(value)
             if value in NUMERIC_INF_OR_NAN:
@@ -67,7 +67,7 @@ class Float(float, AnyAtomicType):
             return super().__new__(cls, -0.0 if str(_value).startswith('-') else 0.0)
         return _value
 
-    def __init__(self, value: FloatArgType, xsd_version: str = '1.1') -> None:
+    def __init__(self, value: FloatArgType, xsd_version: str | None = None) -> None:
         float.__init__(self)
 
     def __hash__(self) -> int:
@@ -163,7 +163,8 @@ class Float(float, AnyAtomicType):
 
 class Float10(Float):
     """xs:float for XSD 1.0"""
-    def __new__(cls, value: FloatArgType, xsd_version: str | None = '1.0') -> 'Float':
+    def __new__(cls, value: FloatArgType | str,  # type: ignore[misc]
+                xsd_version: str | None = '1.0') -> 'Float':
         return Float(value, xsd_version=xsd_version)
 
 

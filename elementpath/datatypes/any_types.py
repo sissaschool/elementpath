@@ -81,7 +81,7 @@ class AnyType(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @classmethod
-    def make(cls, value: Any, **kwargs: Any) -> 'AnyType':
+    def make(cls, value: Any, *args: Any, **kwargs: Any) -> 'AnyType | float':
         """
         Versioned factory method to create XSD type instances.
 

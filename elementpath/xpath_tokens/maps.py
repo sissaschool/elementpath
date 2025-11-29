@@ -11,9 +11,10 @@ import math
 from typing import Optional, Union, Any
 
 import elementpath.aliases as ta
-import elementpath.datatypes as dt
 
 from elementpath.exceptions import ElementPathValueError
+from elementpath.datatypes import AnyAtomicType
+from elementpath.sequences import XSequence, empty_sequence
 from elementpath.helpers import split_function_test
 from elementpath.sequence_types import match_sequence_type
 from elementpath.xpath_context import XPathSchemaContext
@@ -52,7 +53,7 @@ class XPathMap(XPathFunction):
                     raise self.error('XQDY0137')
 
                 if isinstance(v, list):
-                    _map[k] = self.registry.array_token(parser, v)
+                    _map[k] = XSequence(v)
                 else:
                     _map[k] = v
 
@@ -148,9 +149,9 @@ class XPathMap(XPathFunction):
                  context: ta.ContextType = None) -> ta.ValueType:
         if len(args) == 1 and isinstance(args[0], list) and len(args[0]) == 1:
             args = args[0][0],
-        if len(args) != 1 or not isinstance(args[0], dt.AnyAtomicType):
+        if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
             if isinstance(context, XPathSchemaContext):
-                return dt.empty_sequence
+                return empty_sequence()
             raise self.error('XPST0003', 'exactly one atomic argument is expected')
 
         _map: ta.MapDictType
@@ -166,25 +167,25 @@ class XPathMap(XPathFunction):
             else:
                 return _map[key]
         except KeyError:
-            return dt.empty_sequence
+            return empty_sequence()
 
-    def keys(self, context: ta.ContextType = None) -> ta.SequenceType[ta.AtomicType]:
+    def keys(self, context: ta.ContextType = None) -> list[ta.AtomicType]:
         if self._map is not None:
-            return dt.to_sequence([self._nan_key if k is None else k for k in self._map.keys()])
-        return dt.to_sequence([self._nan_key if k is None else k for k in self._evaluate(context).keys()])
+            return [self._nan_key if k is None else k for k in self._map.keys()]
+        return [self._nan_key if k is None else k for k in self._evaluate(context).keys()]
 
-    def values(self, context: ta.ContextType = None) -> ta.SequenceType[ta.ValueType]:
+    def values(self, context: ta.ContextType = None) -> ta.ListItemType:
         if self._map is not None:
-            return dt.to_sequence([v for v in self._map.values()])
-        return dt.to_sequence([v for v in self._evaluate(context).values()])
+            return XSequence([v for v in self._map.values()])
+        return [v for v in self._evaluate(context).values()]
 
-    def items(self, context: ta.ContextType = None) -> ta.SequenceType[tuple[ta.AtomicType, ta.ValueType]]:
+    def items(self, context: ta.ContextType = None) -> list[tuple[ta.AtomicType, ta.ValueType]]:
         if self._map is not None:
             _map = self._map
         else:
             _map = self._evaluate(context)
 
-        return dt.to_sequence([(self._nan_key, v) if k is None else (k, v) for k, v in _map.items()])
+        return [(self._nan_key, v) if k is None else (k, v) for k, v in _map.items()]
 
     def match_function_test(self, function_test: ta.SequenceTypesType,
                             as_argument: bool = False) -> bool:

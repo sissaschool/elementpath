@@ -15,11 +15,11 @@ from abc import ABCMeta
 from collections.abc import Callable, MutableMapping, Sequence
 from typing import cast, Any, ClassVar, Optional, Union
 
-import elementpath.aliases as _ta
-import elementpath.namespaces as _ns
+import elementpath.aliases as ta
 
 from elementpath.exceptions import xpath_error, UnsupportedFeatureError, \
     ElementPathValueError, ElementPathNameError, ElementPathKeyError, MissingContextError
+from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.helpers import upper_camel_case
 from elementpath.collations import UNICODE_CODEPOINT_COLLATION
 from elementpath.datatypes import QName
@@ -30,7 +30,7 @@ from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction, Proxy
     NameToken, PrefixedReferenceToken, ExpandedNameToken
 
 
-class XPath1Parser(Parser[_ta.XPathTokenType]):
+class XPath1Parser(Parser[ta.XPathTokenType]):
     """
     XPath 1.0 expression parser class. Provide a *namespaces* dictionary argument for
     mapping namespace prefixes to URI inside expressions. If *strict* is set to `False`
@@ -53,7 +53,7 @@ class XPath1Parser(Parser[_ta.XPathTokenType]):
         'comment', 'element', 'node', 'processing-instruction', 'text'
     }
 
-    DEFAULT_NAMESPACES: ClassVar[dict[str, str]] = {'xml': _ns.XML_NAMESPACE}
+    DEFAULT_NAMESPACES: ClassVar[dict[str, str]] = {'xml': XML_NAMESPACE}
     """Namespaces known statically by default."""
 
     # Labels and symbols admitted after a path step
@@ -66,10 +66,10 @@ class XPath1Parser(Parser[_ta.XPathTokenType]):
     schema: Optional[AbstractSchemaProxy] = None
     variable_types: Optional[dict[str, str]] = None
     document_types: Optional[dict[str, str]] = None
-    collection_types: Optional[_ta.NamespacesType] = None
+    collection_types: Optional[ta.NamespacesType] = None
     default_collection_type: str = 'node()*'
     base_uri: Optional[str] = None
-    function_namespace = _ns.XPATH_FUNCTIONS_NAMESPACE
+    function_namespace = XPATH_FUNCTIONS_NAMESPACE
     function_signatures: dict[tuple[QName, int], str] = {}
     decimal_formats: dict[Optional[str], Any] = {}
     parse_arguments: bool = True
@@ -90,7 +90,7 @@ class XPath1Parser(Parser[_ta.XPathTokenType]):
     def tracer(trace_data: str) -> None:
         """Trace data collector"""
 
-    def __init__(self, namespaces: Optional[_ta.NamespacesType] = None,
+    def __init__(self, namespaces: Optional[ta.NamespacesType] = None,
                  strict: bool = True) -> None:
         super(XPath1Parser, self).__init__()
         self.namespaces: dict[str, str] = self.DEFAULT_NAMESPACES.copy()
@@ -121,11 +121,11 @@ class XPath1Parser(Parser[_ta.XPathTokenType]):
 
     def xsd_qname(self, local_name: str) -> str:
         """Returns a prefixed QName string for XSD namespace."""
-        if self.namespaces.get('xs') == _ns.XSD_NAMESPACE:
+        if self.namespaces.get('xs') == XSD_NAMESPACE:
             return 'xs:%s' % local_name
 
         for pfx, uri in self.namespaces.items():
-            if uri == _ns.XSD_NAMESPACE:
+            if uri == XSD_NAMESPACE:
                 return '%s:%s' % (pfx, local_name) if pfx else local_name
 
         raise xpath_error('XPST0081', 'Missing XSD namespace registration')
@@ -182,7 +182,7 @@ class XPath1Parser(Parser[_ta.XPathTokenType]):
     def function(cls, symbol: str,
                  prefix: Optional[str] = None,
                  label: str = 'function',
-                 nargs: _ta.NargsType = None,
+                 nargs: ta.NargsType = None,
                  sequence_types: tuple[str, ...] = (),
                  bp: int = 90) -> type[XPathFunction]:
         """
@@ -213,8 +213,8 @@ class XPath1Parser(Parser[_ta.XPathTokenType]):
             kwargs['namespace'] = namespace
             cls.proxy(symbol, label='function', bp=bp)
         else:
-            qname = QName(_ns.XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % symbol)
-            kwargs['namespace'] = _ns.XPATH_FUNCTIONS_NAMESPACE
+            qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % symbol)
+            kwargs['namespace'] = XPATH_FUNCTIONS_NAMESPACE
 
         if sequence_types:
             # Register function signature(s)
@@ -302,7 +302,7 @@ class XPath1Parser(Parser[_ta.XPathTokenType]):
                 raise xpath_error('XPDY0050', message)
 
     def get_function(self, name: str, arity: Optional[int],
-                     context: _ta.ContextType = None) -> XPathFunction:
+                     context: ta.ContextType = None) -> XPathFunction:
         """
         Returns an XPathFunction object suitable for stand-alone usage.
 
@@ -312,9 +312,9 @@ class XPath1Parser(Parser[_ta.XPathTokenType]):
         :param context: an optional context to bound to the function.
         """
         if ':' not in name:
-            qname = QName(_ns.XPATH_FUNCTIONS_NAMESPACE, f'fn:{name}')
+            qname = QName(XPATH_FUNCTIONS_NAMESPACE, f'fn:{name}')
         elif name.startswith('fn:'):
-            qname = QName(_ns.XPATH_FUNCTIONS_NAMESPACE, name)
+            qname = QName(XPATH_FUNCTIONS_NAMESPACE, name)
             name = name[3:]
         else:
             prefix, name = name.split(':')
@@ -351,7 +351,7 @@ class XPath1Parser(Parser[_ta.XPathTokenType]):
     ###
     # Unsupported methods in XPath 1.0
     @classmethod
-    def constructor(cls, symbol: str, bp: int = 90, nargs: _ta.NargsType = 1,
+    def constructor(cls, symbol: str, bp: int = 90, nargs: ta.NargsType = 1,
                     sequence_types: Union[tuple[()], tuple[str, ...], list[str]] = (),
                     label: Union[str, tuple[str, ...]] = 'constructor function') \
             -> Callable[[Callable[..., Any]], Callable[..., Any]]:
@@ -384,12 +384,12 @@ class XPath1Parser(Parser[_ta.XPathTokenType]):
 # Special symbols
 XPath1Parser.register('(start)')
 XPath1Parser.register('(end)')
+XPath1Parser.register('(invalid)')
+XPath1Parser.register('(unknown)')
 XPath1Parser.literal('(string)')
 XPath1Parser.literal('(float)')
 XPath1Parser.literal('(decimal)')
 XPath1Parser.literal('(integer)')
-XPath1Parser.register('(invalid)')
-XPath1Parser.register('(unknown)')
 
 ###
 # Simple symbols

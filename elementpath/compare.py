@@ -16,8 +16,8 @@ from typing import Any, Optional
 from collections.abc import Callable, Iterable, Iterator
 from elementpath.protocols import ElementProtocol
 from elementpath.exceptions import xpath_error
-from elementpath.datatypes import UntypedAtomic, AnyURI, AbstractQName, \
-    EmptySequence, empty_sequence, XPathSequence
+from elementpath.sequences import empty_sequence, XSequence
+from elementpath.datatypes import UntypedAtomic, AnyURI, AbstractQName
 from elementpath.collations import UNICODE_CODEPOINT_COLLATION, CollationManager
 from elementpath.xpath_nodes import XPathNode, EtreeElementNode, TextAttributeNode, \
     NamespaceNode, TextNode, CommentNode, ProcessingInstructionNode, EtreeDocumentNode
@@ -173,7 +173,7 @@ def deep_equal(seq1: Iterable[Any],
 
 
 def is_empty_sequence(x: Any) -> bool:
-    return x is empty_sequence or not x and isinstance(x, list)
+    return x == empty_sequence()
 
 
 def deep_compare(obj1: Any,
@@ -188,7 +188,7 @@ def deep_compare(obj1: Any,
     def iter_object(obj: Any) -> Iterator[Any]:
         if isinstance(obj, XPathArray):
             yield from obj.items()
-        elif isinstance(obj, (list, Iterator, XPathSequence)):
+        elif isinstance(obj, (list, Iterator, XSequence)):
             yield from obj
         else:
             yield obj
@@ -372,12 +372,12 @@ def get_key_function(collation: Optional[str] = None,
 
     def compare_func(obj1: Any, obj2: Any) -> int:
         if key_func is not None:
-            if isinstance(obj1, (list, Iterator, XPathSequence)):
+            if isinstance(obj1, (list, Iterator, XSequence)):
                 obj1 = map(key_func, obj1)
             else:
                 obj1 = key_func(obj1)
 
-            if isinstance(obj2, (list, Iterator, XPathSequence)):
+            if isinstance(obj2, (list, Iterator, XSequence)):
                 obj2 = map(key_func, obj2)
             else:
                 obj2 = key_func(obj2)

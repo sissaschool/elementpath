@@ -11,10 +11,11 @@ from collections.abc import Iterable, Iterator
 from typing import Any, Optional
 
 import elementpath.aliases as ta
-import elementpath.datatypes as dt
 
 from elementpath.exceptions import ElementPathValueError
+from elementpath.sequences import XSequence
 from elementpath.helpers import split_function_test
+
 from elementpath.sequence_types import match_sequence_type
 from .functions import XPathFunction
 
@@ -31,10 +32,9 @@ class XPathArray(XPathFunction):
     def __init__(self, parser: ta.XPathParserType,
                  items: Optional[Iterable[Any]] = None) -> None:
         if items is not None:
-            self._array = dt.to_sequence([
-                x if not isinstance(x, list) else XPathArray(parser, x)
-                for x in items
-            ])
+            self._array = [
+                x if not isinstance(x, tuple) else XSequence(x) for x in items
+            ]
         super().__init__(parser)
 
     def __repr__(self) -> str:
@@ -97,9 +97,9 @@ class XPathArray(XPathFunction):
             items: list[ta.ValueType] = []
             for tk in self._items:
                 items.extend(tk.select(context))
-            return dt.to_sequence(items)
+            return items
         else:
-            return dt.to_sequence([tk.evaluate(context) for tk in self._items])
+            return [tk.evaluate(context) for tk in self._items]
 
     def __call__(self, *args: ta.FunctionArgType, context: ta.ContextType = None) -> ta.ValueType:
         if len(args) != 1 or not isinstance(args[0], int):
@@ -119,7 +119,7 @@ class XPathArray(XPathFunction):
         except IndexError:
             raise self.error('FOAY0001')
 
-    def items(self, context: ta.ContextType = None) -> list[ta.ValueType]:
+    def items(self, context: ta.ContextType = None) -> ta.ListItemType:
         if self._array is not None:
             return self._array
         return self._evaluate(context)
@@ -133,7 +133,7 @@ class XPathArray(XPathFunction):
         for item in items:
             if isinstance(item, XPathArray):
                 yield from item.iter_flatten(context)
-            elif isinstance(item, dt.XPathSequence):
+            elif isinstance(item, XSequence):
                 yield from item
             else:
                 yield item

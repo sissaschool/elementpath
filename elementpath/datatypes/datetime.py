@@ -627,7 +627,7 @@ class DateTime10(DateTime):
     _xsd_version = '1.0'
 
     @classmethod
-    def __subclasshook__(cls, subclass) -> bool:
+    def __subclasshook__(cls, subclass: type) -> bool:
         return subclass is DateTime10 or subclass is DateTime
 
 
@@ -669,7 +669,7 @@ class Date(AbstractDateTime):
             case UntypedAtomic():
                 return dt_class.fromstring(value.value)
             case DateTime() | Date():
-                if value.__class__ is dt_class:
+                if isinstance(value, Date) and value.__class__ is dt_class:
                     return value
 
                 year = value.year
@@ -699,7 +699,7 @@ class Date10(Date):
     _xsd_version = '1.0'
 
     @classmethod
-    def __subclasshook__(cls, subclass) -> bool:
+    def __subclasshook__(cls, subclass: type) -> bool:
         return subclass is Date10 or subclass is Date
 
 
@@ -712,9 +712,7 @@ class GregorianDay(AbstractDateTime):
     )
 
     @classmethod
-    def make(cls, value: Any,
-             parser: XPath2ParserType | None = None,
-             xsd_version: str | None = None) -> 'GregorianDay':
+    def make(cls, value: Any, **kwargs: Any) -> 'GregorianDay':
         match value:
             case GregorianDay():
                 return value
@@ -741,9 +739,7 @@ class GregorianMonth(AbstractDateTime):
     )
 
     @classmethod
-    def make(cls, value: Any,
-             parser: XPath2ParserType | None = None,
-             xsd_version: str | None = None) -> 'GregorianMonth':
+    def make(cls, value: Any, **kwargs: Any) -> 'GregorianMonth':
         match value:
             case GregorianMonth():
                 return value
@@ -770,9 +766,7 @@ class GregorianMonthDay(AbstractDateTime):
     )
 
     @classmethod
-    def make(cls, value: Any,
-             parser: XPath2ParserType | None = None,
-             xsd_version: str | None = None) -> 'GregorianMonthDay':
+    def make(cls, value: Any, **kwargs: Any) -> 'GregorianMonthDay':
         match value:
             case GregorianMonthDay():
                 return value
@@ -844,7 +838,7 @@ class GregorianYear10(GregorianYear):
     _xsd_version = '1.0'
 
     @classmethod
-    def __subclasshook__(cls, subclass) -> bool:
+    def __subclasshook__(cls, subclass: type) -> bool:
         return subclass is GregorianYear10 or subclass is GregorianYear
 
 
@@ -902,7 +896,7 @@ class GregorianYearMonth10(GregorianYearMonth):
     _xsd_version = '1.0'
 
     @classmethod
-    def __subclasshook__(cls, subclass) -> bool:
+    def __subclasshook__(cls, subclass: type) -> bool:
         return subclass is GregorianYearMonth10 or subclass is GregorianYearMonth
 
 

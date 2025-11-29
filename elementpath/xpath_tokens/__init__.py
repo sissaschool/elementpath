@@ -12,12 +12,13 @@ XPathToken class and derived classes for other XPath objects (functions, constru
 axes, maps, arrays). XPath's error creation and node helper functions are embedded in
 XPathToken class, in order to raise errors related to token instances.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections.abc import Callable
 from typing import Any
 
-import elementpath.aliases as ta
-import elementpath.datatypes as dt
+import elementpath.aliases as _ta
+from elementpath.datatypes import UntypedAtomic, QName
+from elementpath.sequences import XSequence, empty_sequence, iterate_sequence
 
 from .base import XPathToken
 from .axes import XPathAxis
@@ -32,7 +33,7 @@ __all__ = ['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor',
            'XPathMap', 'XPathArray', 'ValueToken', 'ProxyToken', 'NameToken',
            'PrefixedReferenceToken', 'ExpandedNameToken', 'TokenRegistry']
 
-MakeSequenceType = Callable[[ta.SequenceArgType[Any]], dt.XPathSequence[Any]]
+MakeSequenceType = Callable[[_ta.SequenceArgType[Any]], XSequence[Any]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,9 +53,8 @@ class TokenRegistry:
     prefixed_ref_token: type[PrefixedReferenceToken] = PrefixedReferenceToken
     expanded_name_token: type[ExpandedNameToken] = ExpandedNameToken
 
-    # XPath sequences (formally introduced with XPath 4.0)
-    empty_sequence: dt.EmptySequence = dt.empty_sequence
-    sequence_class: type[dt.XPathSequence] = dt.XPathSequence
+    QName: type[QName] = QName
+    UntypedAtomic: type[UntypedAtomic] = UntypedAtomic
 
     class __Name:
         name: str | None = None

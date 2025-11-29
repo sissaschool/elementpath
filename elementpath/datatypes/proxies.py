@@ -14,11 +14,11 @@ from typing import Any
 from elementpath.aliases import XPath2ParserType
 from elementpath.helpers import BOOLEAN_VALUES, FloatArgType, LazyPattern, \
     collapse_white_spaces, get_double
+from elementpath.sequences import XSequence, empty_sequence
 from .any_types import AnyAtomicType
 from .untyped import UntypedAtomic
 from .numeric import Float, Integer
 from .datetime import AbstractDateTime, Duration
-from .sequences import EmptySequence, empty_sequence
 
 __all__ = ['BooleanProxy', 'DecimalProxy', 'DoubleProxy', 'DoubleProxy10',
            'StringProxy', 'NumericProxy', 'ArithmeticProxy', 'ErrorProxy']
@@ -125,7 +125,7 @@ class DoubleProxy(AnyAtomicType):
         else:
             return get_double(value, kwargs.get('xsd_version'))
 
-    def __new__(cls, value: FloatArgType) -> float:
+    def __new__(cls, value: FloatArgType) -> float:  # type: ignore[misc]
         return get_double(value)
 
     def __init__(self, value: FloatArgType) -> None:
@@ -147,7 +147,7 @@ class DoubleProxy(AnyAtomicType):
 
 
 class DoubleProxy10(DoubleProxy):
-    def __new__(cls, value: FloatArgType) -> float:
+    def __new__(cls, value: FloatArgType) -> float:  # type: ignore[misc]
         return get_double(value, '1.0')
 
 
@@ -218,9 +218,9 @@ class ArithmeticProxy(metaclass=ArithmeticTypeMeta):
 class ErrorProxy(AnyAtomicType):
     name = 'error'
 
-    def __new__(cls, value: Any) -> list | None:
-        if value is empty_sequence or value is None or value == []:
-            return value
+    def __new__(cls, value: Any) -> list | None:  # type: ignore[type-arg, misc]
+        if value is None or value == []:
+            return empty_sequence()
         msg = f"Cast {value!r} to xs:error is not possible"
         if isinstance(value, list):
             raise cls._invalid_value(msg)
@@ -228,4 +228,4 @@ class ErrorProxy(AnyAtomicType):
 
     @classmethod
     def __subclasshook__(cls, subclass: type) -> bool:
-        return subclass is type(None) or issubclass(subclass, EmptySequence)
+        return subclass is type(None) or issubclass(subclass, XSequence)

@@ -13,7 +13,7 @@ import operator
 from calendar import isleap, leapdays
 from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any, Generic, Optional, SupportsFloat, TypeVar, Union
+from typing import Any, Generic, Optional, SupportsFloat, SupportsIndex, TypeVar, Union
 from urllib.parse import urlsplit
 
 ###
@@ -25,7 +25,9 @@ INVALID_NUMERIC = frozenset(
     ('inf', '+inf', '-inf', 'nan', 'infinity', '+infinity', '-infinity')
 )
 
-FloatArgType = Union[SupportsFloat, str, bytes]
+MathArgType = Union[SupportsFloat, SupportsIndex]
+FloatArgType = Union[SupportsFloat, SupportsIndex, str]
+
 T = TypeVar('T')
 
 
@@ -279,7 +281,7 @@ def ordinal(n: int) -> str:
             return '%dth' % n
 
 
-def get_double(value: Union[SupportsFloat, str], xsd_version: str | None = None) -> float:
+def get_double(value: FloatArgType, xsd_version: str | None = None) -> float:
     if isinstance(value, str):
         value = collapse_white_spaces(value)
         if value in NUMERIC_INF_OR_NAN and (xsd_version != '1.0' or value != '+INF'):
@@ -293,13 +295,13 @@ def get_double(value: Union[SupportsFloat, str], xsd_version: str | None = None)
     return float(value)
 
 
-def numeric_equal(op1: SupportsFloat, op2: SupportsFloat) -> bool:
+def numeric_equal(op1: MathArgType, op2: MathArgType) -> bool:
     if op1 == op2:
         return True
     return math.isclose(op1, op2, rel_tol=1e-7, abs_tol=0.0)
 
 
-def numeric_not_equal(op1: SupportsFloat, op2: SupportsFloat) -> bool:
+def numeric_not_equal(op1: MathArgType, op2: MathArgType) -> bool:
     if op1 == op2:
         return False
     return not math.isclose(op1, op2, rel_tol=1e-7, abs_tol=0.0)

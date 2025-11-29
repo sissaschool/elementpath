@@ -227,7 +227,7 @@ class TdopParserTest(unittest.TestCase):
 
         parser.advance()
         self.assertNotEqual(parser.token.symbol, '(start)')
-        self.assertEqual(parser.token.value_token, 7)
+        self.assertEqual(parser.token.value, 7)
         self.assertEqual(parser.position, (1, 4))
         self.assertTrue(parser.is_source_start())
         self.assertTrue(parser.is_line_start())
@@ -240,7 +240,7 @@ class TdopParserTest(unittest.TestCase):
         self.assertFalse(parser.is_line_start())
 
         parser.advance()
-        self.assertEqual(parser.token.value_token, 8)
+        self.assertEqual(parser.token.value, 8)
         self.assertEqual(parser.position, (2, 2))
         self.assertFalse(parser.is_source_start())
         self.assertTrue(parser.is_line_start())
@@ -268,7 +268,7 @@ class TdopParserTest(unittest.TestCase):
         parser.tokens = iter(parser.tokenizer.finditer(parser.source))
         parser.advance()
         self.assertEqual(parser.next_token.symbol, '(integer)')
-        self.assertEqual(parser.next_token.value_token, 5)
+        self.assertEqual(parser.next_token.value, 5)
         parser.advance_until('+')
         self.assertEqual(parser.next_token.symbol, '+')
 
@@ -277,7 +277,7 @@ class TdopParserTest(unittest.TestCase):
         parser.tokens = iter(parser.tokenizer.finditer(parser.source))
         parser.advance()
         self.assertEqual(parser.next_token.symbol, '(integer)')
-        self.assertEqual(parser.next_token.value_token, 5)
+        self.assertEqual(parser.next_token.value, 5)
         parser.advance_until('*')
         self.assertEqual(parser.next_token.symbol, '(end)')
 
@@ -286,7 +286,7 @@ class TdopParserTest(unittest.TestCase):
         parser.tokens = iter(parser.tokenizer.finditer(parser.source))
         parser.advance()
         self.assertEqual(parser.next_token.symbol, '(integer)')
-        self.assertEqual(parser.next_token.value_token, 5)
+        self.assertEqual(parser.next_token.value, 5)
 
         with self.assertRaises(ParseError) as ec:
             parser.advance_until('UNKNOWN')

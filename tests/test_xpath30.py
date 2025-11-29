@@ -45,6 +45,7 @@ else:
 from elementpath import select, XPathContext, MissingContextError, datatypes, XPathFunction
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.etree import is_etree_element, is_lxml_etree_document, is_etree_document
+from elementpath.sequences import XSequence
 from elementpath.xpath_nodes import ElementNode, DocumentNode
 from elementpath.xpath3 import XPath30Parser
 from elementpath.xpath30.xpath30_helpers import PICTURE_PATTERN, \
@@ -686,19 +687,19 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         document = self.etree.ElementTree(root)
         context = XPathContext(root=document)
         nodes = self.parser.parse('fn:innermost(.)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIs(nodes[0], context.root)
 
         context = XPathContext(root=root)
         nodes = self.parser.parse('fn:innermost(.)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIs(nodes[0], context.root)
 
         context = XPathContext(root=document, variables={'nodes': [root, document]})
         nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIsInstance(nodes[0], ElementNode)
         self.assertIs(nodes[0].value, root)
@@ -709,7 +710,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             root=document, variables={'nodes': [root, document, root[0], root[0]]}
         )
         nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIs(nodes[0].value, root[0])
 
@@ -718,7 +719,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             variables={'nodes': [document, root[0][0], root, document, root[0], root[1]]}
         )
         nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 2)
         self.assertIs(nodes[0].value, root[0][0])
         self.assertIs(nodes[1].value, root[1])
@@ -739,19 +740,19 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         document = self.etree.ElementTree(root)
         context = XPathContext(root=document)
         nodes = self.parser.parse('fn:outermost(.)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIs(nodes[0], context.root)
 
         context = XPathContext(root=root)
         nodes = self.parser.parse('fn:outermost(.)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIs(nodes[0], context.root)
 
         context = XPathContext(root=document, variables={'nodes': [root, document]})
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIsInstance(nodes[0], DocumentNode)
         self.assertIs(nodes[0].value, document)
@@ -764,7 +765,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         )
 
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIsInstance(nodes[0], DocumentNode)
         self.assertIs(nodes[0].value, document)
@@ -774,7 +775,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             variables={'nodes': [document, root[0][0], root, document, root[0], root[1]]}
         )
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIsInstance(nodes[0], DocumentNode)
         self.assertIs(nodes[0].value, document)
@@ -783,7 +784,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             root=document, variables={'nodes': [root[0][0], root[1], root[0]]}
         )
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 2)
         self.assertIs(nodes[0].value, root[0])
         self.assertIs(nodes[1].value, root[1])
@@ -806,7 +807,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         nodes_arg = [root, document, root[0], document]
         nodes = fn_outermost(nodes_arg, context=context)
 
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIsInstance(nodes[0], DocumentNode)
         self.assertIs(nodes[0].value, document)
@@ -814,7 +815,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         nodes_arg = [document, root[0][0], root, document, root[0], root[1]]
         nodes = fn_outermost(nodes_arg, context=context)
 
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 1)
         self.assertIsInstance(nodes[0], DocumentNode)
         self.assertIs(nodes[0].value, document)
@@ -822,7 +823,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         nodes_arg = [root[0][0], root[1], root[0]]
         nodes = fn_outermost(nodes_arg, context=context)
 
-        self.assertIsInstance(nodes, list)
+        self.assertIsInstance(nodes, XSequence)
         self.assertEqual(len(nodes), 2)
         self.assertIs(nodes[0].value, root[0])
         self.assertIs(nodes[1].value, root[1])

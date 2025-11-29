@@ -7,9 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from collections.abc import MutableSequence
+from collections.abc import Sequence
 from types import MappingProxyType
-from typing import Any
+from typing import Any, overload, TypeVar
 
 from .any_types import AtomicTypeMeta, AnySimpleType, AnyAtomicType
 from .untyped import UntypedAtomic
@@ -18,16 +18,18 @@ from .string import NMToken, Idref, Entity
 __all__ = ['builtin_list_types', 'ListType', 'NMTokens', 'Idrefs', 'Entities']
 
 
-_builtin_list_types: dict[str, type] = {}
+_builtin_list_types: 'dict[str, AtomicTypeMeta]' = {}
 builtin_list_types = MappingProxyType(_builtin_list_types)
 """Registry of builtin list types by expanded name."""
+
+T = TypeVar('T', bound=AnyAtomicType)
 
 
 class ListTypeMeta(AtomicTypeMeta):
     types_map = _builtin_list_types
 
 
-class ListType(MutableSequence, AnySimpleType, metaclass=ListTypeMeta):
+class ListType(Sequence[AnyAtomicType], AnySimpleType, metaclass=ListTypeMeta):
     value: list[AnyAtomicType]
     item_type: type[AnyAtomicType]
 
@@ -38,20 +40,17 @@ class ListType(MutableSequence, AnySimpleType, metaclass=ListTypeMeta):
         self.value = value
         self.item_type = item_type
 
-    def __getitem__(self, index: int) -> AnyAtomicType:
+    @overload
+    def __getitem__(self, index: int) -> AnyAtomicType: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> list[AnyAtomicType]: ...
+
+    def __getitem__(self, index: int | slice) -> AnyAtomicType | list[AnyAtomicType]:
         return self.value[index]
-
-    def __setitem__(self, index: int, value: AnyAtomicType) -> None:
-        self.value[index] = value
-
-    def __delitem__(self, index: int) -> None:
-        del self.value[index]
 
     def __len__(self) -> int:
         return len(self.value)
-
-    def insert(self, index: int, value: AnyAtomicType) -> None:
-        self.value.insert(index, value)
 
     @classmethod
     def validate(cls, obj: object) -> None:
@@ -65,7 +64,7 @@ class ListType(MutableSequence, AnySimpleType, metaclass=ListTypeMeta):
                 cls.item_type.validate(item)
 
     @classmethod
-    def decode(cls, value: Any) -> list['AnyAtomicType']:
+    def decode(cls, value: Any) -> list[AnyAtomicType]:
         if isinstance(value, UntypedAtomic):
             values = value.value.split() or ['']
         elif isinstance(value, str):
@@ -93,7 +92,7 @@ class NMTokens(ListType):
 class Idrefs(ListType):
     name = 'IDREFS'
     items: list[Idref]
-    item_type: type[Idref] = NMToken
+    item_type: type[Idref] = Idref
 
 
 class Entities(ListType):

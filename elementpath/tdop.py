@@ -158,7 +158,7 @@ class Token(MutableSequence[TK]):
     label: Union[str, MultiLabel] = 'symbol'  # the label, that usually means a class of tokens.
     pattern: Optional[str] = None  # a custom regex pattern for building the tokenizer
 
-    __slots__ = '_items', 'parser', 'value', 'span'
+    __slots__ = '_items', 'parser', 'value', 'span', '__dict__'
 
     _items: list[TK]
     parser: 'Parser[Token[TK]]'
@@ -438,7 +438,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
     """
     Parser class for implementing a Top-Down Operator Precedence parser.
 
-    :cvar symbol_table: a dictionary that stores the token classes defined for the language.
+    :cvar   symbol_table: a dictionary that stores the token classes defined for the language.
     :cvar token_base_class: the base class for creating language's token classes.
     :cvar tokenizer: the language tokenizer compiled regexp.
     """
@@ -804,7 +804,13 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         token_class = cls.register(symbol, label='operator', lbp=bp, rbp=bp)
 
         def bind(func: Callable[..., Any]) -> Callable[..., Any]:
-            method_name = func.__name__.partition('_')[0]
+            if '__' in func.__name__:
+                method_name = func.__name__.partition('__')[0]
+            elif func.__name__[0] != '_':
+                method_name = func.__name__.partition('_')[0]
+            else:
+                method_name = f"_{func.__name__[1:].partition('_')[0]}"
+
             if not callable(getattr(token_class, method_name)):
                 raise TypeError(f"{method_name!r} is not a method of {token_class}")
             setattr(token_class, method_name, func)

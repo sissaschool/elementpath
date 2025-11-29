@@ -33,6 +33,7 @@ from elementpath.datatypes import builtin_atomic_types, DateTime, Date, Date10, 
     Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.collations import get_locale_category
+from elementpath.sequences import XSequence
 from elementpath.sequence_types import is_instance
 from elementpath.xpath_tokens import ProxyToken
 
@@ -1423,7 +1424,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_external_function_arguments__issue_92(self):
 
         def select_first(nodes):
-            if not isinstance(nodes, list):
+            if not isinstance(nodes, XSequence):
                 return nodes
             return nodes[0]
 
@@ -1436,7 +1437,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         )
         self.assertEqual(fn_select_first.nargs, 1)
 
-        xml_data = '<container>\n  <test/>\n  <test/></container>'
+        xml_data = '<container>\n  <test a="1"/>\n  <test/></container>'
         root = self.etree.XML(xml_data)
 
         expression = "tst:select-first(//test)"
@@ -1504,8 +1505,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         context = XPathContext(root_node, item=date_node)
         result = token.get_results(context)
 
-        assert len(result) == 1
-        assert result[-1] == Date10(2018, 1, 23)
+        assert result == Date10(2018, 1, 23)
 
     def test_proxy_token_disambiguation__issue_078(self):
         root = self.etree.XML(dedent('''\

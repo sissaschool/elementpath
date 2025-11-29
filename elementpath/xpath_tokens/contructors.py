@@ -7,12 +7,13 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import Any, Optional, Union
+from typing import Any
 
 import elementpath.aliases as ta
-import elementpath.datatypes as dt
 
 from elementpath.exceptions import ElementPathError
+from elementpath.datatypes import  AnyAtomicType, ListType, UntypedAtomic
+from elementpath.sequences import empty_sequence
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from .functions import XPathFunction
 
@@ -21,7 +22,7 @@ class XPathConstructor(XPathFunction):
     """
     A token for processing XPath 2.0+ constructors.
     """
-    type_class: type[dt.AnyAtomicType | dt.ListType]
+    type_class: type[AnyAtomicType | ListType]
 
     @staticmethod
     def cast(value: Any) -> ta.AtomicType:
@@ -45,24 +46,23 @@ class XPathConstructor(XPathFunction):
                 self.to_partial_function()
             return self
 
-    def evaluate(self, context: Optional[XPathContext] = None) \
-            -> Union[list[None], ta.AtomicType]:
+    def evaluate(self, context: XPathContext | None = None) -> ta.OneAtomicOrEmpty:
         if self.context is not None:
             context = self.context
 
         arg = self.data_value(self.get_argument(context))
         if arg is None:
-            return dt.empty_sequence
+            return empty_sequence()
         elif arg == '?' and self[0].symbol == '?':
             raise self.error('XPTY0004', "cannot evaluate a partial function")
 
         try:
-            if isinstance(arg, dt.UntypedAtomic):
+            if isinstance(arg, UntypedAtomic):
                 return self.cast(arg.value)
             return self.cast(arg)
         except ElementPathError:
             raise
         except (TypeError, ValueError) as err:
             if isinstance(context, XPathSchemaContext):
-                return dt.empty_sequence
+                return empty_sequence()
             raise self.error('FORG0001', err) from None

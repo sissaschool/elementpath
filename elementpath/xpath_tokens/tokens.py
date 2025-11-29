@@ -11,11 +11,12 @@
 from collections.abc import Iterator
 from typing import Literal
 
-from elementpath.helpers import collapse_white_spaces
-
 import elementpath.aliases as ta
-import elementpath.datatypes as dt
-import elementpath.namespaces as ns
+
+from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XMLNS_NAMESPACE
+from elementpath.sequences import XSequence
+from elementpath.datatypes import AnyAtomicType, AnyURI
+from elementpath.helpers import collapse_white_spaces
 
 from .base import XPathToken
 
@@ -25,17 +26,17 @@ class ValueToken(XPathToken):
     A dummy token for encapsulating a value.
     """
     symbol = '(value)'
-    value: dt.AnyAtomicType
+    value: AnyAtomicType
 
     @property
     def source(self) -> str:
         return str(self.value)
 
-    def evaluate(self, context: ta.ContextType = None) -> dt.AnyAtomicType:
+    def evaluate(self, context: ta.ContextType = None) -> AnyAtomicType:
         return self.value
 
-    def select(self, context: ta.ContextType = None) -> Iterator[dt.AnyAtomicType]:
-        if isinstance(self.value, dt.XPathSequence):
+    def select(self, context: ta.ContextType = None) -> Iterator[AnyAtomicType]:
+        if isinstance(self.value, XSequence):
             yield from self.value
         else:
             yield self.value
@@ -56,11 +57,11 @@ class ProxyToken(XPathToken):
             # Not a function call or reference, returns a name.
             return self.as_name()
 
-        lookup_name = f'{{{self.namespace or ns.XPATH_FUNCTIONS_NAMESPACE}}}{self.value}'
+        lookup_name = f'{{{self.namespace or XPATH_FUNCTIONS_NAMESPACE}}}{self.value}'
         try:
             token = self.parser.symbol_table[lookup_name](self.parser)
         except KeyError:
-            if self.namespace == ns.XSD_NAMESPACE:
+            if self.namespace == XSD_NAMESPACE:
                 msg = f'unknown constructor function {self.symbol!r}'
             else:
                 msg = f'unknown function {self.symbol!r}'
@@ -91,7 +92,7 @@ class NameToken(XPathToken):
         elif self.parser.next_token.symbol == '(':
             if self.parser.version >= '2.0':
                 pass  # XP30+ has led() for '(' operator that can check this
-            elif self.namespace == ns.XSD_NAMESPACE:
+            elif self.namespace == XSD_NAMESPACE:
                 raise self.error('XPST0017', 'unknown constructor function {!r}'.format(self.value))
             elif self.namespace or self.value not in self.parser.RESERVED_FUNCTION_NAMES:
                 raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
@@ -189,12 +190,12 @@ class PrefixedReferenceToken(XPathToken):
     def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
         if self[1].label.endswith('function'):
             return self[1].evaluate(context)
-        return [x for x in self.select(context)]
+        return XSequence([x for x in self.select(context)])
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):
             value = self[1].evaluate(context)
-            if isinstance(value, dt.XPathSequence):
+            if isinstance(value, XSequence):
                 yield from value
             elif value is not None:
                 yield value
@@ -228,13 +229,13 @@ class ExpandedNameToken(XPathToken):
             namespace = collapse_white_spaces(namespace)
 
         try:
-            dt.AnyURI(namespace)
+            AnyURI(namespace)
         except ValueError as err:
             msg = f"invalid URI in an EQName: {str(err)}"
             raise self.error('XQST0046', msg) from None
 
-        if namespace == ns.XMLNS_NAMESPACE:
-            msg = f"cannot use the URI {ns.XMLNS_NAMESPACE!r}!r in an EQName"
+        if namespace == XMLNS_NAMESPACE:
+            msg = f"cannot use the URI {XMLNS_NAMESPACE!r}!r in an EQName"
             raise self.error('XQST0070', msg)
 
         self.parser.advance()
@@ -256,7 +257,7 @@ class ExpandedNameToken(XPathToken):
     def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
         if self[1].label.endswith('function'):
             return self[1].evaluate(context)
-        return [x for x in self.select(context)]
+        return XSequence([x for x in self.select(context)])
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):

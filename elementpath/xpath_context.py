@@ -12,23 +12,22 @@ import importlib
 from collections.abc import Iterator, Sequence, Callable
 from functools import cached_property
 from types import ModuleType
-from typing import TYPE_CHECKING, cast, Any, Optional, Union
+from typing import cast, Any, Optional, Union, Never, NoReturn
 from warnings import deprecated
 
-from elementpath.aliases import ChildNodeType, RootNodeType, RootArgType, ItemType, \
-    ValueType, ItemArgType, FunctionArgType, CollectionArgType, NamespacesType, InputType
+import elementpath.aliases as ta
+
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.tdop import Token
+from elementpath.sequences import XSequence, empty_sequence
 from elementpath.datatypes import AnyAtomicType, Timezone, Language
 from elementpath.etree import is_etree_element, is_etree_element_instance, is_etree_document
 from elementpath.xpath_nodes import XPathNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode
 from elementpath.tree_builders import get_node_tree
 
-if TYPE_CHECKING:
-    from elementpath.xpath_tokens import XPathToken, XPathAxis  # noqa: F401
-    from elementpath.schema_proxy import AbstractSchemaProxy  # noqa: F401
+
 
 __all__ = ['XPathContext', 'XPathSchemaContext']
 
@@ -83,42 +82,42 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _etree: Optional[ModuleType] = None
-    _schema: Optional['AbstractSchemaProxy'] = None
-    root: Optional[RootNodeType]
-    document: Optional[DocumentNode]
-    item: ItemType
+    _schema: ta.SchemaProxyType | None = None
+    root: ta.RootNodeType | None
+    document: DocumentNode | None
+    item: ta.ItemType
 
-    variables: dict[str, ValueType]
-    documents: Optional[dict[str, DocumentNode]] = None
-    collections: Optional[dict[str, list[XPathNode]]] = None
-    default_collection: Optional[list[XPathNode]] = None
+    variables: dict[str, ta.ValueType]
+    documents: dict[str, DocumentNode] | None = None
+    collections: dict[str, list[XPathNode]] | None = None
+    default_collection: list[XPathNode] | None = None
 
     __slots__ = ('document', 'root', 'item', 'namespaces', 'size',
                  'position', 'variables', 'axis', '__dict__')
 
     def __init__(self,
-                 root: Optional[RootArgType] = None,
-                 namespaces: Optional[NamespacesType] = None,
-                 uri: Optional[str] = None,
-                 fragment: Optional[bool] = None,
-                 item: Optional[ItemArgType] = None,
+                 root: ta.RootArgType | None = None,
+                 namespaces: ta.NamespacesType | None = None,
+                 uri: str | None = None,
+                 fragment: bool | None = None,
+                 item: ta.ItemArgType | None = None,
                  position: int = 1,
                  size: int = 1,
-                 axis: Optional[str] = None,
-                 schema: Optional['AbstractSchemaProxy'] = None,
-                 variables: Optional[dict[str, InputType[ItemArgType]]] = None,
-                 current_dt: Optional[datetime.datetime] = None,
-                 timezone: Optional[Union[str, Timezone]] = None,
-                 documents: Optional[dict[str, RootArgType]] = None,
-                 collections: Optional[dict[str, CollectionArgType]] = None,
-                 default_collection: CollectionArgType = None,
-                 text_resources: Optional[dict[str, str]] = None,
-                 resource_collections: Optional[dict[str, list[str]]] = None,
-                 default_resource_collection: Optional[str] = None,
+                 axis: str | None = None,
+                 schema: ta.SchemaProxyType | None = None,
+                 variables: dict[str, ta.VariableValueType] | None = None,
+                 current_dt: datetime.datetime | None = None,
+                 timezone: Union[str, Timezone] | None = None,
+                 documents: dict[str, ta.RootArgType] | None = None,
+                 collections: dict[str, ta.CollectionArgType] | None = None,
+                 default_collection: ta.CollectionArgType = None,
+                 text_resources: dict[str, str] | None = None,
+                 resource_collections: dict[str, list[str]] | None = None,
+                 default_resource_collection: str | None = None,
                  allow_environment: bool = False,
-                 default_language: Optional[str] = None,
-                 default_calendar: Optional[str] = None,
-                 default_place: Optional[str] = None) -> None:
+                 default_language: str | None = None,
+                 default_calendar: str | None = None,
+                 default_place: str | None = None) -> None:
 
         if namespaces:
             self.namespaces = {k: v for k, v in namespaces.items()}
@@ -224,11 +223,11 @@ class XPathContext:
             return importlib.import_module('xml.etree.ElementTree')
 
     @property
-    def schema(self) -> Optional['AbstractSchemaProxy']:
+    def schema(self) -> ta.SchemaProxyType | None:
         return self._schema
 
     @schema.setter
-    def schema(self, schema: Optional['AbstractSchemaProxy']) -> None:
+    def schema(self, schema: ta.SchemaProxyType | None) -> None:
         self._schema = schema
         if schema is None:
             if self.root is not None:
@@ -246,7 +245,7 @@ class XPathContext:
             msg = f"{schema!r} is not an instance of AbstractSchemaProxy"
             raise ElementPathTypeError(msg)
 
-    def get_root(self, node: Any) -> Optional[RootNodeType]:
+    def get_root(self, node: Any) -> ta.RootNodeType | None:
         if isinstance(self.root, (DocumentNode, ElementNode)):
             if any(node is x for x in self.root.iter_lazy()):
                 return self.root
@@ -275,10 +274,10 @@ class XPathContext:
         else:
             return isinstance(self.item, ElementNode)
 
-    def get_context_item(self, item: ItemArgType,
-                         namespaces: Optional[NamespacesType] = None,
+    def get_context_item(self, item: ta.ItemArgType,
+                         namespaces: ta.NamespacesType | None = None,
                          uri: Optional[str] = None,
-                         fragment: Optional[bool] = None) -> ItemType:
+                         fragment: Optional[bool] = None) -> ta.ItemType:
         """
         Checks the item and returns an item suitable for XPath processing.
         For XML trees and elements try a match with an existing node in the
@@ -313,7 +312,7 @@ class XPathContext:
                 else:
                     return ProcessingInstructionNode(cast(ElementProtocol, item))
         elif not isinstance(item, Token) or not callable(item):
-            msg = f"Unexpected type {type(item)} for context item"
+            msg = f"Unexpected type {type(item)} for context item: {item!r}"
             raise ElementPathTypeError(msg)
         else:
             return item
@@ -325,14 +324,17 @@ class XPathContext:
             fragment=fragment
         )
 
-    def get_value(self, item: FunctionArgType, *args: Any, **kwargs: Any) -> ValueType:
+    def get_value(self, item: ta.FunctionArgType, *args: Any, **kwargs: Any) -> ta.ValueType:
         if item is None:
-            return []
-        elif not isinstance(item, (list, tuple)):
+            return empty_sequence()
+        elif not isinstance(item, (list, tuple, XSequence)):
             return self.get_context_item(item, *args, **kwargs)
-        return [self.get_context_item(x, *args, **kwargs) for x in item]
+        elif not item:
+            return empty_sequence()
+        else:
+            return XSequence([self.get_context_item(x, *args, **kwargs) for x in item])
 
-    def get_collection(self, items: CollectionArgType) -> list[XPathNode]:
+    def get_collection(self, items: ta.CollectionArgType) -> list[XPathNode]:
         if items is None:
             return []
         elif isinstance(items, (list, tuple)):
@@ -342,8 +344,8 @@ class XPathContext:
             return [item] if isinstance(item, XPathNode) else []
 
     @deprecated("inner_focus_select() is deprecated and will be removed in future versions.")
-    def inner_focus_select(self, token: 'XPathToken',
-                           predicate: bool = False) -> Iterator[ta.ItemType]:
+    def inner_focus_select(self, token: ta.XPathTokenType, predicate: bool = False) \
+            -> Iterator[ta.ItemType]:
         return token.select_with_focus(self)
 
     def iter_product(self, selectors: Sequence[Callable[[Any], Any]],
@@ -454,7 +456,7 @@ class XPathContext:
 
             self.item, self.axis = _status
 
-    def iter_parent(self) -> Iterator[RootNodeType]:
+    def iter_parent(self) -> Iterator[ta.RootNodeType]:
         """Iterator for 'parent' reverse axis and '..' shortcut."""
         if isinstance(self.item, XPathNode):
 
@@ -469,7 +471,7 @@ class XPathContext:
 
                     self.item, self.axis = status
 
-    def iter_siblings(self, axis: Optional[str] = None) -> Iterator[ChildNodeType]:
+    def iter_siblings(self, axis: str | None = None) -> Iterator[ta.ChildNodeType]:
         """
         Iterator for 'following-sibling' forward axis and 'preceding-sibling' reverse axis.
 
@@ -547,9 +549,9 @@ class XPathContext:
 
             self.item, self.axis = status
 
-    def iter_preceding(self) -> Iterator[Union[DocumentNode, ChildNodeType]]:
+    def iter_preceding(self) -> Iterator[Union[DocumentNode, ta.ChildNodeType]]:
         """Iterator for 'preceding' reverse axis."""
-        ancestors: set[RootNodeType]
+        ancestors: set[ta.RootNodeType]
         item: XPathNode
 
         if isinstance(self.item, XPathNode):
@@ -575,7 +577,7 @@ class XPathContext:
 
                     self.item, self.axis = status
 
-    def iter_followings(self) -> Iterator[ChildNodeType]:
+    def iter_followings(self) -> Iterator[ta.ChildNodeType]:
         """Iterator for 'following' forward axis."""
         if isinstance(self.item, ElementNode):
             status = self.item, self.axis
@@ -606,11 +608,11 @@ class XPathSchemaContext(XPathContext):
     root: ElementNode
 
     @property
-    def schema(self) -> Optional['AbstractSchemaProxy']:
+    def schema(self) -> ta.SchemaProxyType | None:
         return self._schema
 
     @schema.setter
-    def schema(self, schema: Optional['AbstractSchemaProxy']) -> None:
+    def schema(self, schema: ta.SchemaProxyType | None) -> None:
         self._schema = schema
 
     def iter_matching_nodes(self, name: str, default_namespace: Optional[str] = None) \

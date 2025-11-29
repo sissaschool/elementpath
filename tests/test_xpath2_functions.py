@@ -820,9 +820,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
         self.check_selector("fn:resolve-QName('C3', .)", root,
-                            [QName('', 'C3')], namespaces={'': ''})
+                            QName('', 'C3'), namespaces={'': ''})
         self.check_selector("fn:resolve-QName('xml:lang', .)", root,
-                            [QName(XML_NAMESPACE, 'lang')])
+                            QName(XML_NAMESPACE, 'lang'))
 
     def test_namespace_uri_for_prefix_function(self):
 
@@ -1094,11 +1094,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_string_and_data_functions(self):
         root = self.etree.XML('<A id="10"><B1> a text, <C1 /><C2>an inner text, </C2>a tail, </B1>'
                               '<B2 /><B3>an ending text </B3></A>')
+        result = ' a text, an inner text, a tail, an ending text '
 
-        self.check_selector("/*/string()", root,
-                            [' a text, an inner text, a tail, an ending text '])
-        self.check_selector("string(.)", root, ' a text, an inner text, a tail, an ending text ')
-        self.check_selector("data(.)", root, ' a text, an inner text, a tail, an ending text ')
+        self.check_selector("/*/string()", root, result)
+        self.check_selector("string(.)", root, result)
+        self.check_selector("data(.)", root, result)
         self.check_selector("data(.)", root, UntypedAtomic)
         self.check_selector("data(())", root, [])
         self.check_value("string()", MissingContextError)

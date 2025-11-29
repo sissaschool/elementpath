@@ -17,8 +17,11 @@ if TYPE_CHECKING:
     from .protocols import XsdElementProtocol, XsdAttributeProtocol  # noqa: F401
     from .protocols import DocumentType, ElementType, SchemaElemType  # noqa: F401
     from .datatypes import AnyAtomicType, AbstractDateTime  # noqa: F401
-    from .datatypes import Duration, UntypedAtomic  # noqa: F401
-    from .datatypes import XPathSequence, SingletonSequence, EmptySequence  # noqa: F401
+    from .datatypes import Date, DateTime, Time, GregorianYear, GregorianMonth  # noqa: F401
+    from .datatypes import GregorianDay, GregorianYearMonth, GregorianMonthDay  # noqa: F401
+    from .datatypes import DateTimeStamp, Duration, UntypedAtomic  # noqa: F401
+    from .schema_proxy import AbstractSchemaProxy  # noqa: F401
+    from .sequences import XSequence  # noqa: F401
     from .xpath_nodes import XPathNode, ElementNode, AttributeNode  # noqa: F401
     from .xpath_nodes import TextNode, DocumentNode, NamespaceNode  # noqa: F401
     from .xpath_nodes import CommentNode, ProcessingInstructionNode  # noqa: F401
@@ -41,24 +44,25 @@ AnyNsmapType = Union[NamespacesType, NsmapType, None]  # for composition and fun
 AtomicType = Union[str, int, float, Decimal, bool, 'AnyAtomicType']
 NumericType = Union[int, float, Decimal]
 ArithmeticType = Union[NumericType, 'AbstractDateTime', 'Duration', 'UntypedAtomic']
+DateTimeType = Union[
+    'DateTime', 'Date', 'Time', 'GregorianYear', 'GregorianMonth',
+    'GregorianDay', 'GregorianYearMonth', 'GregorianMonthDay'
+]
 
 ###
 # Sequence and item/value types (specifics and generics)
-EmptySequenceType = Union['EmptySequence', list[NoReturn], tuple[()]]
+EmptySequenceType = Union['XSequence[NoReturn]']
 ItemType = Union['XPathNode', AtomicType, 'XPathFunction']
 
 _T = TypeVar('_T', bound=ItemType)
 
-SequenceType = Union['XPathSequence[_T]', 'SingletonSequence[_T]', 'EmptySequence']
-
-OneOrEmpty = Union[_T, 'SingletonSequence[_T]', EmptySequenceType]
-OneOrMore = Union[_T, 'SingletonSequence[_T]', 'XPathSequence[_T]']
-AnyOrEmpty = Union[_T, 'SequenceType[_T]']
+OneOrEmpty = Union[_T, list[_T], 'XSequence[_T]', 'EmptySequenceType']
+OneOrMore = Union[_T, list[_T], 'XSequence[_T]']
+AnyOrEmpty = Union[_T, list[_T], 'XSequence[_T]', 'EmptySequence']
 
 SequenceArgType = Union[
     Iterator[_T], list[_T], list[NoReturn], tuple[_T, ...], tuple[_T], tuple[()]
 ]
-InputType = Union[None, _T, list[_T], tuple[_T, ...]]
 
 OneAtomicOrEmpty = OneOrEmpty[AtomicType]
 OneNumericOrEmpty = OneOrEmpty[NumericType]
@@ -75,7 +79,8 @@ AnyNumericOrEmpty = AnyOrEmpty[NumericType]
 AnyArithmeticOrEmpty = AnyOrEmpty[ArithmeticType]
 AnyItemsOrEmpty = AnyOrEmpty[ItemType]
 
-ValueType = Union[ItemType, 'SequenceType[ItemType]']  # equivalent to AnyItemsOrEmpty
+ValueType = Union[ItemType, list[ItemType], 'EmptySequence']  # equivalent to AnyItemsOrEmpty
+ListItemType = Union[ItemType, list[ItemType], list[NoReturn]]
 ResultType = Union[
     AtomicType, 'ElementProtocol', 'XsdAttributeProtocol', tuple[Optional[str], str],
     'DocumentProtocol', 'DocumentNode', 'XPathFunction', object
@@ -92,7 +97,6 @@ ParserClassType = Union[
 ]
 NargsType = Optional[Union[int, tuple[int, Optional[int]]]]
 ClassCheckType = Union[type[Any], tuple[type[Any], ...]]
-
 
 # XPath nodes
 TypedNodeType = Union['AttributeNode', 'ElementNode']
@@ -111,6 +115,12 @@ ChildNodeType = Union['TextNode', TaggedNodeType]
 ContextType = Union['XPathContext', 'XPathSchemaContext', None]
 RootArgType = Union['DocumentType', 'ElementType', 'SchemaElemType', RootNodeType]
 ItemArgType = Union[ItemType, 'ElementProtocol', 'DocumentProtocol']
-FunctionArgType = Union[InputType[ItemArgType], ValueType]
+SchemaProxyType = Union['AbstractSchemaProxy']
+
+_S = TypeVar('_S', bound=ItemArgType)
+
+InputType = Union[None, _S, list[_S], list[NoReturn], tuple[_S, ...], tuple[_S], tuple[()]]
+VariableValueType = InputType[ItemArgType]
+FunctionArgType = Union[VariableValueType, ValueType]
 NodeArgType = Union['XPathNode', 'ElementProtocol', 'DocumentProtocol']
-CollectionArgType = Optional[InputType[NodeArgType]]
+CollectionArgType = InputType[NodeArgType]

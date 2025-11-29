@@ -14,10 +14,11 @@ from collections.abc import Iterator, Iterable
 from typing import cast, Union
 
 import elementpath.aliases as ta
-from elementpath.datatypes.sequences import iter_sequence
+
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
-from elementpath.xpath_tokens import XPathToken, ProxyToken, \
-    XPathFunction, XPathMap, XPathArray
+from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, \
+    XPathMap, XPathArray
+from elementpath.sequences import XSequence
 
 from .xpath31_parser import XPath31Parser
 
@@ -32,7 +33,7 @@ register('map', bp=90, label=('kind test', 'map'), bases=(XPathFunction,),
 
 
 @method('map')
-def nud_map_sequence_type_or_constructor(self: XPathFunction) \
+def nud__map_sequence_type_or_constructor(self: XPathFunction) \
         -> Union[XPathToken, XPathMap, XPathArray]:
     if self.parser.next_token.symbol == '{':
         self.parser.token = XPathMap(self.parser).nud()
@@ -64,7 +65,7 @@ register('array', bp=90, label=('kind test', 'array'), bases=(XPathFunction,),
 
 
 @method('array')
-def nud_sequence_type_or_curly_array_constructor(self: XPathFunction) -> XPathToken:
+def nud__sequence_type_or_curly_array_constructor(self: XPathFunction) -> XPathToken:
     if self.parser.next_token.symbol == '{':
         self.parser.token = XPathArray(self.parser).nud()
         return self.parser.token
@@ -85,7 +86,7 @@ def nud_sequence_type_or_curly_array_constructor(self: XPathFunction) -> XPathTo
 
 @method('map')
 @method('array')
-def select_map_or_array_kind_test(self: XPathFunction, context: ta.ContextType = None) \
+def select__map_or_array_kind_test(self: XPathFunction, context: ta.ContextType = None) \
         -> Iterator[Union[XPathMap, XPathArray]]:
     if context is None:
         raise self.missing_context()
@@ -98,7 +99,7 @@ def select_map_or_array_kind_test(self: XPathFunction, context: ta.ContextType =
 ###
 # Square array constructor (pushed lazy)
 @method('[')
-def nud_square_array_constructor(self: XPathToken) -> XPathToken:
+def nud__square_array_constructor(self: XPathToken) -> XPathToken:
     if self.parser.version < '3.1':
         raise self.wrong_syntax()
 
@@ -174,13 +175,16 @@ class LookupOperatorToken(XPathToken):
 
         # flatten sequences, don't flatten arrays.
         def flatten(v: ta.ValueType) -> Iterator[ta.ItemType]:
-            if isinstance(v, list):
+            if isinstance(v, XSequence):
                 yield from v
             else:
                 yield v
 
         if not self:
-            yield from iter_sequence(self.value)
+            if isinstance(self.value, XSequence):
+                yield from self.value
+            else:
+                yield self.value
             return
 
         items: Iterable[ta.ItemType]
@@ -219,7 +223,7 @@ class LookupOperatorToken(XPathToken):
                     for value in self[-1].select(context):
                         yield from flatten(item(self.data_value(value), context=context))
 
-            elif not item and isinstance(item, list):
+            elif item == ():
                 continue
             else:
                 raise self.error('XPTY0004')
@@ -229,7 +233,7 @@ XPath31Parser.symbol_table['?'] = LookupOperatorToken
 
 
 @method('=>', bp=67)
-def led_arrow_operator(self: XPathToken, left: XPathToken) -> XPathToken:
+def led__arrow_operator(self: XPathToken, left: XPathToken) -> XPathToken:
     next_token = self.parser.next_token
     if next_token.symbol == '$':
         self[:] = left, self.parser.expression(80)
@@ -256,7 +260,7 @@ def led_arrow_operator(self: XPathToken, left: XPathToken) -> XPathToken:
 
 
 @method('=>')
-def evaluate_arrow_operator(self: XPathToken, context: ta.ContextType = None) \
+def evaluate__arrow_operator(self: XPathToken, context: ta.ContextType = None) \
         -> ta.OneOrMore[ta.ItemType]:
     tokens = [self[0]]
     if self[2]:

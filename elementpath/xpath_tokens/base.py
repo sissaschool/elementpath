@@ -17,11 +17,15 @@ from itertools import product
 from typing import cast, ClassVar, Any, SupportsFloat, TYPE_CHECKING, TypeVar
 
 import elementpath.aliases as ta
-import elementpath.namespaces as ns
-import elementpath.datatypes as dt
 
+from elementpath.sequences import XSequence, empty_sequence
 from elementpath.exceptions import xpath_error, ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError
+from elementpath.namespaces import XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
+from elementpath.namespaces import XSD_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE
+from elementpath.datatypes import AnyAtomicType, AbstractDateTime, AnyURI, \
+    DayTimeDuration, Date, DateTime, DecimalProxy, Duration, Integer, QName, \
+    Timezone, UntypedAtomic
 from elementpath.tdop import Token, MultiLabel
 from elementpath.helpers import ordinal, get_double
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
@@ -31,8 +35,7 @@ if TYPE_CHECKING:
     from . import XPathFunction, XPathArray, XPathConstructor  # noqa: F401
     from . import NameToken, TokenRegistry  # noqa: F401
 
-
-_XSD_SPECIAL_TYPES = frozenset((ns.XSD_ANY_TYPE, ns.XSD_ANY_SIMPLE_TYPE, ns.XSD_ANY_ATOMIC_TYPE))
+_XSD_SPECIAL_TYPES = frozenset((XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE))
 _CHILD_AXIS_TOKENS = frozenset((
     '*', 'node', 'child', 'text', '(name)', ':', '[', 'document-node',
     'element', 'comment', 'processing-instruction', 'schema-element'
@@ -111,11 +114,11 @@ class XPathToken(Token[ta.XPathTokenType]):
             return 'if (%s) then %s else %s' % (self[0].source, self[1].source, self[2].source)
         elif symbol == 'instance':
             return '%s instance of %s' % (
-                self[0].source, ''.join(str(t.source) for t in self[1:])
+                self[0].source, ''.join(t.source for t in self[1:])
             )
         elif symbol in ('treat', 'cast', 'castable'):
             return '%s %s as %s' % (
-                self[0].source, symbol, ''.join(str(t.source) for t in self[1:])
+                self[0].source, symbol, ''.join(t.source for t in self[1:])
             )
         elif symbol == 'for':
             return 'for %s return %s' % (
@@ -175,20 +178,20 @@ class XPathToken(Token[ta.XPathTokenType]):
     # Evaluation and selectors methods
     def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
         """
-        Evaluate default method for XPath tokens.
+        Evaluation method for XPath tokens.
 
         :param context: The XPath dynamic context.
         """
-        return self.to_sequence([x for x in self.select(context)])
+        return XSequence([x for x in self.select(context)])
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         """
-        Select operator that generates XPath results.
+        Select operator that generates XPath results, expanding sequences.
 
         :param context: The XPath dynamic context.
         """
         item = self.evaluate(context)
-        if isinstance(item, dt.XPathSequence):
+        if isinstance(item, XSequence):
             yield from item
         else:
             yield item
@@ -196,22 +199,21 @@ class XPathToken(Token[ta.XPathTokenType]):
     def select_flatten(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         """A select that flattens XPath results, including arrays."""
         for item in self.select(context):
-            if isinstance(item, dt.XPathSequence):
-                yield from item
-            elif isinstance(item, XPathToken) and hasattr(item, 'iter_flatten'):
+            if isinstance(item, self.registry.array_token):
                 yield from item.iter_flatten(context)
             else:
                 yield item
 
     def select_sequence(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if context is None:
-            yield from self.select(None)
+            yield from self.select(context)
         else:
             axis = context.axis
             item = context.item
             context.axis = None
             try:
-                yield from self.select(context)
+                for context.item in self.select(context):
+                        yield context.item
             finally:
                 context.axis = axis
                 context.item = item
@@ -219,7 +221,8 @@ class XPathToken(Token[ta.XPathTokenType]):
     def select_with_focus(self, context: XPathContext) -> Iterator[ta.ItemType]:
         """Select item with an inner focus on dynamic context."""
         status = context.item, context.size, context.position, context.axis
-        results = [x for x in self.select_sequence(context)]
+        context.axis = None
+        results = [x for x in self.select(context)]
 
         context.axis = None
         context.size = len(results)
@@ -235,7 +238,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         :param context: the XPath dynamic context.
         """
         if context is None:
-            yield from cast(Iterator[ta.AtomicType], self.select(context))
+            yield from self.select(context)
         else:
             self.parser.check_variables(context.variables)
 
@@ -256,8 +259,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 else:
                     yield result.value
 
-    def get_results(self, context: ta.ContextType) \
-            -> list[ta.ResultType] | ta.AtomicType:
+    def get_results(self, context: ta.ContextType) -> list[ta.ResultType] | ta.AtomicType:
         """
         Returns results formatted according to XPath specifications.
 
@@ -266,36 +268,37 @@ class XPathToken(Token[ta.XPathTokenType]):
         generated by a literal or function token.
         """
         results: list[ta.ResultType]
-        item = None
+        has_node = False
+
         if context is None:
-            results = [x for x in cast(Iterator[ta.AtomicType], self.select(context))]
+            results = [x for x in self.select(context)]
         else:
             self.parser.check_variables(context.variables)
 
             results = []
+
             for item in self.select(context):
-                if not isinstance(item, XPathNode):
-                    results.append(item)
-                elif isinstance(item, NamespaceNode):
-                    if self.parser.compatibility_mode:
-                        results.append((item.prefix, item.uri))
+                if isinstance(item, XPathNode):
+                    has_node = True
+                    if isinstance(item, NamespaceNode):
+                        if self.parser.compatibility_mode:
+                            results.append((item.prefix, item.uri))
+                        else:
+                            results.append(item.uri)
+                    elif isinstance(item, DocumentNode):
+                        if item.is_extended:
+                            results.append(item)
+                        elif item is not context.document or item is context.root:
+                            results.append(item.value)
                     else:
-                        results.append(item.uri)
-                elif isinstance(item, DocumentNode):
-                    if item.is_extended:
-                        results.append(item)
-                    elif item is not context.document or item is context.root:
                         results.append(item.value)
+
+                elif not isinstance(item, (AnyAtomicType, self.registry.function_token)):
+                    raise ElementPathTypeError("unexpected XPath item type: {}".format(type(item)))
                 else:
-                    results.append(item.value)
+                    results.append(item)
 
-        if len(results) == 1 and not isinstance(item, (ElementNode, DocumentNode)):
-            if isinstance(item, (bool, int, float, Decimal)):
-                return item
-            elif self.label in ('function', 'literal'):
-                return cast(ta.AtomicType, results[0])
-
-        return results
+        return results if has_node or len(results) != 1 else results[0]
 
     ###
     # Helpers to get and validate arguments
@@ -426,15 +429,15 @@ class XPathToken(Token[ta.XPathTokenType]):
 
             if isinstance(value, cls):
                 return value
-            elif isinstance(value, dt.AnyURI) and issubclass(cls, str):
+            elif isinstance(value, AnyURI) and issubclass(cls, str):
                 return cls(value)
-            elif isinstance(value, dt.UntypedAtomic):
+            elif isinstance(value, UntypedAtomic):
                 try:
                     return cls(value)
                 except (TypeError, ValueError):
                     pass
 
-            if value == self.registry.empty_sequence:
+            if value == empty_sequence():
                 code = 'FOTY0012'
             else:
                 code = 'XPTY0004'
@@ -481,7 +484,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 value = item.compat_string_value
                 yield value
 
-        elif isinstance(item, dt.XPathSequence):
+        elif isinstance(item, XSequence):
             for v in item:
                 yield from self.atomize_item(v)
 
@@ -490,12 +493,12 @@ class XPathToken(Token[ta.XPathTokenType]):
                 raise self.error('FOTY0013', f"{item.label!r} has no typed value")
 
             for v in cast('XPathArray', item).iter_flatten():
-                if isinstance(v, dt.AnyAtomicType):
+                if isinstance(v, AnyAtomicType):
                     yield v
                 else:
                     yield from self.atomize_item(v)
 
-        elif isinstance(item, dt.AnyAtomicType):
+        elif isinstance(item, AnyAtomicType):
             yield cast(ta.AtomicType, item)
         elif isinstance(item, bytes):
             yield item.decode()
@@ -520,7 +523,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 raise self.error('XPTY0004', msg)
             first = False
         else:
-            if isinstance(value, dt.UntypedAtomic):
+            if isinstance(value, UntypedAtomic):
                 return str(value)
             else:
                 return value
@@ -567,10 +570,10 @@ class XPathToken(Token[ta.XPathTokenType]):
 
         for values in product(left_values, right_values):
             if any(isinstance(x, bool) for x in values):
-                if any(isinstance(x, (str, dt.Integer)) for x in values):
+                if any(isinstance(x, (str, Integer)) for x in values):
                     msg = "cannot compare {!r} and {!r}"
                     raise TypeError(msg.format(type(values[0]), type(values[1])))
-            elif any(isinstance(x, dt.Integer) for x in values) and \
+            elif any(isinstance(x, Integer) for x in values) and \
                     any(isinstance(x, str) for x in values):
                 msg = "cannot compare {!r} and {!r}"
                 raise TypeError(msg.format(type(values[0]), type(values[1])))
@@ -606,29 +609,29 @@ class XPathToken(Token[ta.XPathTokenType]):
         elif isinstance(op2, ElementNode):
             op2 = self._items[1].data_value(op2)
 
-        if isinstance(op1, dt.AbstractDateTime) and isinstance(op2, dt.AbstractDateTime):
+        if isinstance(op1, AbstractDateTime) and isinstance(op2, AbstractDateTime):
             if context is not None and context.timezone is not None:
                 if op1.tzinfo is None:
                     op1.tzinfo = context.timezone
                 if op2.tzinfo is None:
                     op2.tzinfo = context.timezone
         else:
-            if isinstance(op1, dt.UntypedAtomic):
+            if isinstance(op1, UntypedAtomic):
                 op1 = self.cast_to_double(op1.value)
                 if isinstance(op2, Decimal):
                     return op1, float(op2)
-            if isinstance(op2, dt.UntypedAtomic):
+            if isinstance(op2, UntypedAtomic):
                 op2 = self.cast_to_double(op2.value)
                 if isinstance(op1, Decimal):
                     return float(op1), op2
 
         if isinstance(op1, float):
-            if isinstance(op2, dt.Duration):
+            if isinstance(op2, Duration):
                 return Decimal(op1), op2
             if isinstance(op2, Decimal):
                 return op1, type(op1)(op2)
         if isinstance(op2, float):
-            if isinstance(op1, dt.Duration):
+            if isinstance(op1, Duration):
                 return op1, Decimal(op2)
             if isinstance(op1, Decimal):
                 return type(op2)(op1), op2
@@ -676,13 +679,13 @@ class XPathToken(Token[ta.XPathTokenType]):
                 raise self.wrong_syntax(msg, code='XPST0017')
             elif isinstance(self.label, MultiLabel):
                 self.label = 'function'
-        elif namespace == ns.XSD_NAMESPACE:
+        elif namespace == XSD_NAMESPACE:
             if self.label != 'constructor function':
                 msg = "a name, a wildcard or a constructor function expected"
                 raise self.wrong_syntax(msg, code='XPST0017')
             elif isinstance(self.label, MultiLabel):
                 self.label = 'constructor function'
-        elif namespace == ns.XPATH_MATH_FUNCTIONS_NAMESPACE:
+        elif namespace == XPATH_MATH_FUNCTIONS_NAMESPACE:
             if self.label != 'math function':
                 msg = "a name, a wildcard or a math function expected"
                 raise self.wrong_syntax(msg, code='XPST0017')
@@ -698,8 +701,8 @@ class XPathToken(Token[ta.XPathTokenType]):
         self.namespace = namespace
         self.name = f'{{{namespace}}}{self.value}'
 
-    def adjust_datetime(self, context: ta.ContextType, cls: type[dt.AbstractDateTime]) \
-            -> ta.OneOrEmpty[dt.AbstractDateTime | dt.DayTimeDuration]:
+    def adjust_datetime(self, context: ta.ContextType, cls: type[AbstractDateTime]) \
+            -> ta.OneOrEmpty[AbstractDateTime | DayTimeDuration]:
         """
         XSD datetime adjust function helper.
 
@@ -709,55 +712,55 @@ class XPathToken(Token[ta.XPathTokenType]):
         or the adjusted XSD datetime instance.
         """
         timezone: Any | None
-        item: dt.AbstractDateTime | None
-        _item: dt.AbstractDateTime | dt.DayTimeDuration
+        item: AbstractDateTime | None
+        _item: AbstractDateTime | DayTimeDuration
 
         if len(self) == 1:
             item = self.get_argument(context, cls=cls)
             if item is None:
-                return dt.empty_sequence
+                return empty_sequence()
             timezone = getattr(context, 'timezone', None)
         else:
             item = self.get_argument(context, cls=cls)
-            timezone = self.get_argument(context, 1, cls=dt.DayTimeDuration)
+            timezone = self.get_argument(context, 1, cls=DayTimeDuration)
 
             if timezone is not None:
                 try:
-                    timezone = dt.Timezone.fromduration(timezone)
+                    timezone = Timezone.fromduration(timezone)
                 except ValueError as err:
                     if isinstance(context, XPathSchemaContext):
-                        timezone = dt.Timezone.fromduration(dt.DayTimeDuration(0))
+                        timezone = Timezone.fromduration(DayTimeDuration(0))
                     else:
                         raise self.error('FODT0003', str(err)) from None
             if item is None:
-                return dt.empty_sequence
+                return empty_sequence()
 
         _item = copy(item)
         _tzinfo = _item.tzinfo
         try:
-            if isinstance(_tzinfo, dt.Timezone) and isinstance(timezone, dt.Timezone):
-                if isinstance(_item, dt.DateTime):
+            if isinstance(_tzinfo, Timezone) and isinstance(timezone, Timezone):
+                if isinstance(_item, DateTime):
                     _item += timezone.offset
-                elif not isinstance(item, dt.Date):
+                elif not isinstance(item, Date):
                     _item += timezone.offset - _tzinfo.offset
                 elif timezone.offset < _tzinfo.offset:
                     _item -= timezone.offset - _tzinfo.offset
-                    _item -= dt.DayTimeDuration.fromstring('P1D')
+                    _item -= DayTimeDuration.fromstring('P1D')
         except OverflowError as err:
             if isinstance(context, XPathSchemaContext):
                 return _item
             raise self.error('FODT0001', str(err)) from None
 
-        if isinstance(_item, dt.AbstractDateTime):
+        if isinstance(_item, AbstractDateTime):
             _item.tzinfo = timezone
         return _item
 
     ###
     # Helpers for cast to XSD types
-    def cast_to_qname(self, value: str) -> dt.QName:
+    def cast_to_qname(self, value: str) -> QName:
         """Cast a string compatible value to a QName object."""
         try:
-            return dt.QName.make(value, parser=self.parser)
+            return QName.make(value, parser=self.parser)
         except ValueError:
             msg = 'invalid value {!r} for an xs:QName'.format(value.strip())
             raise self.error('FORG0001', msg) from None
@@ -785,9 +788,9 @@ class XPathToken(Token[ta.XPathTokenType]):
 
         def cast_value(v: Any) -> Any:
             try:
-                if isinstance(v, (dt.UntypedAtomic, dt.AnyURI)):
+                if isinstance(v, (UntypedAtomic, AnyURI)):
                     return token.cast(v)
-                elif isinstance(v, (float, dt.DecimalProxy)):
+                elif isinstance(v, (float, DecimalProxy)):
                     if type_name in ('double', 'float'):
                         return token.cast(v)
             except (ValueError, TypeError):
@@ -795,8 +798,8 @@ class XPathToken(Token[ta.XPathTokenType]):
             else:
                 return v
 
-        if isinstance(value, dt.XPathSequence):
-            return dt.to_sequence([cast_value(x) for x in value])
+        if isinstance(value, XSequence):
+            return XSequence([cast_value(x) for x in value])
         else:
             return cast_value(value)
 
@@ -806,7 +809,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         """
         The effective boolean value, as computed by fn:boolean().
         """
-        if isinstance(obj, (dt.XPathSequence, list)):
+        if isinstance(obj, (XSequence, list)):
             if not obj:
                 return False
             elif isinstance(obj[0], XPathNode):
@@ -830,7 +833,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 if obj is items:
                     return False
 
-        if isinstance(obj, (int, str, dt.UntypedAtomic, dt.AnyURI)):  # Include bool
+        if isinstance(obj, (int, str, UntypedAtomic, AnyURI)):  # Include bool
             return bool(obj)
         elif isinstance(obj, (float, Decimal)):
             return False if math.isnan(obj) else bool(obj)
@@ -912,27 +915,9 @@ class XPathToken(Token[ta.XPathTokenType]):
         except (TypeError, ValueError):
             return math.nan
 
-    def to_sequence(self, items: ta.SequenceArgType[T] = ()) -> 'ta.SequenceType[T]':
-        """
-        Main constructor that returns an instance of the appropriate subclass, \
-        depending on the number of items.
-        """
-        items = tuple(items)
-        if any(isinstance(x, dt.XPathSequence) for x in items):
-            raise ValueError(f"a sequence instance cannot contain other sequences")
-
-        if not items:
-            try:
-                return self.registry.empty_sequence
-            except NameError:
-                return dt.EmptySequence()
-        elif len(items) == 1:
-            return dt.SingletonSequence(items)
-        else:
-            return dt.XPathSequence(items)
     ###
     # Error handling helpers and shortcuts
-    def error(self, code: str | dt.QName,
+    def error(self, code: str | QName,
               message_or_error: str | Exception | None = None) -> ElementPathError:
         return xpath_error(code, message_or_error, self, self.parser.namespaces)
 

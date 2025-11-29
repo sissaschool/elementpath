@@ -18,7 +18,6 @@ from elementpath.helpers import LazyPattern, days_from_common_era, \
     months2days, round_number, is_idrefs, collapse_white_spaces, escape_json_string, \
     get_double, numeric_equal, numeric_not_equal, equal, not_equal, \
     match_wildcard, unescape_json_string, split_function_test
-from elementpath.datatypes.sequences import iter_sequence
 from elementpath.xpath30.xpath30_helpers import decimal_to_string, int_to_roman, \
     int_to_month, int_to_weekday, int_to_words, int_to_alphabetic, week_in_month, \
     to_ordinal_en, to_ordinal_it, format_digits, ordinal_suffix
@@ -229,14 +228,6 @@ class HelperFunctionsTest(unittest.TestCase):
         self.assertEqual(unescape_json_string('\\U0000000a'), '\n')
         self.assertEqual(unescape_json_string('-\\r-'), '-\r-')
         self.assertEqual(unescape_json_string("-\\t-"), '-\t-')
-
-    def test_iter_sequence_function(self):
-        self.assertEqual(list(iter_sequence(None)), [])
-        self.assertEqual(list(iter_sequence([None, 8])), [8])
-        self.assertEqual(list(iter_sequence([])), [])
-        self.assertEqual(list(iter_sequence([[], 8])), [8])
-        self.assertEqual(list(iter_sequence([[], [], []])), [])
-        self.assertEqual(list(iter_sequence([[], 8, [9]])), [8, 9])
 
     def test_split_function_test_function(self):
         self.assertEqual(
