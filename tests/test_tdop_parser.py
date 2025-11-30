@@ -117,13 +117,13 @@ class TdopParserTest(unittest.TestCase):
 
     def test_tokenizer_items(self):
         self.assertEqual(self.parser.tokenizer.findall('5 56'),
-                             [('5', '', '', ''), ('', '', '', ''), ('56', '', '', '')])
+                         [('5', '', '', ''), ('', '', '', ''), ('56', '', '', '')])
         self.assertEqual(self.parser.tokenizer.findall('5+56'),
-                             [('5', '', '', ''), ('', '+', '', ''), ('56', '', '', '')])
+                         [('5', '', '', ''), ('', '+', '', ''), ('56', '', '', '')])
         self.assertEqual(self.parser.tokenizer.findall('xy'),
-                             [('', '', 'xy', '')])
+                         [('', '', 'xy', '')])
         self.assertEqual(self.parser.tokenizer.findall('5x'),
-                             [('5', '', '', ''), ('', '', 'x', '')])
+                         [('5', '', '', ''), ('', '', 'x', '')])
 
     def test_incompatible_tokenizer(self):
         with self.assertRaises(RuntimeError) as ec:
@@ -143,9 +143,9 @@ class TdopParserTest(unittest.TestCase):
         token = self.parser.parse('9 + 7 - 5')
 
         self.assertEqual(list(tk.source for tk in token.iter()),
-                             ['9', '9 + 7', '7', '9 + 7 - 5', '5'])
+                         ['9', '9 + 7', '7', '9 + 7 - 5', '5'])
         self.assertEqual(list(tk.source for tk in token.iter('(integer)')),
-                             ['9', '7', '5'])
+                         ['9', '7', '5'])
         self.assertEqual(list(tk.source for tk in token.iter('(name)')), [])
 
         class SampleParser(Parser):

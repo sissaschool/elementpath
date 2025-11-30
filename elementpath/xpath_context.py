@@ -12,7 +12,7 @@ import importlib
 from collections.abc import Iterator, Sequence, Callable
 from functools import cached_property
 from types import ModuleType
-from typing import cast, Any, Optional, Union, Never, NoReturn
+from typing import cast, Any, Optional, Union
 from warnings import deprecated
 
 import elementpath.aliases as ta
@@ -26,8 +26,6 @@ from elementpath.etree import is_etree_element, is_etree_element_instance, is_et
 from elementpath.xpath_nodes import XPathNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode
 from elementpath.tree_builders import get_node_tree
-
-
 
 __all__ = ['XPathContext', 'XPathSchemaContext']
 
@@ -87,7 +85,6 @@ class XPathContext:
     document: DocumentNode | None
     item: ta.ItemType
 
-    variables: dict[str, ta.ValueType]
     documents: dict[str, DocumentNode] | None = None
     collections: dict[str, list[XPathNode]] | None = None
     default_collection: list[XPathNode] | None = None
@@ -167,7 +164,7 @@ class XPathContext:
         if schema is not None:
             self.schema = schema
 
-        self.variables = {}
+        self.variables = dict[str, ta.ValueType]()
         if variables is not None:
             for varname, value in variables.items():
                 self.variables[varname] = self.get_value(value, self.namespaces)

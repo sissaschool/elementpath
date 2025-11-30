@@ -15,17 +15,17 @@ import operator
 from copy import copy
 from collections.abc import Iterator
 from decimal import Decimal, DivisionByZero
-from typing import cast
+from typing import cast, NoReturn
 
 import elementpath.aliases as ta
 
 from elementpath.protocols import XsdAttributeProtocol
 from elementpath.exceptions import ElementPathError
 from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED
-from elementpath.sequences import XSequence, empty_sequence
+from elementpath.sequences import XSequence, empty_sequence, sequence_classes
 from elementpath.helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal, \
     node_position, get_double
-from elementpath.namespaces import get_namespace, get_expanded_name
+from elementpath.namespaces import XSD_ERROR, get_namespace, get_expanded_name
 from elementpath.datatypes import builtin_atomic_types, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
 from elementpath.decoder import get_atomic_sequence
@@ -162,7 +162,7 @@ def nud__if_expression(self: XPathToken) -> XPathToken:
 
 @method('if')
 def evaluate__if_expression(self: XPathToken, context: ta.ContextType = None) \
-        -> ta.OneOrMoreItems:
+        -> ta.ValueType:
     if self.boolean_value(self[0].select_sequence(context)):
         if isinstance(context, XPathSchemaContext):
             self[2].evaluate(context)
@@ -266,7 +266,8 @@ def nud__for_expression(self: XPathToken) -> XPathToken:
 
 
 @method('for')
-def select__for_expression(self: XPathToken, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
+def select__for_expression(self: XPathToken, context: ta.ContextType = None) \
+        -> Iterator[ta.ItemType]:
     if context is None:
         raise self.missing_context()
 
@@ -307,8 +308,10 @@ def evaluate__instance_expression(self: XPathToken, context: ta.ContextType = No
                 context.axis = 'self'
 
             result = self[1].evaluate(context)
-            if isinstance(result, XSequence) and not result:
-                return occurs in ('*', '?')
+            if isinstance(result, sequence_classes) and not result:
+                return occurs in ('*', '?') or \
+                    isinstance(context.item, XPathFunction) and \
+                    context.item.name == XSD_ERROR
             elif position and (occurs is None or occurs == '?'):
                 return False
         else:
@@ -348,7 +351,7 @@ def evaluate__treat_expression(self: XPathToken, context: ta.ContextType = None)
     elif self[1].label in ('kind test', 'sequence type', 'function test'):
         for position, item in enumerate(self[0].select(context)):
             result = self[1].evaluate(context)
-            if not result and isinstance(result, XSequence):
+            if not result and isinstance(result, sequence_classes):
                 raise self.error('XPDY0050')
             elif position and (occurs is None or occurs == '?'):
                 raise self.error('XPDY0050', "more than one item in sequence")
@@ -408,8 +411,10 @@ class _CastableOperator(XPathToken):
             raise self.error('XPST0080')
         elif type_name in builtin_atomic_types:
             builtin_type = builtin_atomic_types[type_name]
+            assert hasattr(builtin_type, 'name')
             token_class = self.parser.symbol_table.get(builtin_type.name)
-            if issubclass(token_class, XPathConstructor):
+
+            if token_class is not None and issubclass(token_class, XPathConstructor):
                 self.constructor = token_class(self.parser)
                 self.constructor.name = type_name
             else:
@@ -433,7 +438,7 @@ class _CastableOperator(XPathToken):
 
         arg = self.data_value(result[0])
         try:
-            if hasattr(self.constructor, 'cast'):
+            if self.constructor is not None:
                 if self.constructor.symbol == 'QName':
                     if isinstance(arg, QName):
                         pass
@@ -466,7 +471,7 @@ class _CastOperator(_CastableOperator):
         arg = self.data_value(result[0])
         value: ta.OneAtomicOrEmpty
         try:
-            if hasattr(self.constructor, 'cast'):
+            if self.constructor is not None:
                 if self.constructor.symbol == 'QName':
                     if isinstance(arg, QName):
                         pass
@@ -591,11 +596,11 @@ def evaluate__cast_expressions(self: XPathToken, context: ta.ContextType = None)
 # Comma operator - concatenate items or sequences
 @method(infix(',', bp=5))
 def evaluate__comma_operator(self: XPathToken, context: ta.ContextType = None) \
-        -> list[ta.ItemType]:
-    results = []
+        -> XSequence[ta.ItemType]:
+    results: list[ta.ItemType] = []
     for op in self:
         result = op.evaluate(context)
-        if isinstance(result, XSequence):
+        if isinstance(result, sequence_classes):
             results.extend(result)
         elif result is not None:
             results.append(result)
@@ -603,7 +608,8 @@ def evaluate__comma_operator(self: XPathToken, context: ta.ContextType = None) \
 
 
 @method(',')
-def select__comma_operator(self: XPathToken, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
+def select__comma_operator(self: XPathToken, context: ta.ContextType = None) \
+        -> Iterator[ta.ItemType]:
     for op in self:
         yield from op.select_sequence(context)
 
@@ -740,7 +746,8 @@ def led__node_comparison(self: XPathToken, left: XPathToken) -> XPathToken:
 @method('is')
 @method(infix('<<', bp=30))
 @method(infix('>>', bp=30))
-def evaluate__node_comparison(self: XPathToken, context: ta.ContextType = None) -> ta.OneOrEmpty[bool]:
+def evaluate__node_comparison(self: XPathToken, context: ta.ContextType = None) \
+        -> ta.OneOrEmpty[bool]:
     symbol = self.symbol
 
     left = [x for x in self[0].select(context)]
@@ -786,7 +793,8 @@ def led__range_expression(self: XPathToken, left: XPathToken) -> XPathToken:
 
 
 @method('to')
-def evaluate__range_expression(self: XPathToken, context: ta.ContextType = None) -> XSequence[int]:
+def evaluate__range_expression(self: XPathToken, context: ta.ContextType = None) \
+        -> XSequence[int] | XSequence[NoReturn]:
     start, stop = self.get_operands(context, cls=Integer)
     try:
         return XSequence([x for x in range(start, stop + 1)])
@@ -796,7 +804,7 @@ def evaluate__range_expression(self: XPathToken, context: ta.ContextType = None)
 
 @method('to')
 def select__range_expression(self: XPathToken, context: ta.ContextType = None) -> Iterator[int]:
-    yield from cast(int, self.evaluate(context))
+    yield from cast(XSequence[int] | XSequence[NoReturn], self.evaluate(context))
 
 
 ###

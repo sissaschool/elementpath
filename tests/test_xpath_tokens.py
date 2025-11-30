@@ -127,12 +127,11 @@ class XPath1TokenTest(unittest.TestCase):
         token = self.parser.parse('/A/B[C]/D/@a')
         self.assertEqual(token.tree, '(/ (/ (/ (/ (A)) ([ (B) (C))) (D)) (@ (a)))')
         self.assertEqual(list(tk.value for tk in token.iter()),
-                             ['/', 'A', '/', 'B', '[', 'C', '/', 'D', '/', '@', 'a'])
+                         ['/', 'A', '/', 'B', '[', 'C', '/', 'D', '/', '@', 'a'])
         self.assertEqual(list(tk.value for tk in token.iter('(name)')),
-                             ['A', 'B', 'C', 'D', 'a'])
-
+                         ['A', 'B', 'C', 'D', 'a'])
         self.assertEqual(list(tk.source for tk in token.iter('/')),
-                             ['/A', '/A/B[C]', '/A/B[C]/D', '/A/B[C]/D/@a'])
+                         ['/A', '/A/B[C]', '/A/B[C]/D', '/A/B[C]/D/@a'])
 
     def test_iter_leaf_elements_method(self):
         token = self.parser.parse('2 + 5')

@@ -11,16 +11,16 @@ from collections.abc import Callable, Iterable, Iterator, Sequence
 from itertools import zip_longest
 from typing import Any, NoReturn, overload, TypeVar, Union
 
-from elementpath.aliases import ValueType
+from elementpath.aliases import ItemType
 
-__all__ = ['XSequence', 'empty_sequence', 'flattened_items',
+__all__ = ['XSequence', 'empty_sequence', 'sequence_classes',
            'sequence_concat', 'count', 'iterate_sequence']
 
 
-T = TypeVar('T', bound=ValueType)
-S = TypeVar('S')
+T = TypeVar('T', bound=ItemType)
+S = TypeVar('S', bound=ItemType)
 
-SeqCompType = Union['XSequence[T]', list[T], tuple[T]]
+SequenceArgItemType = Union[T, list[T], tuple[T, ...], 'XSequence[T]']
 
 
 class XSequence(Sequence[T]):
@@ -32,8 +32,20 @@ class XSequence(Sequence[T]):
     """
     __slots__ = ('_items',)
 
-    def __init__(self, items: Iterable[T] = ()) -> None:
-        self._items = tuple(flattened_items(items))
+    _items: tuple[T, ...] | tuple[T] | tuple[()]
+
+    def __init__(self, items: Iterable[SequenceArgItemType[T]] = ()) -> None:
+        if isinstance(items, (list, tuple, XSequence)) and \
+                all(not isinstance(x, (list, tuple, XSequence)) for x in items):
+            self._items = tuple(items)
+        else:
+            _items: list[T] = []
+            for item in items:
+                if isinstance(item, (list, tuple, XSequence)):
+                    _items.extend(item)
+                else:
+                    _items.append(item)
+            self._items = tuple(_items)
 
     def __str__(self) -> str:
         return f'({", ".join(map(repr, self._items))})'
@@ -62,7 +74,13 @@ class XSequence(Sequence[T]):
             return any(i1 != i2 for i1, i2 in zip_longest(self, other))
         return True if len(self) != 1 else not self[0] == other
 
-    def __getitem__(self, item):
+    @overload
+    def __getitem__(self, item: int) -> T: ...
+
+    @overload
+    def __getitem__(self, item: slice) -> tuple[T, ...]: ...
+
+    def __getitem__(self, item: int | slice) -> T | tuple[T, ...]:
         return self._items[item]
 
     def __iter__(self) -> Iterator[T]:
@@ -72,24 +90,16 @@ class XSequence(Sequence[T]):
         return len(self._items)
 
     @overload
-    def __add__(self, other: 'XSequence[T]') -> 'XSequence[T]': ...
+    def __add__(self, other: 'XSequence[S]') -> tuple[S | T, ...]: ...
 
     @overload
-    def __add__(self, other: tuple[T]) -> tuple[T]: ...
-
-    @overload
-    def __add__(self, other: list[T]) -> list[T]: ...
-
-    @overload
-    def __add__(self, other: 'XSequence[S]') -> 'XSequence[S | T]': ...
-
-    @overload
-    def __add__(self, other: tuple[S]) -> tuple[S | T]: ...
+    def __add__(self, other: tuple[S, ...]) -> tuple[S | T, ...]: ...
 
     @overload
     def __add__(self, other: list[S]) -> list[S | T]: ...
 
-    def __add__(self, other: SeqCompType[S] | SeqCompType[T]) -> SeqCompType[S | T]:
+    def __add__(self, other: Union['XSequence[S]', tuple[S, ...], list[S]]) \
+            -> tuple[S | T, ...] | list[S | T]:
         if isinstance(other, list):
             return list(self._items) + other
         elif isinstance(other, tuple):
@@ -98,7 +108,7 @@ class XSequence(Sequence[T]):
             return self._items + other._items
         return NotImplemented
 
-    def __radd__(self, other: tuple[S] | list[S]) -> tuple[T | S] | list[S | T]:
+    def __radd__(self, other: tuple[S, ...] | list[S]) -> tuple[S | T, ...] | list[S | T]:
         if isinstance(other, list):
             return other + list(self._items)
         elif isinstance(other, tuple):
@@ -115,15 +125,8 @@ class XSequence(Sequence[T]):
             return 'item()*'
 
 
-def flattened_items(items: Iterable[T]) -> Iterator[T]:
-    for item in items:
-        if isinstance(item, XSequence):
-            yield from item
-        else:
-            yield item
-
-
-_empty_sequence = XSequence()
+_empty_sequence: XSequence[NoReturn] = XSequence()  # Empty sequence as a singleton
+sequence_classes = (XSequence, list)  # Also lists can be iterated as XPath sequences
 
 
 ###

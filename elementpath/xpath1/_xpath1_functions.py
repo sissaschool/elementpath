@@ -502,7 +502,7 @@ def evaluate__round(self: XPathFunction, context: ta.ContextType = None) -> ta.O
 
     arg = self.get_argument(context)
     if arg is None:
-        return math.nan if self.parser.version == '1.0' else []
+        return math.nan if self.parser.version == '1.0' else empty_sequence()
     elif isinstance(arg, XPathNode) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 

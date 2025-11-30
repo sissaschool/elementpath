@@ -275,11 +275,11 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(PICTURE_PATTERN.findall('a'), [])
         self.assertEqual(PICTURE_PATTERN.findall('[y]'), ['[y]'])
         self.assertEqual(PICTURE_PATTERN.findall('[h01][m01][z,2-6]'),
-                             ['[h01]', '[m01]', '[z,2-6]'])
+                         ['[h01]', '[m01]', '[z,2-6]'])
         self.assertEqual(PICTURE_PATTERN.findall('[H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
-                             ['[H٠]', '[m٠]', '[s٠٠]', '[f٠٠٠]'])
+                         ['[H٠]', '[m٠]', '[s٠٠]', '[f٠٠٠]'])
         self.assertEqual(PICTURE_PATTERN.split(' [H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
-                             [' ', ':', ':', ':', ''])
+                         [' ', ':', ':', ':', ''])
         self.assertEqual(PICTURE_PATTERN.findall('[y'), [])
         self.assertEqual(PICTURE_PATTERN.findall('[[y]'), ['[y]'])
 
@@ -1226,7 +1226,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         token = self.parser.parse(
             'fn:fold-left(1 to 5, "$zero", fn:concat("$f(", ?, ", ", ?, ")"))')
         self.assertEqual(token.evaluate(context),
-                             ["$f($f($f($f($f($zero, 1), 2), 3), 4), 5)"])
+                         ["$f($f($f($f($f($zero, 1), 2), 3), 4), 5)"])
 
     def test_fold_right(self):
         expression = 'fn:fold-right(1 to 5, 0, function($a, $b) {$a + $b})'

@@ -1164,7 +1164,7 @@ class Result(object):
             self.report_failure(verbose, error=err)
             return False
 
-        if isinstance(result, (AnyAtomicType, XPathArray, XPathMap)):
+        if isinstance(result, (AnyAtomicType, XPathFunction)):
             length = 1
         else:
             try:
@@ -1413,7 +1413,7 @@ def main():
     global xpath_parser
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('catalog', metavar='CATALOG_FILE',
+    parser.add_argument('--catalog', metavar='CATALOG_FILE',
                         nargs='?', default='../qt3tests/catalog.xml',
                         help='the path to the main index file of test suite (catalog.xml)')
     parser.add_argument('pattern', nargs='?', default='.*', metavar='PATTERN',

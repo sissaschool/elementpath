@@ -170,22 +170,19 @@ class XPathMap(XPathFunction):
             return empty_sequence()
 
     def keys(self, context: ta.ContextType = None) -> list[ta.AtomicType]:
-        if self._map is not None:
-            return [self._nan_key if k is None else k for k in self._map.keys()]
-        return [self._nan_key if k is None else k for k in self._evaluate(context).keys()]
+        if self._map is None:
+            self._map = self._evaluate(context)
+        return [self._nan_key if k is None else k for k in self._map.keys()]
 
-    def values(self, context: ta.ContextType = None) -> ta.ListItemType:
-        if self._map is not None:
-            return XSequence([v for v in self._map.values()])
-        return [v for v in self._evaluate(context).values()]
+    def values(self, context: ta.ContextType = None) -> list[ta.ValueType]:
+        if self._map is None:
+            self._map = self._evaluate(context)
+        return [v for v in self._map.values()]
 
     def items(self, context: ta.ContextType = None) -> list[tuple[ta.AtomicType, ta.ValueType]]:
-        if self._map is not None:
-            _map = self._map
-        else:
-            _map = self._evaluate(context)
-
-        return [(self._nan_key, v) if k is None else (k, v) for k, v in _map.items()]
+        if self._map is None:
+            self._map = self._evaluate(context)
+        return [(self._nan_key, v) if k is None else (k, v) for k, v in self._map.items()]
 
     def match_function_test(self, function_test: ta.SequenceTypesType,
                             as_argument: bool = False) -> bool:

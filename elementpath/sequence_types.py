@@ -10,19 +10,21 @@
 from itertools import zip_longest
 from typing import cast, Any
 
-import elementpath.aliases as _ta
-import elementpath.namespaces as _ns
-import elementpath.datatypes as _types
+import elementpath.aliases as ta
 
-from elementpath.exceptions import ElementPathKeyError, xpath_error, ElementPathTypeError
+from elementpath.datatypes import builtin_atomic_types, builtin_list_types, QName, \
+    NumericProxy, AnyAtomicType
+from elementpath.exceptions import ElementPathKeyError, xpath_error
+from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_DATETIME_STAMP, \
+    XSD_NUMERIC, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, get_expanded_name
 from elementpath.helpers import collapse_white_spaces, OCCURRENCE_INDICATORS, Patterns
-from elementpath.sequences import empty_sequence, XSequence
+from elementpath.sequences import empty_sequence, sequence_classes
 from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
 from elementpath.xpath_tokens import XPathToken
 
-XSD_EXTENDED_PREFIX = f'{{{_ns.XSD_NAMESPACE}}}'
+XSD_EXTENDED_PREFIX = f'{{{XSD_NAMESPACE}}}'
 XSD_10_UNSUPPORTED = frozenset(
-    ('xs:error', 'xs:dateTimeStamp', _ns.XSD_ERROR, _ns.XSD_DATETIME_STAMP)
+    ('xs:error', 'xs:dateTimeStamp', XSD_ERROR, XSD_DATETIME_STAMP)
 )
 COMMON_SEQUENCE_TYPES = frozenset((
     'xs:anyType', 'xs:anySimpleType', 'xs:numeric', 'xs:untyped', 'attribute()',
@@ -30,9 +32,8 @@ COMMON_SEQUENCE_TYPES = frozenset((
     'comment()', 'processing-instruction()', 'item()', 'node()', 'numeric'
 ))
 XSD11_ONLY_TYPES = frozenset(
-    (_ns.XSD_ERROR, _ns.XSD_DATETIME_STAMP, 'xs:error', 'xs:dateTimeStamp')
+    (XSD_ERROR, XSD_DATETIME_STAMP, 'xs:error', 'xs:dateTimeStamp')
 )
-_empty_sequence = empty_sequence()
 
 
 ###
@@ -92,16 +93,16 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
                                'processing-instruction(', 'document(', 'namespace('))
     elif st2 == 'node()':
         return False
-    elif st2 in _types.builtin_atomic_types:
-        if st1 not in _types.builtin_atomic_types:
+    elif st2 in builtin_atomic_types:
+        if st1 not in builtin_atomic_types:
             return False
-        return issubclass(_types.builtin_atomic_types[st2], _types.builtin_atomic_types[st1])
-    elif st2 in _types.builtin_list_types:
+        return issubclass(builtin_atomic_types[st2], builtin_atomic_types[st1])
+    elif st2 in builtin_list_types:
         if st1 in ('xs:anyType', 'xs:anySimpleType'):
             return True
-        elif st1 not in _types.builtin_list_types:
+        elif st1 not in builtin_list_types:
             return False
-        return issubclass(_types.builtin_list_types[st2], _types.builtin_list_types[st1])
+        return issubclass(builtin_list_types[st2], builtin_list_types[st1])
     elif not st1.startswith('function('):
         return False
 
@@ -122,24 +123,23 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
         return True
 
 
-def is_instance(obj: Any, type_qname: str, parser: _ta.XPathParserType | None = None) -> bool:
+def is_instance(obj: Any, type_qname: str, parser: ta.XPathParserType | None = None) -> bool:
     """Checks an instance against an XSD type."""
-    if type_qname in _types.builtin_atomic_types:
+    if type_qname in builtin_atomic_types:
         if type_qname in XSD11_ONLY_TYPES:
             if parser is not None and parser.xsd_version == '1.0':
                 return False
-        return isinstance(obj, _types.builtin_atomic_types[type_qname])
-    elif type_qname in _types.builtin_list_types:
-        if isinstance(obj, _types.AnyAtomicType):
-            raise ElementPathTypeError(
-                "an atomic value cannot be tested as an instance of list types"
-            )
-        return isinstance(obj, _types.builtin_list_types[type_qname])
-    elif type_qname in (_ns.XSD_NUMERIC, 'xs:numeric', 'numeric'):
-        return isinstance(obj, _types.NumericProxy)
+        return isinstance(obj, builtin_atomic_types[type_qname])
+    elif type_qname in builtin_list_types:
+        if isinstance(obj, AnyAtomicType):
+            raise xpath_error(
+                'XPST0051', 'an atomic value cannot be tested as an instance of list types')
+        return isinstance(obj, builtin_list_types[type_qname])
+    elif type_qname in (XSD_NUMERIC, 'xs:numeric', 'numeric'):
+        return isinstance(obj, NumericProxy)
 
     elif parser is not None and parser.schema is not None:
-        type_qname = _ns.get_expanded_name(type_qname, parser.namespaces)
+        type_qname = get_expanded_name(type_qname, parser.namespaces)
         try:
             return parser.schema.is_instance(obj, type_qname)
         except KeyError:
@@ -148,7 +148,7 @@ def is_instance(obj: Any, type_qname: str, parser: _ta.XPathParserType | None = 
     raise ElementPathKeyError("unknown type %r" % type_qname)
 
 
-def is_sequence_type(value: Any, parser: _ta.XPathParserType | None = None) -> bool:
+def is_sequence_type(value: Any, parser: ta.XPathParserType | None = None) -> bool:
     """Checks if a string is a sequence type specification."""
 
     def is_st(st: str) -> bool:
@@ -161,11 +161,11 @@ def is_sequence_type(value: Any, parser: _ta.XPathParserType | None = None) -> b
 
         if st in COMMON_SEQUENCE_TYPES:
             return True
-        elif st in _types.builtin_atomic_types:
+        elif st in builtin_atomic_types:
             if st in ('xs:dateTimeStamp', 'xs:error'):
                 return getattr(parser, 'xsd_version', '1.1') != '1.0'
             return True
-        elif st in _types.builtin_list_types:
+        elif st in builtin_list_types:
             return True
         elif st.startswith(('map(', 'array(')):
             if parser and parser.version < '3.1' or not st.endswith(')'):
@@ -233,7 +233,7 @@ def is_sequence_type(value: Any, parser: _ta.XPathParserType | None = None) -> b
                 return False
             return all(is_st(x) for x in st[:k].split(', ') if x)
 
-        elif _types.QName.pattern.match(st) is None:
+        elif QName.pattern.match(st) is None:
             return False
 
         if parser is None:
@@ -251,7 +251,7 @@ def is_sequence_type(value: Any, parser: _ta.XPathParserType | None = None) -> b
 
 def match_sequence_type(value: Any,
                         sequence_type: str,
-                        parser: _ta.XPathParserType | None = None,
+                        parser: ta.XPathParserType | None = None,
                         strict: bool = True) -> bool:
     """
     Checks a value instance against a sequence type.
@@ -264,11 +264,11 @@ def match_sequence_type(value: Any,
     def match_st(v: Any, st: str, occurrence: str | None = None) -> bool:
         if st[-1] in OCCURRENCE_INDICATORS and ') as ' not in st:
             return match_st(v, st[:-1], st[-1])
-        elif v is None or v == _empty_sequence:
+        elif v is None or v == empty_sequence():
             return st in ('empty-sequence()', 'none') or occurrence in ('?', '*')
         elif st in ('empty-sequence()', 'none'):
             return False
-        elif isinstance(v, (XSequence, list)):
+        elif isinstance(v, sequence_classes):
             if len(v) == 1:
                 return match_st(v[0], st)
             elif occurrence is None or occurrence == '?':
@@ -276,10 +276,10 @@ def match_sequence_type(value: Any,
             else:
                 return all(match_st(x, st) for x in v)
         elif st == 'item()':
-            return isinstance(v, (XPathNode, _types.AnyAtomicType,
+            return isinstance(v, (XPathNode, AnyAtomicType,
                                   XPathToken.registry.function_token))
         elif st == 'numeric' or st == 'xs:numeric':
-            return isinstance(v, _types.NumericProxy)
+            return isinstance(v, NumericProxy)
         elif st.startswith('function('):
             if not isinstance(v, XPathToken.registry.function_token):
                 return False
@@ -292,6 +292,7 @@ def match_sequence_type(value: Any,
                 return True
 
             item_st = st[6:-1]
+            assert isinstance(v, XPathToken.registry.array_token)
             return all(match_st(x, item_st) for x in v.items())
 
         elif st.startswith('map('):
@@ -346,9 +347,9 @@ def match_sequence_type(value: Any,
                 return False
 
             if type_name == 'xs:untyped':
-                if isinstance(v, AttributeNode) and v.type_name != _ns.XSD_UNTYPED_ATOMIC:
+                if isinstance(v, AttributeNode) and v.type_name != XSD_UNTYPED_ATOMIC:
                     return False
-                if isinstance(v, ElementNode) and v.type_name != _ns.XSD_UNTYPED:
+                if isinstance(v, ElementNode) and v.type_name != XSD_UNTYPED:
                     return False
             else:
                 try:
@@ -363,7 +364,7 @@ def match_sequence_type(value: Any,
             return v.name == name
         else:
             try:
-                return v.name == _ns.get_expanded_name(name, parser.namespaces)
+                return v.name == get_expanded_name(name, parser.namespaces)
             except (KeyError, ValueError):
                 return False
 

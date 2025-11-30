@@ -19,7 +19,7 @@ import zoneinfo
 from collections.abc import Iterator
 from copy import copy
 from itertools import zip_longest
-from typing import cast, Any, Optional, Union
+from typing import cast, Any, Optional, Union, NoReturn
 from urllib.parse import urlsplit
 from urllib.request import urlopen
 from urllib.error import URLError
@@ -34,7 +34,7 @@ from elementpath.namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE
 from elementpath.datatypes import NumericProxy, QName, Date, DateTime, Time, \
     AnyURI
-from elementpath.sequences import XSequence, empty_sequence
+from elementpath.sequences import XSequence, empty_sequence, sequence_classes
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.etree import defuse_xml
 from elementpath.xpath_nodes import XPathNode, ElementNode, NamespaceNode, \
@@ -135,6 +135,7 @@ class _InlineFunction(XPathFunction):
         sequence_type: str
         self.check_arguments_number(len(args))
 
+        context = copy(context)
         if self.variables and context is not None:
             context.variables.update(self.variables)
 
@@ -178,7 +179,7 @@ class _InlineFunction(XPathFunction):
                     context.variables[varname] = get_argument(value)
 
             if partial_function:
-                self.to_partial()
+                self.to_partial_function()
                 return self
 
             result = self.body.evaluate(context)
@@ -210,7 +211,6 @@ class _InlineFunction(XPathFunction):
 
         if self.parser.next_token.symbol != '(':
             return self.as_name()
-
         self.parser.advance('(')
         self.sequence_types = []
 
@@ -303,7 +303,7 @@ class _InlineFunction(XPathFunction):
         else:
             return empty_sequence()
 
-    def to_partial(self) -> None:
+    def to_partial_function(self) -> None:
         assert self.label != 'function test', "an effective inline function required"
 
         nargs = len([tk and not tk for tk in self._items if tk.symbol == '?'])
@@ -1181,7 +1181,7 @@ def evaluate__generate_id(self: XPathFunction, context: ta.ContextType = None) -
 @method(function('uri-collection', nargs=(0, 1),
                  sequence_types=('xs:string?', 'xs:anyURI*')))
 def evaluate__uri_collection(self: XPathFunction, context: ta.ContextType = None) \
-        -> XSequence[AnyURI]:
+        -> XSequence[AnyURI] | XSequence[NoReturn]:
     if self.context is not None:
         context = self.context
 
@@ -1361,8 +1361,8 @@ def evaluate__environment_variable(self: XPathFunction, context: ta.ContextType 
 
 @method(function('available-environment-variables', nargs=0,
                  sequence_types=('xs:string*',)))
-def evaluate__available_environment_variables(
-        self: XPathFunction, context: ta.ContextType = None) -> XSequence[str]:
+def evaluate__available_env_vars(self: XPathFunction, context: ta.ContextType = None) \
+        -> XSequence[str] | XSequence[NoReturn]:
     if self.context is not None:
         context = self.context
     elif context is None:
@@ -1566,7 +1566,7 @@ def select__for_each(self: XPathFunction, context: ta.ContextType = None) \
 
     for item in self[0].select(context):
         result = func(item, context=context)
-        if isinstance(result, XSequence):
+        if isinstance(result, sequence_classes):
             yield from result
         else:
             yield result
@@ -1611,7 +1611,7 @@ def select__fold_left(self: XPathFunction, context: ta.ContextType = None) \
     for item in self[0].select(context):
         result = func(result, item, context=context)
 
-    if isinstance(result, XSequence):
+    if isinstance(result, sequence_classes):
         yield from result
     else:
         yield result
@@ -1638,7 +1638,7 @@ def select__fold_right(self: XPathFunction, context: ta.ContextType = None) \
     for item in reversed(sequence):
         result = func(item, result, context=context)
 
-    if isinstance(result, XSequence):
+    if isinstance(result, sequence_classes):
         yield from result
     else:
         yield result
@@ -1660,7 +1660,7 @@ def select__for_each_pair(self: XPathFunction, context: ta.ContextType = None) \
 
     for item1, item2 in zip(self[0].select(context), self[1].select(context)):
         result = func(item1, item2, context=context)
-        if isinstance(result, XSequence):
+        if isinstance(result, sequence_classes):
             yield from result
         else:
             yield result

@@ -292,6 +292,32 @@ class XPath1Parser(Parser[ta.XPathTokenType]):
             self.advance()
             self.next_token.unexpected('*', '+', '?')
 
+    def parse_sequence_type(self) -> XPathToken:
+        if self.next_token.label in ('kind test', 'sequence type', 'function test'):
+            token = self.expression(rbp=85)
+        else:
+            if self.next_token.symbol == 'Q{':
+                token = self.advance().nud()
+            elif self.next_token.symbol != '(name)':
+                raise self.next_token.wrong_syntax()
+            else:
+                self.advance()
+                if self.next_token.symbol == ':':
+                    left = self.token
+                    self.advance()
+                    token = self.token.led(left)
+                else:
+                    token = self.token
+
+                if self.next_token.symbol in ('::', '('):
+                    raise self.next_token.wrong_syntax()
+
+        next_symbol = self.next_token.symbol
+        if token.symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
+            token.occurrence = next_symbol
+            self.advance()
+        return token
+
     def check_variables(self, values: MutableMapping[str, Any]) -> None:
         """Checks the sequence types of the XPath dynamic context's variables."""
         for varname, value in values.items():

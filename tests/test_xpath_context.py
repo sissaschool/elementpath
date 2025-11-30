@@ -140,7 +140,7 @@ class XPathContextTest(unittest.TestCase):
         self.assertEqual(list(context.iter_children_or_self()), root_node[:])
         self.assertEqual(list(context.iter_attributes()), [])
         self.assertEqual(list(context.iter_descendants()),
-                             [root_node, root_node[0], root_node[1]])
+                         [root_node, root_node[0], root_node[1]])
         self.assertEqual(list(context.iter_parent()), [])
         self.assertEqual(list(context.iter_preceding()), [])
         self.assertEqual(list(context.iter_followings()), [])
@@ -254,7 +254,7 @@ class XPathContextTest(unittest.TestCase):
 
         context.item = context.root[0]  # root element
         self.assertEqual(list(context.iter_children_or_self()),
-                             [context.root[0].children[0]])
+                         [context.root[0].children[0]])
 
         context.item = context.root  # document node
         self.assertEqual(list(e.value for e in context.iter_children_or_self()), [self.root])
@@ -340,7 +340,7 @@ class XPathContextTest(unittest.TestCase):
         attr = context.root.attributes[0]
 
         self.assertEqual(list(e.value for e in context.iter_descendants()),
-                             [root, root[0], root[1]])
+                         [root, root[0], root[1]])
 
         context.item = attr
         self.assertEqual(list(context.iter_descendants(axis='descendant')), [])
@@ -391,7 +391,7 @@ class XPathContextTest(unittest.TestCase):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
         context = XPathContext(root, item=root[2][1])
         self.assertEqual(list(e.obj for e in context.iter_preceding()),
-                             [root[0], root[0][0], root[1], root[2][0]])
+                         [root[0], root[0][0], root[1], root[2][0]])
 
     def test_iter_following(self):
         root = ElementTree.XML('<A a="1"><B1><C1/></B1><B2/><B3><C1/></B3><B4/><B5/></A>')

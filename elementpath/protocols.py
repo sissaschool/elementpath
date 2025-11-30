@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Define type hints protocols for XPath related objects.
+Define protocols for type annotation of XPath related objects.
 """
 from collections.abc import Callable, Hashable, Iterator, Iterable, \
     ItemsView, Mapping, Sequence, Sized

@@ -17,7 +17,7 @@ from typing import Any, cast, Union
 import elementpath.aliases as ta
 import elementpath.namespaces as ns
 from elementpath.datatypes import QName
-from elementpath.sequences import XSequence, empty_sequence
+from elementpath.sequences import empty_sequence, sequence_classes
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, \
     XPathMap, XPathArray
 
@@ -100,7 +100,7 @@ def evaluate__parenthesized_expression(self: XPathToken, context: ta.ContextType
 
     value = self[0].evaluate(context)
 
-    if isinstance(value, XSequence) and len(value) == 1:
+    if isinstance(value, sequence_classes) and len(value) == 1:
         value = value[0]
 
     if len(self) > 1:
@@ -116,8 +116,7 @@ def evaluate__parenthesized_expression(self: XPathToken, context: ta.ContextType
                 func.to_partial_function()
                 return func
 
-            arguments: list[ta.InputType[ta.ItemType]]
-            arguments = [tk.evaluate(context) for tk in tokens]
+            arguments: list[ta.ValueType] = [tk.evaluate(context) for tk in tokens]
 
             if func.label == 'partial function' and func[0].symbol == '?' and len(func[0]):
                 if context is None:
@@ -127,7 +126,7 @@ def evaluate__parenthesized_expression(self: XPathToken, context: ta.ContextType
             return func(*arguments, context=context)
 
         elif self[0].symbol == '(':
-            if not isinstance(value, tuple):
+            if not isinstance(value, sequence_classes):
                 return value
             elif any(not isinstance(x, XPathFunction) for x in value):
                 return value
@@ -193,6 +192,7 @@ def select__let_expression(self: XPathToken, context: ta.ContextType = None) \
     if context is None:
         raise self.missing_context()
 
+    context = copy(context)
     for k in range(0, len(self) - 1, 2):
         varname = cast(str, self[k][0].value)
         value = self[k+1].evaluate(context)

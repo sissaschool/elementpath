@@ -16,10 +16,11 @@ if TYPE_CHECKING:
     from .protocols import ElementProtocol, DocumentProtocol  # noqa: F401
     from .protocols import XsdElementProtocol, XsdAttributeProtocol  # noqa: F401
     from .protocols import DocumentType, ElementType, SchemaElemType  # noqa: F401
-    from .datatypes import AnyAtomicType, AbstractDateTime  # noqa: F401
+    from .datatypes import AnyAtomicType, AbstractDateTime, QName, AnyURI  # noqa: F401
     from .datatypes import Date, DateTime, Time, GregorianYear, GregorianMonth  # noqa: F401
     from .datatypes import GregorianDay, GregorianYearMonth, GregorianMonthDay  # noqa: F401
     from .datatypes import DateTimeStamp, Duration, UntypedAtomic  # noqa: F401
+    from .datatypes import DayTimeDuration, YearMonthDuration  # noqa: F401
     from .schema_proxy import AbstractSchemaProxy  # noqa: F401
     from .sequences import XSequence  # noqa: F401
     from .xpath_nodes import XPathNode, ElementNode, AttributeNode  # noqa: F401
@@ -41,24 +42,40 @@ AnyNsmapType = Union[NamespacesType, NsmapType, None]  # for composition and fun
 
 ###
 # Datatypes
-AtomicType = Union[str, int, float, Decimal, bool, 'AnyAtomicType']
 NumericType = Union[int, float, Decimal]
-ArithmeticType = Union[NumericType, 'AbstractDateTime', 'Duration', 'UntypedAtomic']
 DateTimeType = Union[
     'DateTime', 'Date', 'Time', 'GregorianYear', 'GregorianMonth',
     'GregorianDay', 'GregorianYearMonth', 'GregorianMonthDay'
 ]
+DurationType = Union['Duration', 'YearMonthDuration', 'DayTimeDuration']
+ArithmeticType = Union[NumericType, DateTimeType, 'DurationType', 'UntypedAtomic']
+AtomicType = Union['AnyAtomicType', str, bool, int, float, Decimal]
+
+###
+# XPath nodes
+TypedNodeType = Union['AttributeNode', 'ElementNode']
+TaggedNodeType = Union['ElementNode', 'CommentNode', 'ProcessingInstructionNode']
+ElementMapType = dict[object, TaggedNodeType]
+FindAttrType = Optional['XsdAttributeProtocol']
+FindElemType = Optional['XsdElementProtocol']
+RootNodeType = Union['DocumentNode', 'ElementNode']
+
+ParentNodeType = Union['DocumentNode', 'ElementNode']
+ChildNodeType = Union['TextNode', TaggedNodeType]
+
+# All possible variants for node as item
+XPathNodeType = Union['XPathNode', 'DocumentNode', 'NamespaceNode', 'AttributeNode',
+                      'TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstructionNode']
 
 ###
 # Sequence and item/value types (specifics and generics)
-EmptySequenceType = Union['XSequence[NoReturn]']
 ItemType = Union['XPathNode', AtomicType, 'XPathFunction']
 
 _T = TypeVar('_T', bound=ItemType)
 
-OneOrEmpty = Union[_T, list[_T], 'XSequence[_T]', 'EmptySequenceType']
-OneOrMore = Union[_T, list[_T], 'XSequence[_T]']
-AnyOrEmpty = Union[_T, list[_T], 'XSequence[_T]', 'EmptySequence']
+OneOrEmpty = Union[_T, 'XSequence[_T]', 'XSequence[NoReturn]']
+OneOrMore = Union[_T, 'XSequence[_T]']
+AnyOrEmpty = Union[_T, 'XSequence[_T]', 'XSequence[NoReturn]']
 
 SequenceArgType = Union[
     Iterator[_T], list[_T], list[NoReturn], tuple[_T, ...], tuple[_T], tuple[()]
@@ -79,7 +96,9 @@ AnyNumericOrEmpty = AnyOrEmpty[NumericType]
 AnyArithmeticOrEmpty = AnyOrEmpty[ArithmeticType]
 AnyItemsOrEmpty = AnyOrEmpty[ItemType]
 
-ValueType = Union[ItemType, list[ItemType], 'EmptySequence']  # equivalent to AnyItemsOrEmpty
+ValueType = Union[ItemType, 'XSequence[ItemType]', 'XSequence[NoReturn]',
+                  'XSequence[XPathNode]', 'XSequence[AttributeNode | ElementNode]',
+                  'XSequence[AtomicType]']
 ListItemType = Union[ItemType, list[ItemType], list[NoReturn]]
 ResultType = Union[
     AtomicType, 'ElementProtocol', 'XsdAttributeProtocol', tuple[Optional[str], str],
@@ -97,19 +116,6 @@ ParserClassType = Union[
 ]
 NargsType = Optional[Union[int, tuple[int, Optional[int]]]]
 ClassCheckType = Union[type[Any], tuple[type[Any], ...]]
-
-# XPath nodes
-TypedNodeType = Union['AttributeNode', 'ElementNode']
-TaggedNodeType = Union['ElementNode', 'CommentNode', 'ProcessingInstructionNode']
-ElementMapType = dict[object, TaggedNodeType]
-FindAttrType = Optional['XsdAttributeProtocol']
-FindElemType = Optional['XsdElementProtocol']
-XPathNodeType = Union['DocumentNode', 'NamespaceNode', 'AttributeNode', 'TextNode',
-                      'ElementNode', 'CommentNode', 'ProcessingInstructionNode']
-RootNodeType = Union['DocumentNode', 'ElementNode']
-
-ParentNodeType = Union['DocumentNode', 'ElementNode']
-ChildNodeType = Union['TextNode', TaggedNodeType]
 
 # Context arguments
 ContextType = Union['XPathContext', 'XPathSchemaContext', None]

@@ -11,7 +11,7 @@
 XPath 2.0 implementation - part 4 (XSD constructors)
 """
 import decimal
-from typing import cast
+from typing import cast, NoReturn
 
 import elementpath.aliases as ta
 
@@ -20,7 +20,7 @@ from elementpath.namespaces import XSD_NAMESPACE
 from elementpath.sequences import XSequence, empty_sequence
 from elementpath.datatypes import AbstractDateTime, Duration, Date, DateTime, \
     DateTimeStamp, Time, UntypedAtomic, QName, HexBinary, Base64Binary, \
-    BooleanProxy, AnyURI, Notation, NMToken, Idref, Entity, DateTime10
+    BooleanProxy, AnyURI, Notation, NMToken, Idref, Entity, DateTime10, ErrorProxy
 from elementpath.xpath_context import XPathSchemaContext
 from elementpath.xpath_tokens import XPathConstructor
 from ._xpath2_functions import XPath2Parser
@@ -43,7 +43,7 @@ constructor = XPath2Parser.constructor
 @constructor('anyURI')
 def cast__string_types(self: XPathConstructor, value: ta.AtomicType) -> str | AnyURI:
     try:
-        result = self.type_class(value)
+        result = cast(str | AnyURI, self.type_class.make(value))
     except ValueError as err:
         raise self.error('FORG0001', err)
     else:
@@ -83,7 +83,7 @@ def cast__numeric_types(self: XPathConstructor, value: ta.AtomicType) -> ta.Nume
 @constructor('unsignedByte')
 def cast__integer_types(self: XPathConstructor, value: ta.AtomicType) -> int:
     try:
-        return cast(int, self.type_class(value))
+        return cast(int, self.type_class.make(value))
     except ValueError:
         msg = 'could not convert {!r} to xs:{}'.format(value, self.symbol)
         if isinstance(value, (str, bytes, int, UntypedAtomic)):
@@ -354,7 +354,7 @@ def evaluate__string_type_and_function(self: XPathConstructor, context: ta.Conte
 #
 @constructor('QName', bp=90, label=('function', 'constructor function'),
              nargs=(1, 2), sequence_types=('xs:string?', 'xs:string', 'xs:QName'))
-def cast__qname_type(self: XPathConstructor, value: ta.AtomicType) -> QName:
+def cast__qname_type(self: XPathConstructor, value: str) -> QName:
     return self.cast_to_qname(value)
 
 
@@ -495,11 +495,15 @@ def evaluate__untyped_atomic(self: XPathConstructor, context: ta.ContextType = N
 # TODO: apply sequence_types=('xs:anyAtomicType?', 'xs:error?') for xs:error
 @constructor('error', bp=90, label=('function', 'constructor function'), nargs=(0, 3),
              sequence_types=('xs:QName?', 'xs:string', 'item()*', 'none'))
-def cast__error_type(self: XPathConstructor, value: ta.AtomicType) -> ta.OneOrEmpty[None]:
+def cast__error_type(self: XPathConstructor, value: ta.AtomicType) -> XSequence[NoReturn]:
     try:
-        return self.type_class.make(value, parser=self.parser)
+        result = ErrorProxy(value)
     except (TypeError, ValueError) as err:
         raise self.error('FORG0001', str(err)) from None
+    else:
+        if not isinstance(result, XSequence) or len(result):
+            raise self.error('FORG0001')
+        return result
 
 
 @method('error')
@@ -533,7 +537,8 @@ def nud__error_type_and_function(self: XPathConstructor) -> XPathConstructor:
 
 
 @method('error')
-def evaluate__error_type_and_function(self: XPathConstructor, context: ta.ContextType = None) -> None:
+def evaluate__error_type_and_function(self: XPathConstructor,
+                                      context: ta.ContextType = None) -> None:
     if self.context is not None:
         context = self.context
 

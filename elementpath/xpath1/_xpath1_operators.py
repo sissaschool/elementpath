@@ -18,7 +18,7 @@ from typing import Any, cast
 
 import elementpath.aliases as ta
 
-from elementpath.sequences import XSequence, empty_sequence
+from elementpath.sequences import XSequence, empty_sequence, sequence_classes
 from elementpath.datatypes import AbstractDateTime, ArithmeticProxy, Duration, \
     NumericProxy, DayTimeDuration, YearMonthDuration
 from elementpath.xpath_nodes import XPathNode, AttributeNode, ElementNode, DocumentNode
@@ -60,7 +60,7 @@ def nud__variable_reference(self: XPathToken) -> XPathToken:
 
 @method('$')
 def evaluate__variable_reference(self: XPathToken, context: ta.ContextType = None) \
-        -> ta.AnyItemsOrEmpty:
+        -> ta.ValueType:
     if context is None:
         raise self.missing_context()
 
@@ -79,7 +79,7 @@ def select__wildcard(self: XPathToken, context: ta.ContextType = None) -> Iterat
     if self:
         # Product operator
         item = self.evaluate(context)
-        if not isinstance(item, XSequence):
+        if not isinstance(item, sequence_classes):
             if context is not None:
                 context.item = item
             yield item
@@ -192,7 +192,7 @@ def evaluate__plus_operator(self: XPathToken, context: ta.ContextType = None) \
             return empty_sequence()
 
         try:
-            return op1 + op2  # type:ignore[operator]
+            return op1 + op2  # type:ignore[operator, return-value]
         except (TypeError, OverflowError) as err:
             if isinstance(context, XPathSchemaContext):
                 return empty_sequence()
@@ -220,7 +220,7 @@ def evaluate__minus_operator(self: XPathToken, context: ta.ContextType = None) \
             return empty_sequence()
 
         try:
-            return op1 - op2  # type:ignore[operator]
+            return op1 - op2  # type:ignore[operator, return-value]
         except (TypeError, OverflowError) as err:
             if isinstance(context, XPathSchemaContext):
                 return empty_sequence()

@@ -12,7 +12,7 @@ from typing import Any
 import elementpath.aliases as ta
 
 from elementpath.exceptions import ElementPathError
-from elementpath.datatypes import  AnyAtomicType, ListType, UntypedAtomic
+from elementpath.datatypes import AnyAtomicType, ListType, UntypedAtomic
 from elementpath.sequences import empty_sequence
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from .functions import XPathFunction

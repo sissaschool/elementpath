@@ -71,15 +71,15 @@ class TestParseCharacterSubset(unittest.TestCase):
     def test_backslash_character(self):
         self.assertEqual(list(iterparse_character_subset('\\')), [ord('\\')])
         self.assertEqual(list(iterparse_character_subset('2-\\')),
-                             [(ord('2'), ord('\\') + 1)])
+                         [(ord('2'), ord('\\') + 1)])
         self.assertEqual(list(iterparse_character_subset('2-\\\\')),
-                             [(ord('2'), ord('\\') + 1), ord('\\')])
+                         [(ord('2'), ord('\\') + 1), ord('\\')])
         self.assertEqual(list(iterparse_character_subset('2-\\x')),
-                             [(ord('2'), ord('\\') + 1), ord('x')])
+                         [(ord('2'), ord('\\') + 1), ord('x')])
         self.assertEqual(list(iterparse_character_subset('2-\\a-x')),
-                             [(ord('2'), ord('\\') + 1), (ord('a'), ord('x') + 1)])
+                         [(ord('2'), ord('\\') + 1), (ord('a'), ord('x') + 1)])
         self.assertEqual(list(iterparse_character_subset('2-\\{')),
-                             [(ord('2'), ord('{') + 1)])
+                         [(ord('2'), ord('{') + 1)])
 
     def test_backslash_escapes(self):
         self.assertEqual(list(iterparse_character_subset('\\{')), [ord('{')])
@@ -111,9 +111,9 @@ class TestParseCharacterSubset(unittest.TestCase):
 
     def test_character_range(self):
         self.assertEqual(list(iterparse_character_subset('A-z')),
-                             [(ord('A'), ord('z') + 1)])
+                         [(ord('A'), ord('z') + 1)])
         self.assertEqual(list(iterparse_character_subset('\\[-z')),
-                             [(ord('['), ord('z') + 1)])
+                         [(ord('['), ord('z') + 1)])
 
     def test_bad_character_range(self):
         with self.assertRaises(RegexError) as ctx:
@@ -577,7 +577,7 @@ class TestCharacterClass(unittest.TestCase):
         self.assertEqual(len(char_class), sys.maxunicode)
         char_class.discard('\\s')
         self.assertEqual(char_class.positive.codepoints,
-                             [(0, 9), (11, 13), (14, 32), (33, 1114112)])
+                         [(0, 9), (11, 13), (14, 32), (33, 1114112)])
         self.assertEqual(len(char_class), sys.maxunicode - 3)
         char_class.discard('\\S')
         self.assertEqual(len(char_class), 0)

@@ -27,7 +27,6 @@ from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS
 from elementpath.namespaces import get_prefixed_name
 from elementpath.datatypes import QName, builtin_atomic_types
 from elementpath.collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
-from elementpath.aliases import AtomicType
 from elementpath.sequences import empty_sequence
 from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathConstructor
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
@@ -244,32 +243,6 @@ class XPath2Parser(XPath1Parser):
 
         return self.token
 
-    def parse_sequence_type(self) -> XPathToken:
-        if self.next_token.label in ('kind test', 'sequence type', 'function test'):
-            token = self.expression(rbp=85)
-        else:
-            if self.next_token.symbol == 'Q{':
-                token = self.advance().nud()
-            elif self.next_token.symbol != '(name)':
-                raise self.next_token.wrong_syntax()
-            else:
-                self.advance()
-                if self.next_token.symbol == ':':
-                    left = self.token
-                    self.advance()
-                    token = self.token.led(left)
-                else:
-                    token = self.token
-
-                if self.next_token.symbol in ('::', '('):
-                    raise self.next_token.wrong_syntax()
-
-        next_symbol = self.next_token.symbol
-        if token.symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
-            token.occurrence = next_symbol
-            self.advance()
-        return token
-
     @classmethod
     def constructor(cls, symbol: str, bp: int = 90, nargs: ta.NargsType = 1,
                     sequence_types: Union[tuple[()], tuple[str, ...], list[str]] = (),
@@ -321,8 +294,8 @@ class XPath2Parser(XPath1Parser):
                 pass
             return self_
 
-        def evaluate_(self_: XPathFunction, context: Optional[XPathContext] = None) \
-                -> Union[AtomicType]:
+        def evaluate_(self_: XPathFunction, context: XPathContext | None = None) \
+                -> ta.OneAtomicOrEmpty:
             arg = self_.get_argument(context)
             if arg is None or self_.parser.schema is None:
                 return empty_sequence()

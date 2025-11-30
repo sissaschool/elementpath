@@ -112,7 +112,7 @@ class AbstractQName(AnyAtomicType):
             return self.uri == other.uri and self.local_name == other.local_name
         elif isinstance(other, (str, UntypedAtomic)):
             return other == self.qname
-        raise TypeError("cannot compare {!r} to {!r}".format(type(self), type(other)))
+        return NotImplemented
 
 
 class QName(AbstractQName):

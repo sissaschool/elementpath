@@ -20,7 +20,7 @@ from collections.abc import Callable, Iterable, Iterator
 from datetime import datetime, timedelta
 from decimal import Decimal
 from itertools import product
-from typing import Any, cast, Optional
+from typing import Any, cast, Optional, NoReturn
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
@@ -32,7 +32,7 @@ from elementpath.datatypes import AbstractBinary, AbstractDateTime, AnyAtomicTyp
     Base64Binary, BooleanProxy, DateTime, DoubleProxy, DoubleProxy10, Duration, \
     Language, NumericProxy, Timezone, UntypedAtomic
 from elementpath.namespaces import XML_BASE, XPATH_FUNCTIONS_NAMESPACE
-from elementpath.sequences import XSequence, empty_sequence
+from elementpath.sequences import XSequence, empty_sequence, sequence_classes
 from elementpath.helpers import collapse_white_spaces, is_xml_codepoint, \
     escape_json_string, unescape_json_string, not_equal
 from elementpath.etree import etree_iter_strings, is_etree_element
@@ -144,7 +144,7 @@ def evaluate__map_contains(self: XPathFunction, context: ta.ContextType = None) 
 @method(function('get', prefix='map', nargs=2,
                  sequence_types=('map(*)', 'xs:anyAtomicType', 'item()*')))
 def evaluate__map_get(self: XPathFunction, context: ta.ContextType = None) \
-        -> ta.OneOrMore[ta.ItemType]:
+        -> ta.ValueType:
     if self.context is not None:
         context = self.context
 
@@ -272,7 +272,7 @@ def evaluate__map_find(self: XPathFunction, context: ta.ContextType = None) -> X
     key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
     items = []
 
-    def collect_matching_items(obj: ta.OneOrMoreItems) -> None:
+    def collect_matching_items(obj: ta.ValueType) -> None:
         if isinstance(obj, list):
             for x in obj:
                 collect_matching_items(x)
@@ -304,7 +304,7 @@ def select__map_for_each(self: XPathFunction, context: ta.ContextType = None) \
 
     for k, v in map_.items(context):
         result = func(k, v, context=context)
-        if isinstance(result, XSequence):
+        if isinstance(result, sequence_classes):
             yield from result
         else:
             yield result
@@ -319,7 +319,7 @@ def evaluate__array_size(self: XPathFunction, context: ta.ContextType = None) ->
 @method(function('get', prefix='array', nargs=2,
                  sequence_types=('array(*)', 'xs:integer', 'item()*')))
 def evaluate__array_get(self: XPathFunction, context: ta.ContextType = None) \
-        -> ta.OneOrMore[ta.ItemType]:
+        -> ta.ValueType:
     if self.context is not None:
         context = self.context
 
@@ -412,7 +412,7 @@ def evaluate__array_remove(self: XPathFunction, context: ta.ContextType = None) 
         return array_
 
     positions: list[int] = []
-    for p in positions_ if isinstance(positions_, XSequence) else [positions_]:
+    for p in positions_ if isinstance(positions_, sequence_classes) else [positions_]:
         if isinstance(p, int) and 0 < p <= len(array_):
             positions.append(p)
         elif isinstance(context, XPathSchemaContext):
@@ -609,7 +609,7 @@ def select__array_fold_left_right_functions(self: XPathFunction, context: ta.Con
         for item in reversed(array_.items(context)):
             result = func(item, result, context=context)
 
-    if isinstance(result, XSequence):
+    if isinstance(result, sequence_classes):
         yield from result
     else:
         yield result
@@ -618,7 +618,7 @@ def select__array_fold_left_right_functions(self: XPathFunction, context: ta.Con
 @method(function('sort', nargs=(1, 3),
                  sequence_types=('item()*', 'xs:string?',
                                  'function(item()) as xs:anyAtomicType*', 'item()*')))
-def evaluate__sort(self: XPathFunction, context: ta.ContextType = None) -> ta.OneItemOrEmpty:
+def evaluate__sort(self: XPathFunction, context: ta.ContextType = None) -> ta.ValueType:
     if self.context is not None:
         context = self.context
 
@@ -638,7 +638,7 @@ def evaluate__sort(self: XPathFunction, context: ta.ContextType = None) -> ta.On
         key_function = get_key_function(collation, token=self)
 
     try:
-        return sorted(self[0].select(context), key=key_function)
+        return XSequence(sorted(self[0].select(context), key=key_function))
     except ElementPathTypeError:
         raise
     except TypeError:
@@ -876,17 +876,18 @@ def evaluate__random_number_generator(self: XPathFunction, context: ta.ContextTy
         nargs = 1
         sequence_types = ('item()*', 'item()*')
 
-        def __call__(self, *args: Any, **kwargs: Any) -> ta.AnyItemsOrEmpty:
+        def __call__(self, *args: Any, **kwargs: Any) \
+                -> XSequence[ta.ItemType] | XSequence[NoReturn]:
             if not args:
                 return empty_sequence()
 
             try:
                 seq = [x for x in args[0]]
             except TypeError:
-                return [args[0]]
+                return XSequence([args[0]])
             else:
                 random.shuffle(seq)
-                return seq
+                return XSequence(seq)
 
     class NextRandom(XPathFunction):
         nargs = 0
@@ -906,7 +907,7 @@ def evaluate__random_number_generator(self: XPathFunction, context: ta.ContextTy
 @method(function('apply', nargs=2,
                  sequence_types=('function(*)', 'array(*)', 'item()*')))
 def evaluate__apply(self: XPathFunction, context: ta.ContextType = None) \
-        -> ta.OneOrMore[ta.ItemType]:
+        -> ta.ValueType:
     if self.context is not None:
         context = self.context
 

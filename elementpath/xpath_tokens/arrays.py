@@ -13,7 +13,7 @@ from typing import Any, Optional
 import elementpath.aliases as ta
 
 from elementpath.exceptions import ElementPathValueError
-from elementpath.sequences import XSequence
+from elementpath.sequences import XSequence, sequence_classes
 from elementpath.helpers import split_function_test
 
 from elementpath.sequence_types import match_sequence_type
@@ -119,7 +119,7 @@ class XPathArray(XPathFunction):
         except IndexError:
             raise self.error('FOAY0001')
 
-    def items(self, context: ta.ContextType = None) -> ta.ListItemType:
+    def items(self, context: ta.ContextType = None) -> list[ta.ValueType]:
         if self._array is not None:
             return self._array
         return self._evaluate(context)
@@ -133,7 +133,7 @@ class XPathArray(XPathFunction):
         for item in items:
             if isinstance(item, XPathArray):
                 yield from item.iter_flatten(context)
-            elif isinstance(item, XSequence):
+            elif isinstance(item, sequence_classes):
                 yield from item
             else:
                 yield item

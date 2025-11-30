@@ -19,7 +19,7 @@ import unicodedata
 from collections.abc import Iterator
 from decimal import Decimal, DecimalException
 from string import ascii_letters
-from typing import cast, Optional, Union
+from typing import cast, Optional, Union, NoReturn
 from urllib.parse import urlsplit, quote as urllib_quote
 
 import elementpath.aliases as ta
@@ -1285,7 +1285,13 @@ def evaluate__timezone_from_datetime(self: XPathFunction, context: ta.ContextTyp
     item: DateTime | None = self.get_argument(self.context or context, cls=cls)
     if item is None or item.tzinfo is None:
         return empty_sequence()
-    seconds = Decimal.from_float(item.tzinfo.offset.total_seconds())
+
+    offset = item.tzinfo.utcoffset(None)
+    if offset is not None:
+        seconds = Decimal.from_float(offset.total_seconds())
+    else:
+        seconds = Decimal('0')
+
     return DayTimeDuration(seconds=seconds)
 
 
@@ -1310,7 +1316,11 @@ def evaluate__from_date_functions(self: XPathFunction, context: ta.ContextType =
         return empty_sequence()
 
     dt_ = datetime.datetime(year=max(item.year, 0), month=item.month, day=item.day)
-    seconds = Decimal.from_float(item.tzinfo.utcoffset(dt_).total_seconds())
+    offset = item.tzinfo.utcoffset(dt_)
+    if offset is None:
+        return empty_sequence()
+
+    seconds = Decimal.from_float(offset.total_seconds())
     return DayTimeDuration(seconds=seconds)
 
 
@@ -1332,7 +1342,10 @@ def evaluate__minutes_from_time(self: XPathFunction, context: ta.ContextType = N
 def evaluate__seconds_from_time(self: XPathFunction, context: ta.ContextType = None) \
         -> ta.OneOrEmpty[int | Decimal]:
     item: Optional[Time] = self.get_argument(self.context or context, cls=Time)
-    return empty_sequence() if item is None else item.second + item.microsecond / Decimal('1000000.0')
+    if item is None:
+        return empty_sequence()
+    else:
+        return item.second + item.microsecond / Decimal('1000000.0')
 
 
 @method(function('timezone-from-time', nargs=1,
@@ -1342,7 +1355,12 @@ def evaluate__timezone_from_time(self: XPathFunction, context: ta.ContextType = 
     item: Optional[Time] = self.get_argument(self.context or context, cls=Time)
     if item is None or item.tzinfo is None:
         return empty_sequence()
-    seconds = Decimal.from_float(item.tzinfo.offset.total_seconds())
+
+    offset = item.tzinfo.utcoffset(None)
+    if offset is not None:
+        seconds = Decimal.from_float(offset.total_seconds())
+    else:
+        return empty_sequence()
     return DayTimeDuration(seconds=seconds)
 
 
@@ -1399,9 +1417,9 @@ def evaluate__current_datetime(self: XPathFunction, context: ta.ContextType = No
     dt_ = datetime.datetime.now() if context is None else context.current_dt
     if self.parser.xsd_version != '1.0':
         return DateTime(dt_.year, dt_.month, dt_.day, dt_.hour, dt_.minute,
-                               dt_.second, dt_.microsecond, dt_.tzinfo)
+                        dt_.second, dt_.microsecond, dt_.tzinfo)
     return DateTime10(dt_.year, dt_.month, dt_.day, dt_.hour, dt_.minute,
-                             dt_.second, dt_.microsecond, dt_.tzinfo)
+                      dt_.second, dt_.microsecond, dt_.tzinfo)
 
 
 @method(function('current-date', nargs=0, sequence_types=('xs:date',)))
@@ -1663,7 +1681,7 @@ def evaluate__doc_functions(self: XPathFunction, context: ta.ContextType = None)
 
 @method(function('collection', nargs=(0, 1), sequence_types=('xs:string?', 'node()*')))
 def evaluate__collection(self: XPathFunction, context: ta.ContextType = None) \
-        -> ta.OneOrEmpty[list[XPathNode]]:
+        -> XSequence[XPathNode] | XSequence[NoReturn]:
     if self.context is not None:
         context = self.context
 

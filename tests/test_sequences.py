@@ -60,10 +60,10 @@ class XPathSequenceTest(unittest.TestCase):
 
     def test_iter_sequence(self):
         self.assertEqual(list(iter(XSequence([]))), [])
-        #self.assertEqual(list(iter(XPathSequence([None, 8]))), [8])
-        #self.assertEqual(list(iter(XPathSequence([[], 8]))), [8])
-        #self.assertEqual(list(iter(XPathSequence([[], [], []]))), [])
-        #self.assertEqual(list(iter(XPathSequence([[], 8, [9]]))), [8, 9])
+        self.assertEqual(list(iter(XSequence([None, 8]))), [None, 8])
+        self.assertEqual(list(iter(XSequence([[], 8]))), [8])
+        self.assertEqual(list(iter(XSequence([[], [], []]))), [])
+        self.assertEqual(list(iter(XSequence([[], 8, [9]]))), [8, 9])
 
 
 if __name__ == '__main__':

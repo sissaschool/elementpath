@@ -18,7 +18,7 @@ import elementpath.aliases as ta
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, \
     XPathMap, XPathArray
-from elementpath.sequences import XSequence
+from elementpath.sequences import XSequence, sequence_classes
 
 from .xpath31_parser import XPath31Parser
 
@@ -168,20 +168,20 @@ class LookupOperatorToken(XPathToken):
 
     def evaluate(self, context: ta.ContextType = None) -> ta.OneOrMore[ta.ItemType]:
         if not self:
-            return self.value  # a placeholder token
-        return [x for x in self.select(context)]
+            return self.symbol  # a placeholder token
+        return XSequence([x for x in self.select(context)])
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
 
         # flatten sequences, don't flatten arrays.
         def flatten(v: ta.ValueType) -> Iterator[ta.ItemType]:
-            if isinstance(v, XSequence):
+            if isinstance(v, sequence_classes):
                 yield from v
             else:
                 yield v
 
         if not self:
-            if isinstance(self.value, XSequence):
+            if isinstance(self.value, sequence_classes):
                 yield from self.value
             else:
                 yield self.value
@@ -261,7 +261,7 @@ def led__arrow_operator(self: XPathToken, left: XPathToken) -> XPathToken:
 
 @method('=>')
 def evaluate__arrow_operator(self: XPathToken, context: ta.ContextType = None) \
-        -> ta.OneOrMore[ta.ItemType]:
+        -> ta.ValueType:
     tokens = [self[0]]
     if self[2]:
         tokens.extend(self[2][0].get_argument_tokens())

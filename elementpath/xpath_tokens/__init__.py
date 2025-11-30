@@ -12,13 +12,13 @@ XPathToken class and derived classes for other XPath objects (functions, constru
 axes, maps, arrays). XPath's error creation and node helper functions are embedded in
 XPathToken class, in order to raise errors related to token instances.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from collections.abc import Callable
 from typing import Any
 
 import elementpath.aliases as _ta
 from elementpath.datatypes import UntypedAtomic, QName
-from elementpath.sequences import XSequence, empty_sequence, iterate_sequence
+from elementpath.sequences import XSequence
 
 from .base import XPathToken
 from .axes import XPathAxis
@@ -59,7 +59,7 @@ class TokenRegistry:
     class __Name:
         name: str | None = None
 
-    def __set_name__(self, owner, name):
+    def __set_name__(self, owner: type[Any], name: str) -> None:
         self.__Name.name = name
 
     def __set__(self, instance: Any, value: Any) -> None:

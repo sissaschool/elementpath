@@ -16,7 +16,7 @@ from calendar import isleap
 from decimal import Decimal, Context
 from typing import cast, Any, TypeVar, Union
 
-from elementpath.aliases import XPath2ParserType
+from elementpath.aliases import XPathParserType
 from elementpath.helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
     DAYS_IN_100Y, DAYS_IN_400Y, days_from_common_era, adjust_day, \
     normalized_seconds, months2days, round_number, LazyPattern
@@ -568,7 +568,7 @@ class DateTime(AbstractDateTime):
 
     @classmethod
     def make(cls, value: Any,
-             parser: XPath2ParserType | None = None,
+             parser: XPathParserType | None = None,
              **kwargs: Any) -> 'DateTime':
 
         if cls._xsd_version == '1.0':
@@ -653,7 +653,7 @@ class Date(AbstractDateTime):
 
     @classmethod
     def make(cls, value: Any,
-             parser: XPath2ParserType | None = None,
+             parser: XPathParserType | None = None,
              **kwargs: Any) -> 'Date':
 
         if cls._xsd_version == '1.0':
@@ -795,7 +795,7 @@ class GregorianYear(AbstractDateTime):
 
     @classmethod
     def make(cls, value: Any,
-             parser: XPath2ParserType | None = None,
+             parser: XPathParserType | None = None,
              **kwargs: Any) -> 'GregorianYear':
 
         if cls._xsd_version == '1.0':
@@ -853,7 +853,7 @@ class GregorianYearMonth(AbstractDateTime):
 
     @classmethod
     def make(cls, value: Any,
-             parser: XPath2ParserType | None = None,
+             parser: XPathParserType | None = None,
              **kwargs: Any) -> 'GregorianYearMonth':
 
         if cls._xsd_version == '1.0':

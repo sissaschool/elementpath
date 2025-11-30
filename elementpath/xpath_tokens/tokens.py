@@ -9,14 +9,15 @@
 #
 """A collection of additional and special token classes."""
 from collections.abc import Iterator
-from typing import Literal
+from typing import Literal, cast
 
 import elementpath.aliases as ta
 
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XMLNS_NAMESPACE
-from elementpath.sequences import XSequence
+from elementpath.sequences import XSequence, sequence_classes
 from elementpath.datatypes import AnyAtomicType, AnyURI
 from elementpath.helpers import collapse_white_spaces
+from elementpath.xpath_nodes import AttributeNode, ElementNode
 
 from .base import XPathToken
 
@@ -36,7 +37,7 @@ class ValueToken(XPathToken):
         return self.value
 
     def select(self, context: ta.ContextType = None) -> Iterator[AnyAtomicType]:
-        if isinstance(self.value, XSequence):
+        if isinstance(self.value, sequence_classes):
             yield from self.value
         else:
             yield self.value
@@ -52,7 +53,7 @@ class ProxyToken(XPathToken):
     """
     symbol = '(proxy)'
 
-    def nud(self) -> XPathToken:
+    def nud(self) -> 'XPathToken':
         if self.parser.next_token.symbol not in ('(', '#'):
             # Not a function call or reference, returns a name.
             return self.as_name()
@@ -102,10 +103,11 @@ class NameToken(XPathToken):
 
         return self
 
-    def evaluate(self, context: ta.ContextType = None) -> list[ta.ItemType]:
-        return [x for x in self.select(context)]
+    def evaluate(self, context: ta.ContextType = None) \
+            -> XSequence[AttributeNode | ElementNode]:
+        return XSequence(self.select(context))
 
-    def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
+    def select(self, context: ta.ContextType = None) -> Iterator[AttributeNode | ElementNode]:
         if context is None:
             raise self.missing_context()
 
@@ -145,7 +147,7 @@ class PrefixedReferenceToken(XPathToken):
         else:
             return ':'.join(tk.source for tk in self)
 
-    def led(self, left: ta.XPathTokenType) -> XPathToken:
+    def led(self, left: XPathToken) -> XPathToken:
         version = self.parser.version
         if self.is_spaced():
             if version <= '3.0':
@@ -195,7 +197,7 @@ class PrefixedReferenceToken(XPathToken):
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):
             value = self[1].evaluate(context)
-            if isinstance(value, XSequence):
+            if isinstance(value, sequence_classes):
                 yield from value
             elif value is not None:
                 yield value
@@ -251,7 +253,7 @@ class ExpandedNameToken(XPathToken):
         elif self[1].value == '*':
             self.name = self[1].name = self.value = '{}*'
         else:
-            self.name = self[1].name = self.value = self[1].value
+            self.name = self[1].name = self.value = cast(str, self[1].value)
         return self
 
     def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
@@ -261,7 +263,11 @@ class ExpandedNameToken(XPathToken):
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):
-            yield self[1].evaluate(context)
+            result = self[1].evaluate(context)
+            if isinstance(result, sequence_classes):
+                yield from result
+            else:
+                yield result
             return
         elif context is None:
             raise self.missing_context()

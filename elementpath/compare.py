@@ -173,7 +173,7 @@ def deep_equal(seq1: Iterable[Any],
 
 
 def is_empty_sequence(x: Any) -> bool:
-    return x == empty_sequence()
+    return not x != empty_sequence()
 
 
 def deep_compare(obj1: Any,

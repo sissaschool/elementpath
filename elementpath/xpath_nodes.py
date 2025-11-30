@@ -14,7 +14,8 @@ from urllib.parse import urljoin
 from typing import cast, Any
 from xml.etree import ElementTree
 
-import elementpath.aliases as _ta
+import elementpath.aliases as ta
+from elementpath.sequences import XSequence
 
 from elementpath.exceptions import ElementPathRuntimeError, \
     ElementPathValueError, ElementPathKeyError
@@ -44,19 +45,19 @@ class XPathNodeTree:
     """
     Status of the node tree structure, shared between nodes.
     """
-    root: _ta.ParentNodeType
-    elements: _ta.ElementMapType
-    namespaces: _ta.NamespacesType
-    schema: _ta.SchemaProxyType | None
+    root: ta.ParentNodeType
+    elements: ta.ElementMapType
+    namespaces: ta.NamespacesType
+    schema: ta.SchemaProxyType | None
     uri: str | None
 
     __slots__ = ('root_node', 'uri', 'namespaces', 'ns_offset', 'elements', 'schema', 'position')
 
-    def __init__(self, root: _ta.ParentNodeType,
+    def __init__(self, root: ta.ParentNodeType,
                  uri: str | None = None,
-                 namespaces: _ta.NamespacesType | None = None,
-                 elements: _ta.ElementMapType | None = None,
-                 schema: _ta.SchemaProxyType | None = None) -> None:
+                 namespaces: ta.NamespacesType | None = None,
+                 elements: ta.ElementMapType | None = None,
+                 schema: ta.SchemaProxyType | None = None) -> None:
 
         self.root_node = root
         self.namespaces = {} if namespaces is None else namespaces
@@ -93,7 +94,7 @@ class XPathNode:
     def base_uri(self) -> str | None:
         return self.parent.base_uri if self.parent is not None else None
 
-    children: list[_ta.ChildNodeType] | None
+    children: list[ta.ChildNodeType] | None
 
     @property
     def document_uri(self) -> str | None:
@@ -149,7 +150,7 @@ class XPathNode:
                 return QName(namespace, f"{prefix}:{local}")
         raise ElementPathKeyError(f'missing namespace prefix mapping in {self!r}')
 
-    parent: _ta.ParentNodeType | None
+    parent: ta.ParentNodeType | None
 
     @property
     def type_name(self) -> str | None:
@@ -160,7 +161,7 @@ class XPathNode:
         raise NotImplementedError()
 
     @property
-    def typed_value(self) -> _ta.OneOrMoreAtomic:
+    def typed_value(self) -> ta.OneOrMoreAtomic:
         raise NotImplementedError()
 
     @staticmethod
@@ -219,7 +220,7 @@ class XPathNode:
         raise ElementPathKeyError(f'missing namespace prefix mapping in {path}')
 
     @property
-    def iter_typed_values(self) -> Iterator[_ta.AtomicType]:
+    def iter_typed_values(self) -> Iterator[ta.AtomicType]:
         raise NotImplementedError()
 
     @property
@@ -238,7 +239,7 @@ class XPathNode:
     def is_list(self) -> bool | None:
         return None
 
-    def apply_schema(self, schema: _ta.SchemaProxyType) -> None:
+    def apply_schema(self, schema: ta.SchemaProxyType) -> None:
         """Set XSD types for elements and attribute nodes from schema proxy instance."""
         if self.parent is not None:
             self.parent.apply_schema(schema)
@@ -260,7 +261,7 @@ class XPathNode:
         """
         return False
 
-    def get_child_position(self, child: _ta.ChildNodeType) -> int:
+    def get_child_position(self, child: ta.ChildNodeType) -> int:
         pos = 0
         if self.children:
             for c in self.children:
@@ -422,15 +423,11 @@ class AttributeNode(XPathNode):
         return XSD_UNTYPED_ATOMIC if self.xsd_type is None else self.xsd_type.name
 
     @property
-    def typed_value(self) -> _ta.OneOrMoreAtomic:
-        values = [v for v in self.iter_typed_values]
-        if len(values) == 1:
-            return values[0]
-        else:
-            return values
+    def typed_value(self) -> ta.OneOrMoreAtomic:
+        return XSequence(self.iter_typed_values)
 
     @property
-    def iter_typed_values(self) -> Iterator[_ta.AtomicType]:
+    def iter_typed_values(self) -> Iterator[ta.AtomicType]:
         raise NotImplementedError()
 
 
@@ -469,13 +466,13 @@ class TextAttributeNode(AttributeNode):
         return self.value
 
     @property
-    def iter_typed_values(self) -> Iterator[_ta.AtomicType]:
+    def iter_typed_values(self) -> Iterator[ta.AtomicType]:
         if self.parent is not None:
             yield from get_atomic_sequence(self.xsd_type, self.value, self.parent.nsmap)
         else:
             yield from get_atomic_sequence(self.xsd_type, self.value)
 
-    def apply_schema(self, schema: _ta.SchemaProxyType) -> None:
+    def apply_schema(self, schema: ta.SchemaProxyType) -> None:
         if self.parent is not None:
             self.parent.apply_schema(schema)
         elif (xsd_attribute := schema.get_attribute(self.name)) is not None:
@@ -511,7 +508,7 @@ class SchemaAttributeNode(AttributeNode):
         return str(get_atomic_sequence(self.xsd_type))
 
     @property
-    def iter_typed_values(self) -> Iterator[_ta.AtomicType]:
+    def iter_typed_values(self) -> Iterator[ta.AtomicType]:
         yield from get_atomic_sequence(self.xsd_type)
 
     def match_name(self, name: str, default_namespace: str | None = None) -> bool:
@@ -595,7 +592,7 @@ class TextNode(XPathNode):
         return XSD_UNTYPED_ATOMIC
 
     @property
-    def typed_value(self) -> _ta.OneOrMoreAtomic:
+    def typed_value(self) -> ta.OneOrMoreAtomic:
         return UntypedAtomic(self.value)
 
     @property
@@ -621,7 +618,7 @@ class CommentNode(XPathNode):
 
     def __init__(self,
                  content: CommentType | str,
-                 parent: _ta.ParentNodeType | None = None,
+                 parent: ta.ParentNodeType | None = None,
                  position: int = 1) -> None:
 
         self.name = None
@@ -697,7 +694,7 @@ class ProcessingInstructionNode(XPathNode):
     def __init__(self,
                  target: str | ProcessingInstructionType,
                  content: str | None = None,
-                 parent: _ta.ParentNodeType | None = None,
+                 parent: ta.ParentNodeType | None = None,
                  position: int = 1) -> None:
 
         if isinstance(target, str):
@@ -762,7 +759,7 @@ class ProcessingInstructionNode(XPathNode):
         return self.content
 
     @property
-    def typed_value(self) -> _ta.OneOrMoreAtomic:
+    def typed_value(self) -> ta.OneOrMoreAtomic:
         return self.content
 
     @property
@@ -783,11 +780,11 @@ class ElementNode(XPathNode):
     name: str | None
     value: object
     tree: XPathNodeTree
-    children: list[_ta.ChildNodeType]
-    parent: _ta.ParentNodeType | None
+    children: list[ta.ChildNodeType]
+    parent: ta.ParentNodeType | None
     xsd_type: XsdTypeProtocol | None
     xsd_element: XsdElementProtocol | None
-    _nsmap: _ta.NsmapType | _ta.NamespacesType | None
+    _nsmap: ta.NsmapType | ta.NamespacesType | None
 
     # Lazy protected attributes
     _namespace_nodes: list[NamespaceNode]
@@ -804,26 +801,26 @@ class ElementNode(XPathNode):
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.value)
 
-    def __getitem__(self, i: int | slice) -> _ta.ChildNodeType | list[_ta.ChildNodeType]:
+    def __getitem__(self, i: int | slice) -> ta.ChildNodeType | list[ta.ChildNodeType]:
         return self.children[i]
 
     def __len__(self) -> int:
         return len(self.children)
 
-    def __iter__(self) -> Iterator[_ta.ChildNodeType]:
+    def __iter__(self) -> Iterator[ta.ChildNodeType]:
         yield from self.children
 
     @property
-    def nsmap(self) -> _ta.NsmapType | _ta.NamespacesType:
+    def nsmap(self) -> ta.NsmapType | ta.NamespacesType:
         if hasattr(self.value, 'nsmap'):
-            return cast(_ta.NsmapType, self.value.nsmap)
+            return cast(ta.NsmapType, self.value.nsmap)
         elif self._nsmap is not None:
             return self._nsmap
         else:
             return self.tree.namespaces
 
     @nsmap.setter
-    def nsmap(self, nsmap: _ta.NsmapType | _ta.NamespacesType) -> None:
+    def nsmap(self, nsmap: ta.NsmapType | ta.NamespacesType) -> None:
         self._nsmap = nsmap
 
     @property
@@ -893,15 +890,11 @@ class ElementNode(XPathNode):
         return XSD_UNTYPED if self.xsd_type is None else self.xsd_type.name
 
     @property
-    def typed_value(self) -> _ta.OneOrMoreAtomic:
-        values = [v for v in self.iter_typed_values]
-        if len(values) == 1:
-            return values[0]
-        else:
-            return values
+    def typed_value(self) -> ta.OneOrMoreAtomic:
+        return XSequence(self.iter_typed_values)
 
     @property
-    def iter_typed_values(self) -> Iterator[_ta.AtomicType]:
+    def iter_typed_values(self) -> Iterator[ta.AtomicType]:
         raise NotImplementedError()
 
     @property
@@ -917,19 +910,19 @@ class ElementNode(XPathNode):
         self.tree.uri = uri
 
     @property
-    def schema(self) -> _ta.SchemaProxyType | None:
+    def schema(self) -> ta.SchemaProxyType | None:
         return self.tree.schema
 
     @schema.setter
-    def schema(self, schema: _ta.SchemaProxyType) -> None:
+    def schema(self, schema: ta.SchemaProxyType) -> None:
         self.tree.schema = schema
 
     @property
-    def elements(self) -> _ta.ElementMapType | None:
+    def elements(self) -> ta.ElementMapType | None:
         return self.tree.elements
 
     @elements.setter
-    def elements(self, elements: _ta.ElementMapType) -> None:
+    def elements(self, elements: ta.ElementMapType) -> None:
         self.tree.elements = elements
 
     @property
@@ -957,7 +950,7 @@ class ElementNode(XPathNode):
     def is_typed(self) -> bool:
         return self.xsd_type is not None
 
-    def apply_schema(self, schema: _ta.SchemaProxyType) -> None:
+    def apply_schema(self, schema: ta.SchemaProxyType) -> None:
         return
 
     def clear_types(self) -> None:
@@ -975,7 +968,7 @@ class ElementNode(XPathNode):
         else:
             return self.name == f'{{{default_namespace}}}{name}'
 
-    def get_element_node(self, elem: ElementType | SchemaElemType) -> _ta.TaggedNodeType | None:
+    def get_element_node(self, elem: ElementType | SchemaElemType) -> ta.TaggedNodeType | None:
         return self.tree.elements.get(elem)
 
     def get_document_node(self, replace: bool = False, as_parent: bool = True) -> 'DocumentNode':
@@ -1037,7 +1030,7 @@ class ElementNode(XPathNode):
                 except IndexError:
                     return
 
-    def iter_descendants(self, with_self: bool = True) -> Iterator[_ta.ChildNodeType]:
+    def iter_descendants(self, with_self: bool = True) -> Iterator[ta.ChildNodeType]:
         if with_self:
             yield self
 
@@ -1074,9 +1067,9 @@ class EtreeElementNode(ElementNode):
 
     def __init__(self,
                  elem: ElementType,
-                 parent: _ta.ParentNodeType | None = None,
+                 parent: ta.ParentNodeType | None = None,
                  position: int = 1,
-                 nsmap: _ta.NsmapType | _ta.NamespacesType | None = None) -> None:
+                 nsmap: ta.NsmapType | ta.NamespacesType | None = None) -> None:
 
         assert not callable(elem.tag)
         self.name = elem.tag
@@ -1180,7 +1173,7 @@ class EtreeElementNode(ElementNode):
             getattr(self.xsd_element, 'value_constraint', None) or ''
 
     @property
-    def iter_typed_values(self) -> Iterator[_ta.AtomicType]:
+    def iter_typed_values(self) -> Iterator[ta.AtomicType]:
         if self.xsd_type is None or \
                 self.xsd_type.name in _XSD_SPECIAL_TYPES or \
                 self.xsd_type.has_mixed_content():
@@ -1201,7 +1194,7 @@ class EtreeElementNode(ElementNode):
     def compat_string_value(self) -> str:
         return ''.join(etree_iter_strings(self.value))
 
-    def apply_schema(self, schema: _ta.SchemaProxyType) -> None:
+    def apply_schema(self, schema: ta.SchemaProxyType) -> None:
         if self.tree.schema is schema and not schema.is_assertion_based():
             return
         self.tree.schema = schema
@@ -1227,7 +1220,7 @@ class EtreeElementNode(ElementNode):
             if hasattr(self, '_attributes'):
                 delattr(self, '_attributes')
         else:
-            root_node: _ta.ParentNodeType = self
+            root_node: ta.ParentNodeType = self
             while isinstance(root_node.parent, EtreeElementNode):
                 root_node = root_node.parent
 
@@ -1383,7 +1376,7 @@ class LazyElementNode(EtreeElementNode):
     """
     __slots__ = ()
 
-    def __iter__(self) -> Iterator[_ta.ChildNodeType]:
+    def __iter__(self) -> Iterator[ta.ChildNodeType]:
         if not self.children:
             if self.value.text is not None:
                 TextNode(self.value.text, self)
@@ -1401,7 +1394,7 @@ class LazyElementNode(EtreeElementNode):
 
         yield from self.children
 
-    def iter_descendants(self, with_self: bool = True) -> Iterator[_ta.ChildNodeType]:
+    def iter_descendants(self, with_self: bool = True) -> Iterator[ta.ChildNodeType]:
         if with_self:
             yield self
 
@@ -1425,9 +1418,9 @@ class SchemaElementNode(ElementNode):
 
     def __init__(self,
                  elem: SchemaElemType,
-                 parent: _ta.ParentNodeType | None = None,
+                 parent: ta.ParentNodeType | None = None,
                  position: int = 1,
-                 nsmap: _ta.NsmapType | _ta.NamespacesType | None = None):
+                 nsmap: ta.NsmapType | ta.NamespacesType | None = None):
 
         self.name = elem.name
         self.value = elem
@@ -1453,7 +1446,7 @@ class SchemaElementNode(ElementNode):
 
         self.tree.elements[elem] = self
 
-    def __iter__(self) -> Iterator[_ta.ChildNodeType]:
+    def __iter__(self) -> Iterator[ta.ChildNodeType]:
         if self.ref is None:
             yield from self.children
         else:
@@ -1521,7 +1514,7 @@ class SchemaElementNode(ElementNode):
         return ''
 
     @property
-    def iter_typed_values(self) -> Iterator[_ta.AtomicType]:
+    def iter_typed_values(self) -> Iterator[ta.AtomicType]:
         yield from get_atomic_sequence(self.xsd_type)
 
     def iter(self) -> Iterator[XPathNode]:
@@ -1559,7 +1552,7 @@ class SchemaElementNode(ElementNode):
                 except IndexError:
                     return
 
-    def iter_descendants(self, with_self: bool = True) -> Iterator[_ta.ChildNodeType]:
+    def iter_descendants(self, with_self: bool = True) -> Iterator[ta.ChildNodeType]:
         if with_self:
             yield self
 
@@ -1598,7 +1591,7 @@ class DocumentNode(XPathNode):
     name: None
     value: object
     parent: None
-    children: list[_ta.ChildNodeType]
+    children: list[ta.ChildNodeType]
     tree: XPathNodeTree
 
     __slots__ = ('children', 'tree')
@@ -1611,13 +1604,13 @@ class DocumentNode(XPathNode):
     def __repr__(self) -> str:
         return '%s(document=%r)' % (self.__class__.__name__, self.value)
 
-    def __getitem__(self, i: int | slice) -> _ta.ChildNodeType | list[_ta.ChildNodeType]:
+    def __getitem__(self, i: int | slice) -> ta.ChildNodeType | list[ta.ChildNodeType]:
         return self.children[i]
 
     def __len__(self) -> int:
         return len(self.children)
 
-    def __iter__(self) -> Iterator[_ta.ChildNodeType]:
+    def __iter__(self) -> Iterator[ta.ChildNodeType]:
         yield from self.children
 
     @property
@@ -1629,7 +1622,7 @@ class DocumentNode(XPathNode):
         return self.tree.uri
 
     @property
-    def elements(self) -> dict[object, _ta.TaggedNodeType]:
+    def elements(self) -> dict[object, ta.TaggedNodeType]:
         return self.tree.elements
 
     @property
@@ -1642,7 +1635,7 @@ class DocumentNode(XPathNode):
                 return child
         raise ElementPathRuntimeError("Missing document root")
 
-    def get_element_node(self, elem: ElementProtocol) -> _ta.TaggedNodeType | None:
+    def get_element_node(self, elem: ElementProtocol) -> ta.TaggedNodeType | None:
         return self.elements.get(elem)
 
     def iter(self) -> Iterator[XPathNode]:
@@ -1666,7 +1659,7 @@ class DocumentNode(XPathNode):
                 yield e
 
     def iter_descendants(self, with_self: bool = True) \
-            -> Iterator['DocumentNode | _ta.ChildNodeType']:
+            -> Iterator['DocumentNode | ta.ChildNodeType']:
         if with_self:
             yield self
 
@@ -1684,7 +1677,7 @@ class DocumentNode(XPathNode):
         else:
             return False
 
-    def apply_schema(self, schema: _ta.SchemaProxyType) -> None:
+    def apply_schema(self, schema: ta.SchemaProxyType) -> None:
         for child in self.children:
             if isinstance(child, ElementNode):
                 child.apply_schema(schema)
@@ -1724,7 +1717,7 @@ class DocumentNode(XPathNode):
         raise NotImplementedError()
 
     @property
-    def typed_value(self) -> _ta.AtomicType:
+    def typed_value(self) -> ta.AtomicType:
         return UntypedAtomic(self.string_value)
 
     @property
