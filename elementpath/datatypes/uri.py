@@ -7,14 +7,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from decimal import Decimal
 from urllib.parse import urlparse
 from typing import Union
 
 from elementpath.helpers import collapse_white_spaces, Patterns
 from .any_types import AnyAtomicType
 from .untyped import UntypedAtomic
-from .numeric import Integer
 
 __all__ = ['AnyURI']
 
@@ -63,16 +61,16 @@ class AnyURI(AnyAtomicType):
     def __eq__(self, other: object) -> bool:
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value == other.value
-        elif isinstance(other, (bool, float, Decimal, Integer)):
-            raise TypeError("cannot compare {} with xs:{}".format(type(other), self.name))
-        return self.value == other
+        elif isinstance(other, str):
+            return self.value == other
+        return NotImplemented
 
     def __ne__(self, other: object) -> bool:
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value != other.value
-        elif isinstance(other, (bool, float, Decimal, Integer)):
-            raise TypeError("cannot compare {} with xs:{}".format(type(other), self.name))
-        return self.value != other
+        elif isinstance(other, str):
+            return self.value != other
+        return NotImplemented
 
     def __lt__(self, other: Union[str, 'AnyURI', UntypedAtomic]) -> bool:
         if isinstance(other, (AnyURI, UntypedAtomic)):

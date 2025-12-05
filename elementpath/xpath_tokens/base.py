@@ -25,7 +25,7 @@ from elementpath.namespaces import XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_AT
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE
 from elementpath.datatypes import AnyAtomicType, AbstractDateTime, AnyURI, \
     DayTimeDuration, Date, DateTime, DecimalProxy, Duration, Integer, QName, \
-    Timezone, UntypedAtomic
+    Timezone, UntypedAtomic, AbstractQName
 from elementpath.tdop import Token, MultiLabel
 from elementpath.helpers import ordinal, get_double
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
@@ -542,6 +542,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         """
         left_values: Any
         right_values: Any
+        msg = "cannot compare {!r} and {!r}"
 
         if self.parser.compatibility_mode:
             left_values = [x for x in self._items[0].atomization(context)]
@@ -571,13 +572,17 @@ class XPathToken(Token[ta.XPathTokenType]):
             right_values = self._items[1].atomization(context)
 
         for values in product(left_values, right_values):
-            if any(isinstance(x, bool) for x in values):
+            if any(isinstance(x, AbstractQName) for x in values):
+                if any(not isinstance(x, (UntypedAtomic, AbstractQName)) for x in values):
+                    raise TypeError(msg.format(type(values[0]), type(values[1])))
+            elif any(isinstance(x, AnyURI) for x in values):
+                if any(not isinstance(x, (str, UntypedAtomic, AnyURI)) for x in values):
+                    raise TypeError(msg.format(type(values[0]), type(values[1])))
+            elif any(isinstance(x, bool) for x in values):
                 if any(isinstance(x, (str, Integer)) for x in values):
-                    msg = "cannot compare {!r} and {!r}"
                     raise TypeError(msg.format(type(values[0]), type(values[1])))
             elif any(isinstance(x, Integer) for x in values) and \
                     any(isinstance(x, str) for x in values):
-                msg = "cannot compare {!r} and {!r}"
                 raise TypeError(msg.format(type(values[0]), type(values[1])))
             elif any(isinstance(x, float) for x in values):
                 if isinstance(values[0], decimal.Decimal):
