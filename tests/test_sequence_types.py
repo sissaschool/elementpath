@@ -95,7 +95,7 @@ class SequenceTypesTest(unittest.TestCase):
         self.assertTrue(is_instance(UntypedAtomic(1), XSD_UNTYPED_ATOMIC))
         self.assertFalse(is_instance(1, XSD_UNTYPED_ATOMIC))
         self.assertTrue(is_instance(1, XSD_ANY_ATOMIC_TYPE))
-        self.assertFalse(is_instance([1], XSD_ANY_ATOMIC_TYPE))
+        self.assertTrue(is_instance([1], XSD_ANY_ATOMIC_TYPE))
 
         self.assertRaises(KeyError, is_instance, object(), XSD_ANY_TYPE)
         self.assertRaises(KeyError, is_instance, [1], XSD_ANY_SIMPLE_TYPE)

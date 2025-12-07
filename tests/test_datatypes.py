@@ -1652,12 +1652,8 @@ class QNameTypesTest(unittest.TestCase):
         self.assertEqual(qname1, qname2)
         self.assertNotEqual(qname1, qname3)
         self.assertNotEqual(qname2, qname3)
-
         self.assertEqual(qname1, 'tst1:foo')
-
-        with self.assertRaises(TypeError) as ctx:
-            _ = qname1 == 1
-        self.assertIn('cannot compare', str(ctx.exception))
+        self.assertNotEqual(qname1, 1)
 
     def test_isinstance(self):
         qname = QName('http://xpath.test/ns', 'tst:foo')
@@ -1734,11 +1730,7 @@ class AnyUriTest(unittest.TestCase):
         self.assertTrue(uri != 'http://example.test')
         self.assertTrue(uri != AnyURI('http://example.test'))
 
-        with self.assertRaises(TypeError):
-            _ = uri == 10
-
-        with self.assertRaises(TypeError):
-            _ = uri != 10
+        self.assertNotEqual(uri, 10)
 
         self.assertLess(AnyURI('1'), AnyURI('2'))
         self.assertLess(AnyURI('1'), '2')

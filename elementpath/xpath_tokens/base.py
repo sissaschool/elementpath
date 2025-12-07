@@ -242,7 +242,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         else:
             self.parser.check_variables(context.variables)
 
-            for result in self.select(context):
+            for result in self.select_flatten(context):
                 if not isinstance(result, XPathNode):
                     yield result
                 elif isinstance(result, NamespaceNode):
@@ -269,12 +269,12 @@ class XPathToken(Token[ta.XPathTokenType]):
         """
         results: list[ta.ResultType]
         has_node = False
+        item = None
 
         if context is None:
             results = [x for x in self.select(context)]
         else:
             self.parser.check_variables(context.variables)
-
             results = []
 
             for item in self.select(context):
@@ -298,8 +298,11 @@ class XPathToken(Token[ta.XPathTokenType]):
                 else:
                     results.append(item)
 
-        if not has_node and len(results) == 1:
-            return cast('AnyAtomicType | XPathFunction', results[0])
+        if len(results) == 1 and not isinstance(item, (ElementNode, DocumentNode)):
+            if isinstance(item, (bool, int, float, Decimal)):
+                return item
+            elif self.label in ('function', 'literal'):
+                return cast('AnyAtomicType | XPathFunction', results[0])
         return results
 
     ###
@@ -571,28 +574,34 @@ class XPathToken(Token[ta.XPathTokenType]):
             left_values = self._items[0].atomization(context)
             right_values = self._items[1].atomization(context)
 
-        for values in product(left_values, right_values):
-            if any(isinstance(x, AbstractQName) for x in values):
-                if any(not isinstance(x, (UntypedAtomic, AbstractQName)) for x in values):
-                    raise TypeError(msg.format(type(values[0]), type(values[1])))
-            elif any(isinstance(x, AnyURI) for x in values):
-                if any(not isinstance(x, (str, UntypedAtomic, AnyURI)) for x in values):
-                    raise TypeError(msg.format(type(values[0]), type(values[1])))
-            elif any(isinstance(x, bool) for x in values):
-                if any(isinstance(x, (str, Integer)) for x in values):
-                    raise TypeError(msg.format(type(values[0]), type(values[1])))
-            elif any(isinstance(x, Integer) for x in values) and \
-                    any(isinstance(x, str) for x in values):
-                raise TypeError(msg.format(type(values[0]), type(values[1])))
-            elif any(isinstance(x, float) for x in values):
-                if isinstance(values[0], decimal.Decimal):
-                    yield float(values[0]), values[1]
-                    continue
-                elif isinstance(values[1], decimal.Decimal):
-                    yield values[0], float(values[1])
-                    continue
+        for op1, op2 in product(left_values, right_values):
+            match op1:
+                case str() | AnyURI():
+                    if not isinstance(op2, (str, UntypedAtomic, AnyURI)):
+                        raise TypeError(msg.format(type(op1), type(op2)))
+                case bool():
+                    if isinstance(op2, (str, Integer, AbstractQName, AnyURI)):
+                        raise TypeError(msg.format(type(op1), type(op2)))
+                case Integer():
+                    if isinstance(op2, (str, AbstractQName, AnyURI, bool)):
+                        raise TypeError(msg.format(type(op1), type(op2)))
+                case float():
+                    if isinstance(op2, decimal.Decimal):
+                        yield op1, float(op2)
+                        continue
+                    elif isinstance(op2, (str, AbstractQName, AnyURI, bool)):
+                        raise TypeError(msg.format(type(op1), type(op2)))
+                case decimal.Decimal():
+                    if isinstance(op2, float):
+                        yield float(op1), op2
+                        continue
+                    elif isinstance(op2, (str, AbstractQName, AnyURI, bool)):
+                        raise TypeError(msg.format(type(op1), type(op2)))
+                case AbstractQName():
+                    if not isinstance(op2, (AbstractQName, UntypedAtomic)):
+                        raise TypeError(msg.format(type(op1), type(op2)))
 
-            yield values
+            yield op1, op2
 
     def get_operands(self, context: ta.ContextType, cls: type[Any] | None = None) -> Any:
         """

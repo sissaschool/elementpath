@@ -125,7 +125,9 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
 
 def is_instance(obj: Any, type_qname: str, parser: ta.XPathParserType | None = None) -> bool:
     """Checks an instance against an XSD type."""
-    if type_qname in builtin_atomic_types:
+    if isinstance(obj, sequence_classes) and len(obj) == 1:
+        return is_instance(obj[0], type_qname, parser)
+    elif type_qname in builtin_atomic_types:
         if type_qname in XSD11_ONLY_TYPES:
             if parser is not None and parser.xsd_version == '1.0':
                 return False

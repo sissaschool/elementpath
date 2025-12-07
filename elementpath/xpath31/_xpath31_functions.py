@@ -182,9 +182,10 @@ def evaluate__map_remove(self: XPathFunction, context: ta.ContextType = None) ->
     keys = self[1].evaluate(context)
     if keys is None:
         return map_
-    elif isinstance(keys, list):
-        items = ((k, v) for k, v in map_.items(context)
-                 if all(not_equal(k, x) for x in keys))
+    elif isinstance(keys, sequence_classes):
+        items = (
+            (k, v) for k, v in map_.items(context) if all(not_equal(k, x) for x in keys)
+        )
     else:
         items = ((k, v) for k, v in map_.items(context) if not_equal(k, keys))
 
