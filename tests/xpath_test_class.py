@@ -227,17 +227,23 @@ class XPathTestCase(unittest.TestCase):
                 self.assertEqual(results, expected)
             elif isinstance(expected, set):
                 self.assertEqual(set(results), expected)
-            elif isinstance(expected, float):
-                if math.isnan(expected):
-                    self.assertTrue(math.isnan(results))
-                else:
-                    self.assertAlmostEqual(results, expected)
-            elif not callable(expected):
-                self.assertEqual(results, expected)
-            elif isinstance(expected, type):
-                self.assertIsInstance(results, expected)
             else:
-                self.assertTrue(expected(results))
+                if isinstance(results, list) and len(results) == 1:
+                    result = results[0]
+                else:
+                    result = results
+
+                if isinstance(expected, float):
+                    if math.isnan(expected):
+                        self.assertTrue(math.isnan(result))
+                    else:
+                        self.assertAlmostEqual(result, expected)
+                elif not callable(expected):
+                    self.assertEqual(result, expected)
+                elif isinstance(expected, type):
+                    self.assertIsInstance(result, expected)
+                else:
+                    self.assertTrue(expected(result))
 
     @contextmanager
     def schema_bound_parser(self, schema_proxy):

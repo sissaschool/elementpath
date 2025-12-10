@@ -1505,7 +1505,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         context = XPathContext(root_node, item=date_node)
         result = token.get_results(context)
 
-        assert result == Date10(2018, 1, 23)
+        assert result == [Date10(2018, 1, 23)]
 
     def test_proxy_token_disambiguation__issue_078(self):
         root = self.etree.XML(dedent('''\

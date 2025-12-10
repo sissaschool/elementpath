@@ -1094,10 +1094,10 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_string_and_data_functions(self):
         root = self.etree.XML('<A id="10"><B1> a text, <C1 /><C2>an inner text, </C2>a tail, </B1>'
                               '<B2 /><B3>an ending text </B3></A>')
-        result = ' a text, an inner text, a tail, an ending text '
+        result = [' a text, an inner text, a tail, an ending text ']
 
         self.check_selector("/*/string()", root, result)
-        self.check_selector("string(.)", root, result)
+        self.check_selector("string(.)", root, result[0])
         self.check_selector("data(.)", root, result)
         self.check_selector("data(.)", root, UntypedAtomic)
         self.check_selector("data(())", root, [])

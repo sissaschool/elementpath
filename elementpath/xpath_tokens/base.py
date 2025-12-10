@@ -267,42 +267,32 @@ class XPathToken(Token[ta.XPathTokenType]):
         :param context: the XPath dynamic context.
         :return: a list of nodes, atomic items or functions or a single atomic item or function.
         """
-        results: list[ta.ResultType]
-        has_node = False
-        item = None
+        results = [x for x in self.select_results(context)]
+        if len(results) == 1:
+            if hasattr(results[0], 'tag') or hasattr(results[0], 'getroot'):
+                return results
+            if isinstance(results[0], self.registry.function_token):
+                return results[0]
+            if self.symbol in ('.', '/', '//', '[', '(', '@', 'for',):
+                return results
+            if self.symbol in ('cast', 'castable', '-', '+', 'some', 'every'):
+                return cast(AnyAtomicType, results[0])
+            if self.label == 'kind test' or isinstance(self, self.registry.axis_token):
+                return results
+            if self.label == 'literal':
+                return cast(AnyAtomicType, results[0])
 
-        if context is None:
-            results = [x for x in self.select(context)]
-        else:
-            self.parser.check_variables(context.variables)
-            results = []
+            tk = self if self.symbol != ':' else self[1]
+            if isinstance(tk, self.registry.function_token):
+                rt = tk.sequence_types[-1]
+                if rt.endswith(('*', '+')):
+                    return results
+                if rt.startswith('xs:'):
+                    return cast(AnyAtomicType, results[0])
+                return results
 
-            for item in self.select(context):
-                if isinstance(item, XPathNode):
-                    has_node = True
-                    if isinstance(item, NamespaceNode):
-                        if self.parser.compatibility_mode:
-                            results.append((item.prefix, item.uri))
-                        else:
-                            results.append(item.uri)
-                    elif isinstance(item, DocumentNode):
-                        if item.is_extended:
-                            results.append(item)
-                        elif item is not context.document or item is context.root:
-                            results.append(item.value)
-                    else:
-                        results.append(item.value)
-
-                elif not isinstance(item, (AnyAtomicType, self.registry.function_token)):
-                    raise ElementPathTypeError("unexpected XPath item type: {}".format(type(item)))
-                else:
-                    results.append(item)
-
-        if len(results) == 1 and not isinstance(item, (ElementNode, DocumentNode)):
-            if isinstance(item, (bool, int, float, Decimal)):
-                return item
-            elif self.label in ('function', 'literal'):
-                return cast('AnyAtomicType | XPathFunction', results[0])
+            if isinstance(results[0], AnyAtomicType):
+                return results[0]
         return results
 
     ###

@@ -15,7 +15,6 @@ from typing import cast, Any
 from xml.etree import ElementTree
 
 import elementpath.aliases as ta
-from elementpath.sequences import XSequence
 
 from elementpath.exceptions import ElementPathRuntimeError, \
     ElementPathValueError, ElementPathKeyError
@@ -161,7 +160,7 @@ class XPathNode:
         raise NotImplementedError()
 
     @property
-    def typed_value(self) -> ta.OneOrMoreAtomic:
+    def typed_value(self) -> list[ta.AtomicType] | ta.AtomicType:
         raise NotImplementedError()
 
     @staticmethod
@@ -423,8 +422,9 @@ class AttributeNode(XPathNode):
         return XSD_UNTYPED_ATOMIC if self.xsd_type is None else self.xsd_type.name
 
     @property
-    def typed_value(self) -> ta.OneOrMoreAtomic:
-        return XSequence(self.iter_typed_values)
+    def typed_value(self) -> list[ta.AtomicType] | ta.AtomicType:
+        value = [x for x in self.iter_typed_values]
+        return value[0] if len(value) == 1 else value
 
     @property
     def iter_typed_values(self) -> Iterator[ta.AtomicType]:
@@ -592,7 +592,7 @@ class TextNode(XPathNode):
         return XSD_UNTYPED_ATOMIC
 
     @property
-    def typed_value(self) -> ta.OneOrMoreAtomic:
+    def typed_value(self) -> UntypedAtomic:
         return UntypedAtomic(self.value)
 
     @property
@@ -759,7 +759,7 @@ class ProcessingInstructionNode(XPathNode):
         return self.content
 
     @property
-    def typed_value(self) -> ta.OneOrMoreAtomic:
+    def typed_value(self) -> str:
         return self.content
 
     @property
@@ -890,8 +890,9 @@ class ElementNode(XPathNode):
         return XSD_UNTYPED if self.xsd_type is None else self.xsd_type.name
 
     @property
-    def typed_value(self) -> ta.OneOrMoreAtomic:
-        return XSequence(self.iter_typed_values)
+    def typed_value(self) -> list[ta.AtomicType] | ta.AtomicType:
+        value = [x for x in self.iter_typed_values]
+        return value[0] if len(value) == 1 else value
 
     @property
     def iter_typed_values(self) -> Iterator[ta.AtomicType]:

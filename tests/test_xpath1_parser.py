@@ -881,7 +881,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         document = self.etree.ElementTree(root)
         self.check_selector('lang("en")', root, True)
         if self.parser.version > '1.0':
-            self.check_selector('para/lang("en")', root, True)
+            self.check_selector('para/lang("en")', root, [True])
             context = XPathContext(root)
             self.check_value('for $x in . return $x/fn:lang(())',
                              expected=[False], context=context)
@@ -893,8 +893,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         root = self.etree.XML('<a><b><c/></b></a>')
         self.check_selector('lang("en")', root, False)
         if self.parser.version > '1.0':
-            self.check_selector('b/c/lang("en")', root, False)
-            self.check_selector('b/c/lang("en", .)', root, False)
+            self.check_selector('b/c/lang("en")', root, [False])
+            self.check_selector('b/c/lang("en", .)', root, [False])
         else:
             context = XPathContext(root, item=root[0][0])
             self.check_value('lang("en")', False, context=context)
