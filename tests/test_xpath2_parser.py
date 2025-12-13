@@ -140,7 +140,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertEqual(
             repr(token), f"<{token.__class__.__name__} object at {hex(id(token))}>"
         )
-        self.assertEqual(str(token), '$var1 variable reference')
+        self.assertEqual(str(token), '$var1 variable')
 
         context = XPathContext(root=root, variables={'var1': root[0]})
         self.check_value('$var1', context.root[0], context=context)

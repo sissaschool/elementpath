@@ -26,12 +26,13 @@ from .functions import XPathFunction
 from .contructors import XPathConstructor
 from .maps import XPathMap
 from .arrays import XPathArray
-from .tokens import ValueToken, ProxyToken, NameToken, \
-    PrefixedReferenceToken, ExpandedNameToken
+from .tokens import ValueToken, ProxyToken, NameToken, PrefixedNameToken, \
+    BracedNameToken, VariableToken, AsteriskToken, ParentShortcutToken, ContextItemToken
 
 __all__ = ['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor',
            'XPathMap', 'XPathArray', 'ValueToken', 'ProxyToken', 'NameToken',
-           'PrefixedReferenceToken', 'ExpandedNameToken', 'TokenRegistry']
+           'PrefixedNameToken', 'BracedNameToken', 'VariableToken', 'AsteriskToken',
+           'ParentShortcutToken', 'ContextItemToken', 'TokenRegistry']
 
 MakeSequenceType = Callable[[_ta.SequenceArgType[Any]], XSequence[Any]]
 
@@ -47,11 +48,17 @@ class TokenRegistry:
     constructor_token: type[XPathConstructor] = XPathConstructor
     array_token: type[XPathArray] = XPathArray
     map_token: type[XPathMap] = XPathMap
+
+    # Other token common classes
     value_token: type[ValueToken] = ValueToken
     proxy_token: type[ProxyToken] = ProxyToken
     name_token: type[NameToken] = NameToken
-    prefixed_ref_token: type[PrefixedReferenceToken] = PrefixedReferenceToken
-    expanded_name_token: type[ExpandedNameToken] = ExpandedNameToken
+    prefixed_name_token: type[PrefixedNameToken] = PrefixedNameToken
+    braced_name_token: type[BracedNameToken] = BracedNameToken
+    variable_token: type[VariableToken] = VariableToken
+    asterisk_token: type[AsteriskToken] = AsteriskToken
+    parent_shortcut_token: type[ParentShortcutToken] = ParentShortcutToken
+    context_item_token: type[ContextItemToken] = ContextItemToken
 
     QName: type[QName] = QName
     UntypedAtomic: type[UntypedAtomic] = UntypedAtomic

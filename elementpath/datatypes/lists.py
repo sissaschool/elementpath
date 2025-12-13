@@ -33,12 +33,10 @@ class ListType(Sequence[AnyAtomicType], AnySimpleType, metaclass=ListTypeMeta):
     value: list[AnyAtomicType]
     item_type: type[AnyAtomicType]
 
-    __slots__ = ('value', 'item_type')
+    __slots__ = ('value',)
 
-    def __init__(self, value: list[AnyAtomicType],
-                 item_type: type[AnyAtomicType]) -> None:
+    def __init__(self, value: list[AnyAtomicType]) -> None:
         self.value = value
-        self.item_type = item_type
 
     @overload
     def __getitem__(self, index: int) -> AnyAtomicType: ...

@@ -8,16 +8,22 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """A collection of additional and special token classes."""
+import math
 from collections.abc import Iterator
-from typing import Literal, cast
+from decimal import Decimal
+from typing import Literal, cast, NoReturn
 
 import elementpath.aliases as ta
 
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XMLNS_NAMESPACE
-from elementpath.sequences import XSequence, sequence_classes
-from elementpath.datatypes import AnyAtomicType, AnyURI
+from elementpath.namespaces import get_expanded_name
+from elementpath.sequences import XSequence, sequence_classes, empty_sequence
+from elementpath.datatypes import AnyAtomicType, AnyURI, UntypedAtomic, ArithmeticProxy, \
+    YearMonthDuration, DayTimeDuration, Duration, AbstractDateTime
 from elementpath.helpers import collapse_white_spaces
 from elementpath.xpath_nodes import AttributeNode, ElementNode
+from elementpath.xpath_context import XPathSchemaContext
+from elementpath.decoder import get_atomic_sequence
 
 from .base import XPathToken
 
@@ -78,11 +84,17 @@ class ProxyToken(XPathToken):
 ###
 # Name related tokens for matching elements and attributes
 class NameToken(XPathToken):
-    """The special '(name)' token for matching named nodes."""
+    """
+    The special '(name)' token for matching attributes or element nodes.
+    For XPath its value is an unprefixed name.
+    """
     symbol = lookup_name = '(name)'
     label = 'name'
     bp = 10
     value: str
+
+    def __str__(self) -> str:
+        return f'{self.value!r} name'
 
     def nud(self) -> XPathToken:
         if self.parser.next_token.symbol == '::':
@@ -114,8 +126,8 @@ class NameToken(XPathToken):
         yield from context.iter_matching_nodes(self.value, self.parser.default_namespace)
 
 
-class PrefixedReferenceToken(XPathToken):
-    """Colon symbol for expressing namespace related names."""
+class PrefixedNameToken(XPathToken):
+    """Colon symbol for expressing prefixed qualified names or wildcards."""
     symbol = lookup_name = ':'
     lbp = 95
     rbp = 95
@@ -142,10 +154,7 @@ class PrefixedReferenceToken(XPathToken):
 
     @property
     def source(self) -> str:
-        if self.occurrence:
-            return ':'.join(tk.source for tk in self) + self.occurrence
-        else:
-            return ':'.join(tk.source for tk in self)
+        return ':'.join(tk.source for tk in self) + self.occurrence
 
     def led(self, left: XPathToken) -> XPathToken:
         version = self.parser.version
@@ -209,8 +218,8 @@ class PrefixedReferenceToken(XPathToken):
         yield from context.iter_matching_nodes(self.name)
 
 
-class ExpandedNameToken(XPathToken):
-    """Braced expanded name symbol for expressing namespace related names."""
+class BracedNameToken(XPathToken):
+    """Braced expanded name for expressing namespace related names."""
 
     symbol = lookup_name = '{'
     label = 'expanded name'
@@ -274,3 +283,220 @@ class ExpandedNameToken(XPathToken):
 
         if isinstance(self.value, str):
             yield from context.iter_matching_nodes(self.name)
+
+
+class VariableToken(XPathToken):
+    """A token for parsing a variable reference."""
+
+    symbol = lookup_name = '$'
+    label = 'variable'
+    bp = lbp = rbp = 90
+    value: str
+
+    def __str__(self) -> str:
+        if not self._items:
+            return 'unparsed variable reference'
+        return f'${self[0].value} variable'
+
+    def nud(self: XPathToken) -> XPathToken:
+        self.parser.expected_next('(name)', 'Q{')
+        self[:] = self.parser.expression(rbp=90),
+        self.value = self[0].value
+        return self
+
+    def evaluate(self: XPathToken, context: ta.ContextType = None) -> ta.ValueType:
+        if context is None:
+            raise self.missing_context()
+
+        assert isinstance(self.value, str)
+        varname: str = self.value
+        if varname.startswith('{'):
+            expanded_name = varname
+        else:
+            try:
+                expanded_name = get_expanded_name(self.value, self.parser.namespaces)
+            except KeyError as err:
+                raise self.error('XPST0081', "namespace prefix {} not found".format(err))
+
+        try:
+            value = context.variables[varname]
+        except KeyError:
+            if expanded_name in context.variables:
+                value = context.variables[expanded_name]
+            elif isinstance(context, XPathSchemaContext):
+                try:
+                    st = cast(dict[str, str], self.parser.variable_types)[varname]
+                except KeyError:
+                    return empty_sequence()
+
+                if st[-1] in ('*', '+', '?'):
+                    st, occurs = st[:-1], st[-1]
+                else:
+                    occurs = ''
+
+                if self.parser.schema is not None and st.startswith('xs:'):
+                    xsd_type = self.parser.schema.get_type(
+                        st.replace('xs:', f'{{{XSD_NAMESPACE}}}', 1)
+                    )
+                    result = [x for x in get_atomic_sequence(xsd_type)]
+                else:
+                    result = [UntypedAtomic('1')]
+
+                if occurs in ('', '?') and len(result) == 1:
+                    return result[0]
+                else:
+                    return XSequence(result)
+            else:
+                raise self.error('XPST0008', 'unknown variable %r' % str(varname))
+
+        if isinstance(value, (tuple, list)):
+            return XSequence(value)
+        elif value is None:
+            return empty_sequence()
+        else:
+            return value
+
+
+class AsteriskToken(XPathToken):
+
+    symbol = lookup_name = '*'
+    label = 'wildcard symbol'
+    bp = lbp = rbp = 45
+
+    def __str__(self) -> str:
+        return f'{self.symbol!r} {self.label}'
+
+    def nud(self) -> 'AsteriskToken':
+        return self
+
+    def led(self, left: XPathToken) -> 'AsteriskToken':
+        self.label = 'operator'
+        self[:] = left, self.parser.expression(rbp=45)
+        return self
+
+    def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
+        op1: ta.ArithmeticType | None
+        op2: ta.ArithmeticType
+        if self:
+            op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
+            if op1 is None:
+                return empty_sequence()
+            try:
+                if isinstance(op2, (YearMonthDuration, DayTimeDuration)):
+                    return op2 * op1
+                return op1 * op2  # type:ignore[operator]
+            except TypeError as err:
+                if isinstance(context, XPathSchemaContext):
+                    return empty_sequence()
+
+                if isinstance(op1, (float, Decimal)):
+                    if math.isnan(op1):
+                        raise self.error('FOCA0005') from None
+                    elif math.isinf(op1):
+                        raise self.error('FODT0002') from None
+
+                if isinstance(op2, (float, Decimal)):
+                    if math.isnan(op2):
+                        raise self.error('FOCA0005') from None
+                    elif math.isinf(op2):
+                        raise self.error('FODT0002') from None
+
+                raise self.error('XPTY0004', err) from None
+            except ValueError as err:
+                if isinstance(context, XPathSchemaContext):
+                    return empty_sequence()
+                raise self.error('FOCA0005', err) from None
+            except OverflowError as err:
+                if isinstance(context, XPathSchemaContext):
+                    return empty_sequence()
+                elif isinstance(op1, AbstractDateTime):
+                    raise self.error('FODT0001', err) from None
+                elif isinstance(op1, Duration):
+                    raise self.error('FODT0002', err) from None
+                else:
+                    raise self.error('FOAR0002', err) from None
+        else:
+            # This is not a multiplication operator but a wildcard select statement
+            return XSequence([x for x in self.select(context)])
+
+    def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
+        if self:
+            # Product operator
+            item = self.evaluate(context)
+            if not isinstance(item, sequence_classes):
+                if context is not None:
+                    context.item = item
+                yield item
+            elif context is not None:
+                for context.item in item:
+                    yield context.item
+            else:
+                yield from item
+            return
+        elif context is None:
+            raise self.missing_context()
+
+        # Wildcard literal
+        if self.parser.schema is None:
+            for item in context.iter_children_or_self():
+                if item is None:
+                    pass  # '*' wildcard doesn't match document nodes
+                elif context.axis == 'attribute':
+                    if isinstance(item, AttributeNode):
+                        yield item
+                elif isinstance(item, ElementNode):
+                    yield item
+        else:
+            # XSD typed selection
+            for item in context.iter_children_or_self():
+                if context.is_principal_node_kind():
+                    if isinstance(item, (ElementNode, AttributeNode)):
+                        yield item
+
+
+class ParentShortcutToken(XPathToken):
+    symbol = lookup_name = '..'
+    bp = lbp = rbp = 0
+    label = 'shortcut expression'
+
+    def nud(self) -> 'ParentShortcutToken':
+        return self
+
+    def evaluate(self, context: ta.ContextType = None) \
+            -> ta.ParentNodeType | XSequence[NoReturn]:
+        if context is None:
+            raise self.missing_context()
+
+        for value in context.iter_parent():
+            return value
+        else:
+            return empty_sequence()
+
+    def select(self, context: ta.ContextType = None) -> Iterator[ta.ParentNodeType]:
+        if context is None:
+            raise self.missing_context()
+        yield from context.iter_parent()
+
+
+class ContextItemToken(XPathToken):
+    """A token for parsing a context item reference."""
+
+    symbol = lookup_name = '.'
+    bp = lbp = rbp = 0
+    label = 'context item expression'
+
+    def __str__(self) -> str:
+        return self.label
+
+    def nud(self) -> 'ContextItemToken':
+        return self
+
+    def evaluate(self, context: ta.ContextType = None) -> ta.ItemType:
+        if context is None:
+            raise self.missing_context()
+        return context.item
+
+    def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
+        if context is None:
+            raise self.missing_context()
+        yield from context.iter_self()

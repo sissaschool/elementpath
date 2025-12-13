@@ -506,7 +506,6 @@ class XPath2Parser(XPath1Parser):
 # Remove symbols that have to be redefined for XPath 2.0.
 XPath2Parser.unregister(',')
 XPath2Parser.unregister('(')
-XPath2Parser.unregister('$')
 XPath2Parser.unregister('contains')
 XPath2Parser.unregister('lang')
 XPath2Parser.unregister('id')

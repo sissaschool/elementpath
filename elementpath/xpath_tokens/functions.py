@@ -175,11 +175,7 @@ class XPathFunction(XPathToken):
 
     @property
     def source(self) -> str:
-        if self.label in ('sequence type', 'kind test', ''):
-            return '%s(%s)%s' % (
-                self.symbol, ', '.join(item.source for item in self), self.occurrence or ''
-            )
-        return '%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
+        return f"{self.symbol}({', '.join(t.source for t in self)}){self.occurrence}"
 
     @property
     def qname(self) -> Optional[QName]:

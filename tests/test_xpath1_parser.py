@@ -166,7 +166,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         )
 
         # Variables
-        self.check_token('$', 'operator', "$ variable reference")
+        self.check_token('$', 'variable', "unparsed variable reference")
 
         # Axes
         self.check_token('self', 'axis', "'self' axis")
@@ -600,11 +600,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('$word', 'alpha', context)
         self.wrong_syntax('${http://xpath.test/ns}word', 'XPST0003')
 
-        if self.parser.version == '1.0':
-            self.wrong_syntax('$eg:word', 'variable reference requires a simple reference name')
-        else:
-            context = XPathContext(root, variables={'eg:color': 'purple'})
-            self.check_value('$eg:color', 'purple', context)
+        context = XPathContext(root, variables={'eg:color': 'purple'})
+        self.check_value('$eg:color', 'purple', context)
 
     def test_substring_function(self):
         root = self.etree.XML(XML_GENERIC_TEST)
@@ -1281,10 +1278,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         document = self.etree.ElementTree(root)
 
         context = XPathContext(root)
-        self.check_value('.', [context.root], context=context)
+        self.check_value('.', context.root, context=context)
 
         context = XPathContext(root=document)
-        self.check_value('.', [context.root], context=context)
+        self.check_value('.', context.root, context=context)
 
     def test_self_axis(self):
         root = self.etree.XML('<A>A text<B1>B1 text</B1><B2/><B3>B3 text</B3></A>')

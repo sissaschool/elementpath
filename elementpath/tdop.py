@@ -155,7 +155,7 @@ class Token(MutableSequence[TK]):
     rbp: int = 0           # right binding power
     symbol: str = ''       # the token identifier
     lookup_name: str = ''  # the key in symbol table, usually matches the symbol.
-    label: str | MultiLabel = 'symbol'  # the label, that usually means a class of tokens.
+    label: str | MultiLabel = 'symbol'  # the label, that usually means a group of token types.
     pattern: str | None = None  # a custom regex pattern for building the tokenizer
 
     __slots__ = '_items', 'parser', 'value', 'span', '__dict__'
@@ -793,13 +793,13 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp - 1, led=led)
 
     @classmethod
-    def method(cls, symbol: str | type[TK_co], bp: int = 0) \
+    def method(cls, symbol: str | type[TK_co], bp: int = 0, label: str = 'operator') \
             -> Callable[[Callable[..., RT]], Callable[..., RT]]:
         """
         Register a token for a symbol that represents a custom operator or redefine
         a method for an existing token.
         """
-        token_class = cls.register(symbol, label='operator', lbp=bp, rbp=bp)
+        token_class = cls.register(symbol, label=label, lbp=bp, rbp=bp)
 
         def bind(func: Callable[..., Any]) -> Callable[..., Any]:
             if '__' in func.__name__:

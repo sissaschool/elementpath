@@ -164,7 +164,7 @@ def select__simple_map_operator(self: XPathToken, context: ta.ContextType = None
 ###
 # 'let' expressions
 
-@method(register('let', lbp=20, rbp=20, label='let expression'))
+@method('let', bp=20, label='expression')
 def nud__let_expression(self: XPathToken) -> XPathToken:
     del self[:]
     if self.parser.next_token.symbol != '$':

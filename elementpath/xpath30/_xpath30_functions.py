@@ -28,8 +28,7 @@ import elementpath.aliases as ta
 
 from elementpath.exceptions import ElementPathError
 from elementpath.tdop import MultiLabel
-from elementpath.helpers import OCCURRENCE_INDICATORS, Patterns, \
-    is_xml_codepoint, node_position
+from elementpath.helpers import Patterns, is_xml_codepoint, node_position
 from elementpath.namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE
 from elementpath.datatypes import NumericProxy, QName, Date, DateTime, Time, \
@@ -193,7 +192,7 @@ class _InlineFunction(XPathFunction):
 
             sequence_type = tk.source
             next_symbol = self.parser.next_token.symbol
-            if sequence_type != 'empty-sequence()' and next_symbol in OCCURRENCE_INDICATORS:
+            if sequence_type != 'empty-sequence()' and next_symbol in ('*', '+', '?'):
                 self.parser.advance()
                 sequence_type += next_symbol
                 tk.occurrence = next_symbol

@@ -14,7 +14,7 @@ from collections.abc import Iterator, Callable
 from copy import copy
 from decimal import Decimal
 from itertools import product
-from typing import cast, ClassVar, Any, SupportsFloat, TYPE_CHECKING, TypeVar
+from typing import Any, cast, ClassVar, SupportsFloat, TYPE_CHECKING, TypeVar
 
 import elementpath.aliases as ta
 
@@ -59,7 +59,7 @@ class XPathToken(Token[ta.XPathTokenType]):
 
     name: str = ''  # for storing the qualified name of a function
     namespace: str | None = None  # for namespace binding of names and wildcards
-    occurrence: str | None = None  # occurrence indicator for item types
+    occurrence: str = ''  # occurrence indicator, used by item types
     concatenated = False  # a flag for infix operators that can be concatenated
 
     def __str__(self) -> str:

@@ -18,15 +18,16 @@ from typing import Any, cast
 
 import elementpath.aliases as ta
 
-from elementpath.sequences import XSequence, empty_sequence, sequence_classes
+from elementpath.sequences import empty_sequence
 from elementpath.datatypes import AbstractDateTime, ArithmeticProxy, Duration, \
-    NumericProxy, DayTimeDuration, YearMonthDuration
-from elementpath.xpath_nodes import XPathNode, AttributeNode, ElementNode, DocumentNode
+    NumericProxy
+from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode
 
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.helpers import node_position
 from elementpath.xpath_context import XPathSchemaContext
-from elementpath.xpath_tokens import XPathToken, NameToken
+from elementpath.xpath_tokens import XPathToken, NameToken, VariableToken, \
+    ContextItemToken, AsteriskToken, ParentShortcutToken
 
 from .xpath1_parser import XPath1Parser
 
@@ -46,84 +47,10 @@ nullary = XPath1Parser.nullary
 infix = XPath1Parser.infix
 method = XPath1Parser.method
 
-
-###
-# Variables
-@method('$', bp=90)
-def nud__variable_reference(self: XPathToken) -> XPathToken:
-    self.parser.expected_next('(name)')
-    self[:] = self.parser.expression(rbp=90),
-    if not isinstance(value := self[0].value, str) or ':' in value:
-        raise self[0].wrong_syntax("variable reference requires a simple reference name")
-    return self
-
-
-@method('$')
-def evaluate__variable_reference(self: XPathToken, context: ta.ContextType = None) \
-        -> ta.ValueType:
-    if context is None:
-        raise self.missing_context()
-
-    try:
-        value = context.variables[cast(str, self[0].value)]
-    except KeyError as err:
-        raise self.error('XPST0008', 'unknown variable %r' % str(err)) from None
-    else:
-        return value if value is not None else empty_sequence()
-
-
-###
-# Nullary operators (use only the context)
-@method(nullary('*'))
-def select__wildcard(self: XPathToken, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
-    if self:
-        # Product operator
-        item = self.evaluate(context)
-        if not isinstance(item, sequence_classes):
-            if context is not None:
-                context.item = item
-            yield item
-        elif context is not None:
-            for context.item in item:
-                yield context.item
-        else:
-            yield from item
-        return
-    elif context is None:
-        raise self.missing_context()
-
-    # Wildcard literal
-    if self.parser.schema is None:
-        for item in context.iter_children_or_self():
-            if item is None:
-                pass  # '*' wildcard doesn't match document nodes
-            elif context.axis == 'attribute':
-                if isinstance(item, AttributeNode):
-                    yield item
-            elif isinstance(item, ElementNode):
-                yield item
-    else:
-        # XSD typed selection
-        for item in context.iter_children_or_self():
-            if context.is_principal_node_kind():
-                if isinstance(item, (ElementNode, AttributeNode)):
-                    yield item
-
-
-@method(nullary('.'))
-def select__self_shortcut(self: XPathToken, context: ta.ContextType = None) \
-        -> Iterator[ta.ItemType]:
-    if context is None:
-        raise self.missing_context()
-    yield from context.iter_self()
-
-
-@method(nullary('..'))
-def select__parent_shortcut(self: XPathToken, context: ta.ContextType = None) \
-        -> Iterator[ta.ParentNodeType]:
-    if context is None:
-        raise self.missing_context()
-    yield from context.iter_parent()
+XPath1Parser.symbol_table['$'] = VariableToken
+XPath1Parser.symbol_table['*'] = AsteriskToken
+XPath1Parser.symbol_table['.'] = ContextItemToken
+XPath1Parser.symbol_table['..'] = ParentShortcutToken
 
 
 ###
@@ -239,54 +166,6 @@ def evaluate__minus_operator(self: XPathToken, context: ta.ContextType = None) \
 def nud__plus_minus_operators(self: XPathToken) -> XPathToken:
     self[:] = self.parser.expression(rbp=70),
     return self
-
-
-@method(infix('*', bp=45))
-def evaluate__multiply_operator(self: XPathToken, context: ta.ContextType = None) \
-        -> ta.AnyArithmeticOrEmpty | ta.AnyItemsOrEmpty:
-    op1: ta.ArithmeticType | None
-    op2: ta.ArithmeticType
-    if self:
-        op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
-        if op1 is None:
-            return empty_sequence()
-        try:
-            if isinstance(op2, (YearMonthDuration, DayTimeDuration)):
-                return op2 * op1
-            return op1 * op2  # type:ignore[operator]
-        except TypeError as err:
-            if isinstance(context, XPathSchemaContext):
-                return empty_sequence()
-
-            if isinstance(op1, (float, decimal.Decimal)):
-                if math.isnan(op1):
-                    raise self.error('FOCA0005') from None
-                elif math.isinf(op1):
-                    raise self.error('FODT0002') from None
-
-            if isinstance(op2, (float, decimal.Decimal)):
-                if math.isnan(op2):
-                    raise self.error('FOCA0005') from None
-                elif math.isinf(op2):
-                    raise self.error('FODT0002') from None
-
-            raise self.error('XPTY0004', err) from None
-        except ValueError as err:
-            if isinstance(context, XPathSchemaContext):
-                return empty_sequence()
-            raise self.error('FOCA0005', err) from None
-        except OverflowError as err:
-            if isinstance(context, XPathSchemaContext):
-                return empty_sequence()
-            elif isinstance(op1, AbstractDateTime):
-                raise self.error('FODT0001', err) from None
-            elif isinstance(op1, Duration):
-                raise self.error('FODT0002', err) from None
-            else:
-                raise self.error('FOAR0002', err) from None
-    else:
-        # This is not a multiplication operator but a wildcard select statement
-        return XSequence([x for x in self.select(context)])
 
 
 @method(infix('div', bp=45))

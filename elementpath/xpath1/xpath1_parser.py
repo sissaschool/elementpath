@@ -27,7 +27,7 @@ from elementpath.tdop import Parser
 from elementpath.sequence_types import match_sequence_type
 from elementpath.schema_proxy import AbstractSchemaProxy
 from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction, ProxyToken, \
-    NameToken, PrefixedReferenceToken, ExpandedNameToken
+    NameToken, PrefixedNameToken, BracedNameToken
 
 
 class XPath1Parser(Parser[ta.XPathTokenType]):
@@ -428,7 +428,7 @@ XPath1Parser.register('}')
 ###
 # Name related tokens
 XPath1Parser.symbol_table['(name)'] = NameToken
-XPath1Parser.symbol_table[':'] = PrefixedReferenceToken
-XPath1Parser.symbol_table['{'] = ExpandedNameToken
+XPath1Parser.symbol_table[':'] = PrefixedNameToken
+XPath1Parser.symbol_table['{'] = BracedNameToken
 
 # XPath 1.0 definitions continue into module _xpath1_operators

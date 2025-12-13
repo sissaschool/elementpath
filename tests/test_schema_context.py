@@ -140,18 +140,18 @@ class XMLSchemaContextTest(unittest.TestCase):
 
         token = parser.parse('.')
         result = token.evaluate(context)
-        self.assertEqual(result, [context.root])
+        self.assertEqual(result, context.root)
 
         context = XPathSchemaContext(self.schema1, item=self.schema1)
         token = parser.parse('.')
         result = token.evaluate(context)
-        self.assertEqual(result, [context.root])
+        self.assertEqual(result, context.root)
 
         context = XPathSchemaContext(self.schema1, item=self.schema2)
         schema2_node = context.item
         token = parser.parse('.')
         result = token.evaluate(context)
-        self.assertEqual(result, [schema2_node])
+        self.assertEqual(result, schema2_node)
 
     def test_schema_variables(self):
         variable_types = {'a': 'item()', 'b': 'xs:integer?', 'c': 'xs:string'}

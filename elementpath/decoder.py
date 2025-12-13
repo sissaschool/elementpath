@@ -77,14 +77,21 @@ _ATOMIC_VALUES: dict[str, dict[str, aliases.AtomicType]] = {'1.0': {
     f'{{{XSD_NAMESPACE}}}unsignedByte': dt.UnsignedByte('1'),
 }}
 
-_ATOMIC_VALUES['1.1'] = _ATOMIC_VALUES['1.0'].copy()
-_ATOMIC_VALUES['1.1'].update({
+_ATOMIC_VALUES['1.1'] = {
+    **_ATOMIC_VALUES['1.0'],
     f'{{{XSD_NAMESPACE}}}date': dt.Date.fromstring('2000-01-01'),
     f'{{{XSD_NAMESPACE}}}dateTime': dt.DateTime.fromstring('2000-01-01T12:00:00'),
     f'{{{XSD_NAMESPACE}}}gYear': dt.GregorianYear.fromstring('1999'),
     f'{{{XSD_NAMESPACE}}}gYearMonth': dt.GregorianYearMonth.fromstring('1999-09'),
     f'{{{XSD_NAMESPACE}}}dateTimeStamp': dt.DateTimeStamp.fromstring('2000-01-01T12:00:00+01:00'),
-})
+}
+
+# List based types
+_LIST_VALUES = {
+    f'{{{XSD_NAMESPACE}}}IDREFS': dt.Idrefs([dt.Idref('id_ref1'), dt.Idref('id_ref2')]),
+    f'{{{XSD_NAMESPACE}}}ENTITIES': dt.Entities([dt.Entity('entity1'), dt.Entity('entity2')]),
+    f'{{{XSD_NAMESPACE}}}NMTOKENS': dt.NMTokens([dt.NMToken('a_token'), dt.NMToken('b_token')]),
+}
 
 
 def iter_atomic_values(xsd_type: XsdTypeProtocol) -> Iterator[aliases.AtomicType]:
