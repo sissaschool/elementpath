@@ -22,7 +22,7 @@ import elementpath.aliases as ta
 from elementpath.protocols import XsdAttributeProtocol
 from elementpath.exceptions import ElementPathError
 from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED
-from elementpath.sequences import XSequence, empty_sequence, sequence_classes
+from elementpath.sequences import XSequence, empty_sequence
 from elementpath.helpers import numeric_equal, numeric_not_equal, \
     node_position, get_double
 from elementpath.namespaces import XSD_ERROR, get_namespace, get_expanded_name
@@ -244,7 +244,7 @@ def evaluate__instance_expression(self: XPathToken, context: ta.ContextType = No
                 context.axis = 'self'
 
             result = self[1].evaluate(context)
-            if isinstance(result, sequence_classes) and not result:
+            if isinstance(result, XSequence) and not result:
                 return occurs in ('*', '?') or \
                     isinstance(context.item, XPathFunction) and \
                     context.item.name == XSD_ERROR
@@ -287,7 +287,7 @@ def evaluate__treat_expression(self: XPathToken, context: ta.ContextType = None)
     elif self[1].label in ('kind test', 'sequence type', 'function test'):
         for position, item in enumerate(self[0].select(context)):
             result = self[1].evaluate(context)
-            if not result and isinstance(result, sequence_classes):
+            if not result and isinstance(result, XSequence):
                 raise self.error('XPDY0050')
             elif position and occurs in ('', '?'):
                 raise self.error('XPDY0050', "more than one item in sequence")
@@ -426,7 +426,7 @@ def evaluate__comma_operator(self: XPathToken, context: ta.ContextType = None) \
     results: list[ta.ItemType] = []
     for op in self:
         result = op.evaluate(context)
-        if isinstance(result, sequence_classes):
+        if isinstance(result, XSequence):
             results.extend(result)
         elif result is not None:
             results.append(result)

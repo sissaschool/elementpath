@@ -13,8 +13,7 @@ from typing import Any, NoReturn, overload, TypeVar, Union
 
 from elementpath.aliases import ItemType
 
-__all__ = ['XSequence', 'empty_sequence', 'sequence_classes',
-           'sequence_concat', 'count', 'iterate_sequence']
+__all__ = ['XSequence', 'empty_sequence', 'sequence_concat', 'count', 'iterate_sequence']
 
 
 T = TypeVar('T', bound=ItemType)
@@ -126,7 +125,6 @@ class XSequence(Sequence[T]):
 
 
 _empty_sequence: XSequence[NoReturn] = XSequence()  # Empty sequence as a singleton
-sequence_classes = (XSequence, list)  # Also lists can be iterated as XPath sequences
 
 
 ###

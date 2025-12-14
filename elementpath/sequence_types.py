@@ -18,7 +18,7 @@ from elementpath.exceptions import ElementPathKeyError, xpath_error
 from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_DATETIME_STAMP, \
     XSD_NUMERIC, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, get_expanded_name
 from elementpath.helpers import collapse_white_spaces, Patterns
-from elementpath.sequences import empty_sequence, sequence_classes
+from elementpath.sequences import XSequence, empty_sequence
 from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
 from elementpath.xpath_tokens import XPathToken
 
@@ -125,7 +125,7 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
 
 def is_instance(obj: Any, type_qname: str, parser: ta.XPathParserType | None = None) -> bool:
     """Checks an instance against an XSD type."""
-    if isinstance(obj, sequence_classes) and len(obj) == 1:
+    if isinstance(obj, (XSequence, list)) and len(obj) == 1:
         return is_instance(obj[0], type_qname, parser)
     elif type_qname in builtin_atomic_types:
         if type_qname in XSD11_ONLY_TYPES:
@@ -270,7 +270,7 @@ def match_sequence_type(value: Any,
             return st in ('empty-sequence()', 'none') or occurrence in ('?', '*')
         elif st in ('empty-sequence()', 'none'):
             return False
-        elif isinstance(v, sequence_classes):
+        elif isinstance(v, (XSequence, list)):
             if len(v) == 1:
                 return match_st(v[0], st)
             elif occurrence is None or occurrence == '?':

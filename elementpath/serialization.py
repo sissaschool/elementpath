@@ -21,7 +21,7 @@ from elementpath.datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
 from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
     NamespaceNode, TextNode, CommentNode
 from elementpath.xpath_nodes import EtreeElementNode
-from elementpath.sequences import XSequence, sequence_classes
+from elementpath.sequences import XSequence
 from elementpath.xpath_tokens import XPathToken, XPathMap, XPathArray
 from elementpath.protocols import EtreeElementProtocol, LxmlElementProtocol
 
@@ -69,7 +69,7 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 # TODO: doesn't work within element nodes
                 if isinstance(value, XPathArray):
                     value = value.items()
-                if not isinstance(value, sequence_classes) or \
+                if not isinstance(value, (XSequence, list)) or \
                         not all(isinstance(x, QName) for x in value):
                     raise xpath_error('XPTY0004', token=token)
                 kwargs['cdata_section'] = value
@@ -399,7 +399,7 @@ def serialize_to_json(elements: Iterable[Any],
                 return str(obj)
             elif isinstance(obj, Decimal):
                 return float(Decimal(obj).quantize(Decimal("0.01"), ROUND_UP))
-            elif isinstance(obj, sequence_classes):
+            elif isinstance(obj, XSequence):
                 return [v for v in obj]
             else:
                 return super().default(obj)

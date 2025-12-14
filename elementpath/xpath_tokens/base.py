@@ -18,7 +18,7 @@ from typing import Any, cast, ClassVar, SupportsFloat, TYPE_CHECKING, TypeVar
 
 import elementpath.aliases as ta
 
-from elementpath.sequences import XSequence, empty_sequence, sequence_classes
+from elementpath.sequences import XSequence, empty_sequence
 from elementpath.exceptions import xpath_error, ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError
 from elementpath.namespaces import XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
@@ -191,7 +191,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         :param context: The XPath dynamic context.
         """
         item = self.evaluate(context)
-        if isinstance(item, sequence_classes):
+        if isinstance(item, XSequence):
             yield from item
         else:
             yield item
@@ -464,42 +464,46 @@ class XPathToken(Token[ta.XPathTokenType]):
         Ref: https://www.w3.org/TR/xpath31/#id-atomization
              https://www.w3.org/TR/xpath20/#dt-typed-value
         """
-        if item is None:
-            return
-        elif isinstance(item, XPathNode):
-            if self.parser.version != '1.0':
-                value = None
-                for value in item.iter_typed_values:
+        match item:
+            case None:
+                return
+            case XPathNode():
+                if self.parser.version != '1.0':
+                    value = None
+                    for value in item.iter_typed_values:
+                        yield value
+
+                    if value is None:
+                        msg = f"argument node {item!r} does not have a typed value"
+                        raise self.error('FOTY0012', msg)
+                else:
+                    value = item.compat_string_value
                     yield value
 
-                if value is None:
-                    msg = f"argument node {item!r} does not have a typed value"
-                    raise self.error('FOTY0012', msg)
-            else:
-                value = item.compat_string_value
-                yield value
-
-        elif isinstance(item, sequence_classes):
-            for v in item:
-                yield from self.atomize_item(v)
-
-        elif isinstance(item, XPathToken) and callable(item):
-            if item.label != 'array':
-                raise self.error('FOTY0013', f"{item.label!r} has no typed value")
-
-            for v in cast('XPathArray', item).iter_flatten():
-                if isinstance(v, AnyAtomicType):
-                    yield v
-                else:
+            case XSequence() | list():
+                for v in item:
                     yield from self.atomize_item(v)
 
-        elif isinstance(item, AnyAtomicType):
-            yield cast(ta.AtomicType, item)
-        elif isinstance(item, bytes):
-            yield item.decode()
-        else:
-            msg = f"sequence item {item!r} is not appropriate for the context"
-            raise self.error('XPTY0004', msg)
+            case XPathToken():
+                if not callable(item):
+                    msg = f"sequence item {item!r} is not appropriate for the context"
+                    raise self.error('XPTY0004', msg)
+                elif item.label != 'array':
+                    raise self.error('FOTY0013', f"{item.label!r} has no typed value")
+
+                for v in cast('XPathArray', item).iter_flatten():
+                    if isinstance(v, AnyAtomicType):
+                        yield v
+                    else:
+                        yield from self.atomize_item(v)
+
+            case AnyAtomicType():
+                yield cast(ta.AtomicType, item)
+            case bytes():
+                yield item.decode()
+            case _:
+                msg = f"sequence item {item!r} is not appropriate for the context"
+                raise self.error('XPTY0004', msg)
 
     ###
     # Helpers for operators
@@ -804,7 +808,7 @@ class XPathToken(Token[ta.XPathTokenType]):
             else:
                 return v
 
-        if isinstance(value, sequence_classes):
+        if isinstance(value, (XSequence, list)):
             return XSequence([cast_value(x) for x in value])
         else:
             return cast_value(value)
@@ -815,7 +819,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         """
         The effective boolean value, as computed by fn:boolean().
         """
-        if isinstance(obj, sequence_classes):
+        if isinstance(obj, (XSequence, list)):
             if not obj:
                 return False
             elif isinstance(obj[0], XPathNode):

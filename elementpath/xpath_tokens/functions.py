@@ -14,7 +14,7 @@ from typing import Optional, cast, Union, Any
 import elementpath.aliases as ta
 
 from elementpath.protocols import ElementProtocol, DocumentProtocol
-from elementpath.sequences import XSequence, empty_sequence, sequence_classes
+from elementpath.sequences import XSequence, empty_sequence
 from elementpath.datatypes import QName, AnyAtomicType
 from elementpath.tdop import MultiLabel
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
@@ -386,7 +386,7 @@ class XPathFunction(XPathToken):
     def _partial_select(self, context: ta.ContextType = None) -> Iterator[Any]:
         item = self._partial_evaluate(context)
         if item is not None:
-            if isinstance(item, sequence_classes):
+            if isinstance(item, XSequence):
                 yield from item
             else:
                 if context is not None:

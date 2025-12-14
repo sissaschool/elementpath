@@ -32,7 +32,7 @@ from elementpath.datatypes import AbstractBinary, AbstractDateTime, AnyAtomicTyp
     Base64Binary, BooleanProxy, DateTime, DoubleProxy, DoubleProxy10, Duration, \
     Language, NumericProxy, Timezone, UntypedAtomic
 from elementpath.namespaces import XML_BASE, XPATH_FUNCTIONS_NAMESPACE
-from elementpath.sequences import XSequence, empty_sequence, sequence_classes
+from elementpath.sequences import XSequence, empty_sequence
 from elementpath.helpers import collapse_white_spaces, is_xml_codepoint, \
     escape_json_string, unescape_json_string, not_equal
 from elementpath.etree import etree_iter_strings, is_etree_element
@@ -182,7 +182,7 @@ def evaluate__map_remove(self: XPathFunction, context: ta.ContextType = None) ->
     keys = self[1].evaluate(context)
     if keys is None:
         return map_
-    elif isinstance(keys, sequence_classes):
+    elif isinstance(keys, XSequence):
         items = (
             (k, v) for k, v in map_.items(context) if all(not_equal(k, x) for x in keys)
         )
@@ -305,7 +305,7 @@ def select__map_for_each(self: XPathFunction, context: ta.ContextType = None) \
 
     for k, v in map_.items(context):
         result = func(k, v, context=context)
-        if isinstance(result, sequence_classes):
+        if isinstance(result, XSequence):
             yield from result
         else:
             yield result
@@ -413,7 +413,7 @@ def evaluate__array_remove(self: XPathFunction, context: ta.ContextType = None) 
         return array_
 
     positions: list[int] = []
-    for p in positions_ if isinstance(positions_, sequence_classes) else [positions_]:
+    for p in positions_ if isinstance(positions_, XSequence) else [positions_]:
         if isinstance(p, int) and 0 < p <= len(array_):
             positions.append(p)
         elif isinstance(context, XPathSchemaContext):
@@ -610,7 +610,7 @@ def select__array_fold_left_right_functions(self: XPathFunction, context: ta.Con
         for item in reversed(array_.items(context)):
             result = func(item, result, context=context)
 
-    if isinstance(result, sequence_classes):
+    if isinstance(result, XSequence):
         yield from result
     else:
         yield result

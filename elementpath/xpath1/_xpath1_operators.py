@@ -18,9 +18,8 @@ from typing import Any, cast
 
 import elementpath.aliases as ta
 
-from elementpath.sequences import empty_sequence
-from elementpath.datatypes import AbstractDateTime, ArithmeticProxy, Duration, \
-    NumericProxy
+from elementpath.sequences import XSequence, empty_sequence
+from elementpath.datatypes import AbstractDateTime, ArithmeticProxy, Duration, NumericProxy
 from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode
 
 from elementpath.exceptions import ElementPathTypeError
@@ -413,8 +412,7 @@ def select__predicate(self: XPathToken, context: ta.ContextType = None) -> Itera
                 and not isinstance(context.item, XPathNode):
             raise self.error('XPTY0020')
 
-        predicate: list[ta.NumericType]
-        predicate = [x for x in cast(Iterator[ta.NumericType], self[1].select_sequence(context))]
+        predicate = XSequence(tuple(self[1].select_sequence(context)))
 
         if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
             if context.position == predicate[0]:

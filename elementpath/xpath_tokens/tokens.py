@@ -17,7 +17,7 @@ import elementpath.aliases as ta
 
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XMLNS_NAMESPACE
 from elementpath.namespaces import get_expanded_name
-from elementpath.sequences import XSequence, sequence_classes, empty_sequence
+from elementpath.sequences import XSequence, empty_sequence
 from elementpath.datatypes import AnyAtomicType, AnyURI, UntypedAtomic, ArithmeticProxy, \
     YearMonthDuration, DayTimeDuration, Duration, AbstractDateTime
 from elementpath.helpers import collapse_white_spaces
@@ -43,7 +43,7 @@ class ValueToken(XPathToken):
         return self.value
 
     def select(self, context: ta.ContextType = None) -> Iterator[AnyAtomicType]:
-        if isinstance(self.value, sequence_classes):
+        if isinstance(self.value, XSequence):
             yield from self.value
         else:
             yield self.value
@@ -206,7 +206,7 @@ class PrefixedNameToken(XPathToken):
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):
             value = self[1].evaluate(context)
-            if isinstance(value, sequence_classes):
+            if isinstance(value, XSequence):
                 yield from value
             elif value is not None:
                 yield value
@@ -273,7 +273,7 @@ class BracedNameToken(XPathToken):
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):
             result = self[1].evaluate(context)
-            if isinstance(result, sequence_classes):
+            if isinstance(result, XSequence):
                 yield from result
             else:
                 yield result
@@ -423,7 +423,7 @@ class AsteriskToken(XPathToken):
         if self:
             # Product operator
             item = self.evaluate(context)
-            if not isinstance(item, sequence_classes):
+            if not isinstance(item, XSequence):
                 if context is not None:
                     context.item = item
                 yield item
