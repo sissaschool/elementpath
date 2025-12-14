@@ -157,7 +157,7 @@ class LookupOperatorToken(XPathToken):
         try:
             self.parser.expected_next('(name)', '(integer)', '(', '*')
         except SyntaxError:
-            if is_sequence_type(left.value, self.parser):
+            if isinstance(left.value, str) and is_sequence_type(left.value, self.parser):
                 self.lbp = self.rbp = 0
                 left.occurrence = '?'
                 return left

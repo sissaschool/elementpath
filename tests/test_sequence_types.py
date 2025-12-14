@@ -131,7 +131,7 @@ class SequenceTypesTest(unittest.TestCase):
         self.assertTrue(is_sequence_type('item()?'))
         self.assertTrue(is_sequence_type('xs:untypedAtomic+'))
 
-        self.assertFalse(is_sequence_type(10))
+        self.assertRaises(TypeError, is_sequence_type, 10)
         self.assertFalse(is_sequence_type(''))
         self.assertFalse(is_sequence_type('empty-sequence()*'))
         self.assertFalse(is_sequence_type('unknown'))

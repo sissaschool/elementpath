@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from itertools import zip_longest
+from functools import cache
 from typing import cast, Any
 
 import elementpath.aliases as ta
@@ -38,12 +39,14 @@ XSD11_ONLY_TYPES = frozenset(
 
 ###
 # Sequence type checking
+@cache
 def normalize_sequence_type(sequence_type: str) -> str:
     sequence_type = collapse_white_spaces(sequence_type)
     sequence_type = Patterns.sequence_type.sub(r'\1', sequence_type)
     return sequence_type.replace(',', ', ').replace(')as', ') as')
 
 
+@cache
 def is_sequence_type_restriction(st1: str, st2: str) -> bool:
     """Returns `True` if st2 is a restriction of st1."""
     st1, st2 = normalize_sequence_type(st1), normalize_sequence_type(st2)
@@ -150,9 +153,10 @@ def is_instance(obj: Any, type_qname: str, parser: ta.XPathParserType | None = N
     raise ElementPathKeyError("unknown type %r" % type_qname)
 
 
-def is_sequence_type(value: Any, parser: ta.XPathParserType | None = None) -> bool:
+def is_sequence_type(value: str, parser: ta.XPathParserType | None = None) -> bool:
     """Checks if a string is a sequence type specification."""
 
+    @cache
     def is_st(st: str) -> bool:
         if not st or st[0] == '{':
             return False
@@ -248,7 +252,7 @@ def is_sequence_type(value: Any, parser: ta.XPathParserType | None = None) -> bo
         else:
             return True
 
-    return isinstance(value, str) and is_st(normalize_sequence_type(value))
+    return is_st(normalize_sequence_type(value))
 
 
 def match_sequence_type(value: Any,
