@@ -13,7 +13,6 @@ from collections.abc import Iterator, Sequence, Callable
 from functools import cached_property
 from types import ModuleType
 from typing import cast, Any, Optional, Union
-from warnings import deprecated
 
 import elementpath.aliases as ta
 
@@ -80,8 +79,8 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _etree: Optional[ModuleType] = None
-    _schema: ta.SchemaProxyType | None = None
-    root: ta.RootNodeType | None
+    _schema: Optional[ta.SchemaProxyType] = None
+    root: Optional[ta.RootNodeType]
     document: DocumentNode | None
     item: ta.ItemType
 
@@ -93,15 +92,15 @@ class XPathContext:
                  'position', 'variables', 'axis', '__dict__')
 
     def __init__(self,
-                 root: ta.RootArgType | None = None,
-                 namespaces: ta.NamespacesType | None = None,
+                 root: Optional[ta.RootArgType] = None,
+                 namespaces: Optional[ta.NamespacesType] = None,
                  uri: str | None = None,
                  fragment: bool | None = None,
-                 item: ta.ItemArgType | None = None,
+                 item: Optional[ta.ItemArgType] = None,
                  position: int = 1,
                  size: int = 1,
                  axis: str | None = None,
-                 schema: ta.SchemaProxyType | None = None,
+                 schema: Optional[ta.SchemaProxyType] = None,
                  variables: dict[str, ta.VariableValueType] | None = None,
                  current_dt: datetime.datetime | None = None,
                  timezone: Union[str, Timezone] | None = None,
@@ -220,11 +219,11 @@ class XPathContext:
             return importlib.import_module('xml.etree.ElementTree')
 
     @property
-    def schema(self) -> ta.SchemaProxyType | None:
+    def schema(self) -> Optional[ta.SchemaProxyType]:
         return self._schema
 
     @schema.setter
-    def schema(self, schema: ta.SchemaProxyType | None) -> None:
+    def schema(self, schema: Optional[ta.SchemaProxyType]) -> None:
         self._schema = schema
         if schema is None:
             if self.root is not None:
@@ -340,7 +339,6 @@ class XPathContext:
             item = self.get_context_item(items)
             return [item] if isinstance(item, XPathNode) else []
 
-    @deprecated("inner_focus_select() is deprecated and will be removed in future versions.")
     def inner_focus_select(self, token: ta.XPathTokenType, predicate: bool = False) \
             -> Iterator[ta.ItemType]:
         return token.select_with_focus(self)
@@ -605,11 +603,11 @@ class XPathSchemaContext(XPathContext):
     root: ElementNode
 
     @property
-    def schema(self) -> ta.SchemaProxyType | None:
+    def schema(self) -> Optional[ta.SchemaProxyType]:
         return self._schema
 
     @schema.setter
-    def schema(self, schema: ta.SchemaProxyType | None) -> None:
+    def schema(self, schema: Optional[ta.SchemaProxyType]) -> None:
         self._schema = schema
 
     def iter_matching_nodes(self, name: str, default_namespace: Optional[str] = None) \

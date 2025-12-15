@@ -78,7 +78,7 @@ represented by *XPathContext* objects.
     >>> root = ElementTree.XML('<root><child/><child attr="10"/></root>')
     >>> context = XPathContext(root)
     >>> token.evaluate(context)
-    [EtreeElementNode(elem=<Element 'child' at ...)]
+    XSequence([EtreeElementNode(elem=<Element 'child' at ...)])
 
 In this case an error is raised if you don't provide a context:
 

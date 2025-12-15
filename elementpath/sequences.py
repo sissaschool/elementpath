@@ -29,14 +29,14 @@ class XSequence(Sequence[T]):
 
     Ref: https://qt4cg.org/specifications/xpath-datamodel-40/Overview.html
     """
-    __slots__ = ('_items',)
+    __slots__ = ('items',)
 
-    _items: tuple[T, ...] | tuple[T] | tuple[()]
+    items: tuple[T, ...] | tuple[T] | tuple[()]
 
     def __init__(self, items: Iterable[SequenceArgItemType[T]] = ()) -> None:
         if isinstance(items, (list, tuple, XSequence)) and \
                 all(not isinstance(x, (list, tuple, XSequence)) for x in items):
-            self._items = tuple(items)
+            self.items = tuple(items)
         else:
             _items: list[T] = []
             for item in items:
@@ -44,31 +44,31 @@ class XSequence(Sequence[T]):
                     _items.extend(item)
                 else:
                     _items.append(item)
-            self._items = tuple(_items)
+            self.items = tuple(_items)
 
     def __str__(self) -> str:
-        return f'({", ".join(map(repr, self._items))})'
+        return f'({", ".join(map(repr, self.items))})'
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}({", ".join(map(repr, self._items))})'
+        return f'{self.__class__.__name__}([{", ".join(map(repr, self.items))}])'
 
     def __hash__(self) -> int:
-        return hash(self._items)
+        return hash(self.items)
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, XSequence):
-            return self._items == other._items
+            return self.items == other.items
         elif isinstance(other, tuple):
-            return self._items == other
+            return self.items == other
         elif isinstance(other, list):
-            return all(i1 == i2 for i1, i2 in zip_longest(self._items, other))
+            return all(i1 == i2 for i1, i2 in zip_longest(self.items, other))
         return False if len(self) != 1 else not self[0] != other
 
     def __ne__(self, other: Any) -> bool:
         if isinstance(other, XSequence):
-            return self._items != other._items
+            return self.items != other.items
         elif isinstance(other, tuple):
-            return self._items != other
+            return self.items != other
         elif isinstance(other, list):
             return any(i1 != i2 for i1, i2 in zip_longest(self, other))
         return True if len(self) != 1 else not self[0] == other
@@ -80,13 +80,13 @@ class XSequence(Sequence[T]):
     def __getitem__(self, item: slice) -> tuple[T, ...]: ...
 
     def __getitem__(self, item: int | slice) -> T | tuple[T, ...]:
-        return self._items[item]
+        return self.items[item]
 
     def __iter__(self) -> Iterator[T]:
-        return iter(self._items)
+        return iter(self.items)
 
     def __len__(self) -> int:
-        return len(self._items)
+        return len(self.items)
 
     @overload
     def __add__(self, other: 'XSequence[S]') -> tuple[S | T, ...]: ...
@@ -100,18 +100,18 @@ class XSequence(Sequence[T]):
     def __add__(self, other: Union['XSequence[S]', tuple[S, ...], list[S]]) \
             -> tuple[S | T, ...] | list[S | T]:
         if isinstance(other, list):
-            return list(self._items) + other
+            return list(self.items) + other
         elif isinstance(other, tuple):
-            return self._items + other
+            return self.items + other
         elif isinstance(other, XSequence):
-            return self._items + other._items
+            return self.items + other.items
         return NotImplemented
 
     def __radd__(self, other: tuple[S, ...] | list[S]) -> tuple[S | T, ...] | list[S | T]:
         if isinstance(other, list):
-            return other + list(self._items)
+            return other + list(self.items)
         elif isinstance(other, tuple):
-            return other + self._items
+            return other + self.items
         return NotImplemented
 
     @property

@@ -204,20 +204,6 @@ class XPathToken(Token[ta.XPathTokenType]):
             else:
                 yield item
 
-    def select_sequence(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
-        if context is None:
-            yield from self.select(context)
-        else:
-            axis = context.axis
-            item = context.item
-            context.axis = None
-            try:
-                for context.item in self.select(context):
-                    yield context.item
-            finally:
-                context.axis = axis
-                context.item = item
-
     def select_with_focus(self, context: XPathContext) -> Iterator[ta.ItemType]:
         """Select item with an inner focus on dynamic context."""
         status = context.item, context.size, context.position, context.axis
@@ -339,7 +325,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 return token  # It's a function reference
 
             item = None
-            for k, result in enumerate(token.select_sequence(context)):
+            for k, result in enumerate(token.select(copy(context))):
                 if k == 0:
                     item = result
                 elif self.parser.compatibility_mode:
@@ -453,7 +439,7 @@ class XPathToken(Token[ta.XPathTokenType]):
 
         :param context: the XPath dynamic context.
         """
-        for item in self.select_sequence(context):
+        for item in self.select(copy(context)):
             yield from self.atomize_item(item)
 
     def atomize_item(self, item: ta.ValueType) -> Iterator[ta.AtomicType]:
@@ -831,16 +817,19 @@ class XPathToken(Token[ta.XPathTokenType]):
             else:
                 obj = obj[0]
         elif isinstance(obj, Iterator):
+            k = 0
             items = obj
-            for k, obj in enumerate(items):
+            obj = None
+            for obj in items:
                 if k:
                     message = "effective boolean value is not defined for a sequence " \
                               "of two or more items not starting with an XPath node."
                     raise self.error('FORG0006', message)
                 elif isinstance(obj, XPathNode):
                     return True
+                k += 1
             else:
-                if obj is items:
+                if not k:
                     return False
 
         if isinstance(obj, (int, str, UntypedAtomic, AnyURI)):  # Include bool

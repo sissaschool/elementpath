@@ -11,7 +11,7 @@ import importlib
 from collections import deque
 from collections.abc import Iterator
 from urllib.parse import urljoin
-from typing import cast, Any
+from typing import cast, Any, Optional
 from xml.etree import ElementTree
 
 import elementpath.aliases as ta
@@ -47,16 +47,16 @@ class XPathNodeTree:
     root: ta.ParentNodeType
     elements: ta.ElementMapType
     namespaces: ta.NamespacesType
-    schema: ta.SchemaProxyType | None
+    schema: Optional[ta.SchemaProxyType]
     uri: str | None
 
     __slots__ = ('root_node', 'uri', 'namespaces', 'ns_offset', 'elements', 'schema', 'position')
 
     def __init__(self, root: ta.ParentNodeType,
                  uri: str | None = None,
-                 namespaces: ta.NamespacesType | None = None,
-                 elements: ta.ElementMapType | None = None,
-                 schema: ta.SchemaProxyType | None = None) -> None:
+                 namespaces: Optional[ta.NamespacesType] = None,
+                 elements: Optional[ta.ElementMapType] = None,
+                 schema: Optional[ta.SchemaProxyType] = None) -> None:
 
         self.root_node = root
         self.namespaces = {} if namespaces is None else namespaces
@@ -348,7 +348,7 @@ class AttributeNode(XPathNode):
     Base class for XPath attribute nodes, used only for type checking.
     """
     name: str | None
-    parent: ElementNode | None
+    parent: Optional['ElementNode']
     xsd_type: XsdTypeProtocol | None
 
     __slots__ = ('xsd_type',)
@@ -911,7 +911,7 @@ class ElementNode(XPathNode):
         self.tree.uri = uri
 
     @property
-    def schema(self) -> ta.SchemaProxyType | None:
+    def schema(self) -> Optional[ta.SchemaProxyType]:
         return self.tree.schema
 
     @schema.setter
@@ -919,7 +919,7 @@ class ElementNode(XPathNode):
         self.tree.schema = schema
 
     @property
-    def elements(self) -> ta.ElementMapType | None:
+    def elements(self) -> Optional[ta.ElementMapType]:
         return self.tree.elements
 
     @elements.setter

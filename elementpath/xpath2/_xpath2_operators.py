@@ -68,7 +68,7 @@ def select__intersect_and_except_operators(self: XPathToken, context: ta.Context
     if context is None:
         raise self.missing_context()
 
-    s1, s2 = set(self[0].select_sequence(context)), set(self[1].select_sequence(context))
+    s1, s2 = set(self[0].select(copy(context))), set(self[1].select(copy(context)))
     if any(not isinstance(x, XPathNode) for x in s1) \
             or any(not isinstance(x, XPathNode) for x in s2):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
@@ -99,7 +99,7 @@ def nud__if_expression(self: XPathToken) -> XPathToken:
 @method('if')
 def evaluate__if_expression(self: XPathToken, context: ta.ContextType = None) \
         -> ta.ValueType:
-    if self.boolean_value(self[0].select_sequence(context)):
+    if self.boolean_value(self[0].select(copy(context))):
         if isinstance(context, XPathSchemaContext):
             self[2].evaluate(context)
         return self[1].evaluate(context)
@@ -112,7 +112,7 @@ def evaluate__if_expression(self: XPathToken, context: ta.ContextType = None) \
 @method('if')
 def select__if_expression(self: XPathToken, context: ta.ContextType = None) \
         -> Iterator[ta.ItemType]:
-    if self.boolean_value(self[0].select_sequence(context)):
+    if self.boolean_value(self[0].select(copy(context))):
         if isinstance(context, XPathSchemaContext):
             self[2].evaluate(context)
         yield from self[1].select(context)
@@ -164,7 +164,7 @@ def evaluate__quantified_expressions(self: XPathToken, context: ta.ContextType =
 
     for results in copy(context).iter_product(selectors, varnames):
         context.variables.update(x for x in zip(varnames, results))
-        if self.boolean_value(self[-1].select_sequence(context)):
+        if self.boolean_value(self[-1].select(copy(context))):
             if some:
                 return True
         elif not some:
@@ -213,7 +213,7 @@ def select__for_expression(self: XPathToken, context: ta.ContextType = None) \
 
     for results in copy(context).iter_product(selectors, varnames):
         context.variables.update(x for x in zip(varnames, results))
-        yield from self[-1].select_sequence(context)
+        yield from self[-1].select(copy(context))
 
 
 ###
@@ -437,7 +437,7 @@ def evaluate__comma_operator(self: XPathToken, context: ta.ContextType = None) \
 def select__comma_operator(self: XPathToken, context: ta.ContextType = None) \
         -> Iterator[ta.ItemType]:
     for op in self:
-        yield from op.select_sequence(context)
+        yield from op.select(copy(context))
 
 
 ###
@@ -698,7 +698,7 @@ def select__document_node_kind_test(self: XPathFunction, context: ta.ContextType
             if isinstance(item, DocumentNode):
                 yield item
     else:
-        elements = [e for e in self[0].select_sequence(context) if isinstance(e, ElementNode)]
+        elements = [e for e in self[0].select(copy(context)) if isinstance(e, ElementNode)]
         if isinstance(context.item, DocumentNode):
             if len(elements) == 1:
                 yield context.item

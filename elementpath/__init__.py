@@ -25,6 +25,7 @@ from .exceptions import ElementPathError, MissingContextError, ElementPathKeyErr
     ElementPathRuntimeError, ElementPathSyntaxError, ElementPathTypeError, \
     ElementPathValueError, ElementPathLocaleError, UnsupportedFeatureError
 
+from .sequences import XSequence, empty_sequence
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import XPathNode, AttributeNode, NamespaceNode, CommentNode, \
     ProcessingInstructionNode, TextNode, ElementNode, LazyElementNode, \
@@ -43,6 +44,7 @@ __all__ = ['datatypes', 'protocols', 'etree', 'ElementPathError', 'MissingContex
            'ElementPathZeroDivisionError', 'ElementPathNameError',
            'ElementPathOverflowError', 'ElementPathRuntimeError',
            'ElementPathSyntaxError', 'ElementPathTypeError', 'ElementPathValueError',
+           'XSequence', 'empty_sequence',
            'XPathNode', 'AttributeNode', 'NamespaceNode', 'CommentNode',
            'ProcessingInstructionNode', 'TextNode', 'ElementNode',
            'LazyElementNode', 'SchemaElementNode', 'DocumentNode', 'get_node_tree',

@@ -14,6 +14,7 @@ import math
 import decimal
 import operator
 from collections.abc import Iterator
+from copy import copy
 from typing import Any, cast
 
 import elementpath.aliases as ta
@@ -56,14 +57,14 @@ XPath1Parser.symbol_table['..'] = ParentShortcutToken
 # Logical Operators
 @method(infix('or', bp=20))
 def evaluate__or_operator(self: XPathToken, context: ta.ContextType = None) -> bool:
-    return self.boolean_value(self[0].select_sequence(context)) or \
-        self.boolean_value(self[1].select_sequence(context))
+    return self.boolean_value(self[0].select(copy(context))) or \
+        self.boolean_value(self[1].select(copy(context)))
 
 
 @method(infix('and', bp=25))
 def evaluate__and_operator(self: XPathToken, context: ta.ContextType = None) -> bool:
-    return self.boolean_value(self[0].select_sequence(context)) and \
-        self.boolean_value(self[1].select_sequence(context))
+    return self.boolean_value(self[0].select(copy(context))) and \
+        self.boolean_value(self[1].select(copy(context)))
 
 
 ###
@@ -255,7 +256,7 @@ def select__union_operator(self: XPathToken, context: ta.ContextType = None) \
     if context is None:
         raise self.missing_context()
 
-    results = {item for k in range(2) for item in self[k].select_sequence(context)}
+    results = {item for k in range(2) for item in self[k].select(copy(context))}
     if any(not isinstance(x, XPathNode) for x in results):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
     elif self.concatenated:
@@ -412,7 +413,7 @@ def select__predicate(self: XPathToken, context: ta.ContextType = None) -> Itera
                 and not isinstance(context.item, XPathNode):
             raise self.error('XPTY0020')
 
-        predicate = XSequence(tuple(self[1].select_sequence(context)))
+        predicate = XSequence(tuple(self[1].select(copy(context))))
 
         if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
             if context.position == predicate[0]:

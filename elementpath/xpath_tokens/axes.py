@@ -39,7 +39,8 @@ class XPathAxis(XPathToken):
     def select_with_focus(self, context: XPathContext) -> Iterator[ta.ItemType]:
         """Select item with an inner focus on dynamic context."""
         status = context.item, context.size, context.position, context.axis
-        results = [x for x in self.select_sequence(context)]
+        results = [x for x in self.select(context)]
+        context.item, context.size, context.position, context.axis = status
         context.axis = None
 
         if self.reverse_axis:

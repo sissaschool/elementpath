@@ -16,18 +16,18 @@ from elementpath.sequences import empty_sequence, XSequence
 class XPathSequenceTest(unittest.TestCase):
 
     def test_string_repr(self):
-        self.assertEqual(repr(XSequence([])), 'XSequence()')
-        self.assertEqual(repr(XSequence([1, 2, 3])), 'XSequence(1, 2, 3)')
-        self.assertEqual(repr(XSequence((x for x in [1, 2, 3]))), 'XSequence(1, 2, 3)')
-        self.assertEqual(repr(XSequence([1])), 'XSequence(1)')
+        self.assertEqual(repr(XSequence([])), 'XSequence([])')
+        self.assertEqual(repr(XSequence([1, 2, 3])), 'XSequence([1, 2, 3])')
+        self.assertEqual(repr(XSequence((x for x in [1, 2, 3]))), 'XSequence([1, 2, 3])')
+        self.assertEqual(repr(XSequence([1])), 'XSequence([1])')
 
         self.assertEqual(str(XSequence([1, 2, 3])), '(1, 2, 3)')
         self.assertEqual(str(XSequence([1])), '(1)')
         self.assertEqual(str(XSequence()), '()')
 
-        self.assertEqual(repr(XSequence([1, 2, 3])), 'XSequence(1, 2, 3)')
-        self.assertEqual(repr(XSequence([1])), 'XSequence(1)')
-        self.assertEqual(repr(XSequence()), 'XSequence()')
+        self.assertEqual(repr(XSequence([1, 2, 3])), 'XSequence([1, 2, 3])')
+        self.assertEqual(repr(XSequence([1])), 'XSequence([1])')
+        self.assertEqual(repr(XSequence()), 'XSequence([])')
 
     def test_initialization(self):
         sequence = XSequence([1, 2, 3])

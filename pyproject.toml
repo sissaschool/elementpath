@@ -40,11 +40,11 @@ dev = [
     "flake8",
     "lxml",
     "lxml-stubs",
-    "memray",
+    "memray; platform_python_implementation != 'PyPy'",
     "mypy",
     "psutil",
     "sphinx",
-    "tox",
+    "tox>=4.0",
     "xmlschema>=4.0.1",
 ]
 docs = [
