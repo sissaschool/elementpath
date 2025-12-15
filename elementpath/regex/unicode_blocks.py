@@ -448,3 +448,14 @@ UPDATE_BLOCKS_VER_16_0_0 = {
     'Symbols for Legacy Computing Supplement': '\U0001CC00-\U0001CEBF',
     'Ol Onal': '\U0001E5D0-\U0001E5FF'
 }
+
+UPDATE_BLOCKS_VER_17_0_0 = {
+    'Sidetic': '\U00010940-\U0001095F',
+    'Sharada Supplement': '\U00011B60-\U00011B7F',
+    'Tolong Siki': '\U00011DB0-\U00011DEF',
+    'Beria Erfe': '\U00016EA0-\U00016EDF',
+    'Tangut Components Supplement': '\U00018D80-\U00018DFF',
+    'Miscellaneous Symbols Supplement': '\U0001CEC0-\U0001CEFF',
+    'Tai Yo': '\U0001E6C0-\U0001E6FF',
+    'CJK Unified Ideographs Extension J': '\U000323B0-\U0003347F'
+}

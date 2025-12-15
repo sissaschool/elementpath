@@ -26,7 +26,7 @@ has it's own implementation of XPath 1.0.
 Installation and usage
 ======================
 
-You can install the package with *pip* in a Python 3.9+ environment::
+You can install the package with *pip* in a Python 3.10+ environment::
 
     pip install elementpath
 
