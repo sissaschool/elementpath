@@ -193,6 +193,8 @@ def select__let_expression(self: XPathToken, context: ta.ContextType = None) \
         raise self.missing_context()
 
     context = copy(context)
+    context.variables = context.variables.copy()
+
     for k in range(0, len(self) - 1, 2):
         varname = cast(str, self[k][0].value)
         value = self[k+1].evaluate(context)

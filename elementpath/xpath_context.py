@@ -199,8 +199,8 @@ class XPathContext:
         obj.size = self.size
         obj.position = self.position
         obj.axis = None
-        obj.namespaces = {k: v for k, v in self.namespaces.items()}
-        obj.variables = {k: v for k, v in self.variables.items()}
+        obj.namespaces = self.namespaces
+        obj.variables = self.variables
         return obj
 
     @cached_property

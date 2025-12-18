@@ -158,11 +158,13 @@ def evaluate__quantified_expressions(self: XPathToken, context: ta.ContextType =
         raise self.missing_context()
 
     context = copy(context)
+    context.variables = context.variables.copy()
+
     some = self.symbol == 'some'
     varnames = [cast(str, self[k][0].value) for k in range(0, len(self) - 1, 2)]
     selectors = [self[k].select for k in range(1, len(self) - 1, 2)]
 
-    for results in copy(context).iter_product(selectors, varnames):
+    for results in context.iter_product(selectors, varnames):
         context.variables.update(x for x in zip(varnames, results))
         if self.boolean_value(self[-1].select(copy(context))):
             if some:
@@ -208,6 +210,8 @@ def select__for_expression(self: XPathToken, context: ta.ContextType = None) \
         raise self.missing_context()
 
     context = copy(context)
+    context.variables = context.variables.copy()
+
     varnames = [cast(str, self[k][0].value) for k in range(0, len(self) - 1, 2)]
     selectors = [self[k].select for k in range(1, len(self) - 1, 2)]
 
