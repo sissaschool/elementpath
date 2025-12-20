@@ -80,6 +80,10 @@ represented by *XPathContext* objects.
     >>> token.evaluate(context)
     XSequence([EtreeElementNode(elem=<Element 'child' at ...)])
 
+.. note::
+    Since release v4.2.0 the *root* is optional. If the argument *root* is absent
+    the argument *item* is mandatory and the dynamic context remain without a root.
+
 In this case an error is raised if you don't provide a context:
 
 .. doctest::
@@ -97,8 +101,13 @@ Expressions that not depend on XML data can be evaluated also without a context:
     >>> token.evaluate()
     'foo bar'
 
+.. note::
+    Since release v4.2.0 the *root* is optional. If the argument *root* is absent
+    the argument *item* is mandatory and the dynamic context remain without a root.
+
 For more details on parsing and evaluation of XPath expressions see the
 `XPath processing model <https://www.w3.org/TR/xpath-3/#id-processing-model>`_.
+
 
 
 Node trees
@@ -200,6 +209,20 @@ Both choices can be useful, depends if you need to keep the whole tree or
 to restrict the scope to a subtree.
 
 The context *item* can be set with an XPath node, an atomic value or an XPath function.
+
+.. note::
+    With XPath 4.0 the context *item* will be generalized as a context *value*, that
+    can be set with a sequence of items. On this way the
+
+The data returned by dynamic evaluation can be a atomic value, a node or a function.
+Also sequence of items can be returned. Until now these sequences were represented
+using lists, but soon with XPath 4.0 an XPath sequence will be applicable also to
+single results as *context value*, so for internal processing and by low-le
+Soon, with
+
+
+    Since release v4.2.0 the *root* is optional. If the argument *root* is absent
+    the argument *item* is mandatory and the dynamic context remain without a root.
 
 .. note::
     Since release v4.2.0 the *root* is optional. If the argument *root* is absent

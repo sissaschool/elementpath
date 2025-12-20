@@ -18,7 +18,6 @@ from typing import Any
 import elementpath.aliases as ta
 
 from elementpath.namespaces import XML_ID, XML_LANG
-from elementpath.sequences import empty_sequence
 from elementpath.datatypes import AnyURI, Float, DayTimeDuration, YearMonthDuration, \
     StringProxy, AnyAtomicType, Duration
 from elementpath.helpers import get_double
@@ -430,12 +429,12 @@ def evaluate__sum(self: XPathFunction, context: ta.ContextType = None) -> ta.One
         if self.parser.version == '1.0':
             return math.nan
         elif isinstance(context, XPathSchemaContext):
-            return empty_sequence()
+            return []
         raise self.error('FORG0006') from None
 
     if not values:
         zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
-        return empty_sequence() if zero is None else zero
+        return [] if zero is None else zero
 
     if all(isinstance(x, (decimal.Decimal, int)) for x in values):
         result = sum(values) if len(values) > 1 else values[0]
@@ -457,7 +456,7 @@ def evaluate__sum(self: XPathFunction, context: ta.ContextType = None) -> ta.One
             if self.parser.version == '1.0':
                 return math.nan
             elif isinstance(context, XPathSchemaContext):
-                return empty_sequence()
+                return []
             raise self.error('FORG0006') from None
 
     assert isinstance(result, AnyAtomicType)
@@ -473,7 +472,7 @@ def evaluate__ceiling_and_floor_functions(self: XPathFunction, context: ta.Conte
 
     arg = self.get_argument(context)
     if arg is None:
-        return math.nan if self.parser.version == '1.0' else empty_sequence()
+        return math.nan if self.parser.version == '1.0' else []
     elif isinstance(arg, XPathNode) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 
@@ -489,7 +488,7 @@ def evaluate__ceiling_and_floor_functions(self: XPathFunction, context: ta.Conte
             return type(arg)(math.ceil(arg))
     except TypeError as err:
         if isinstance(context, XPathSchemaContext):
-            return empty_sequence()
+            return []
         elif isinstance(arg, str):
             raise self.error('XPTY0004', err) from None
         raise self.error('FORG0006', err) from None
@@ -502,7 +501,7 @@ def evaluate__round(self: XPathFunction, context: ta.ContextType = None) -> ta.O
 
     arg = self.get_argument(context)
     if arg is None:
-        return math.nan if self.parser.version == '1.0' else empty_sequence()
+        return math.nan if self.parser.version == '1.0' else []
     elif isinstance(arg, XPathNode) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 
@@ -518,18 +517,18 @@ def evaluate__round(self: XPathFunction, context: ta.ContextType = None) -> ta.O
             return type(arg)(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN'))
     except TypeError as err:
         if isinstance(context, XPathSchemaContext):
-            return empty_sequence()
+            return []
         raise self.error('FORG0006', err) from None
     except decimal.InvalidOperation:
         if not isinstance(arg, str):
             assert isinstance(arg, (int, float, decimal.Decimal))
             return round(arg)
         elif isinstance(context, XPathSchemaContext):
-            return empty_sequence()
+            return []
         raise self.error('XPTY0004') from None
     except decimal.DecimalException as err:
         if isinstance(context, XPathSchemaContext):
-            return empty_sequence()
+            return []
         raise self.error('FOCA0002', err) from None
 
 # XPath 1.0 definitions continue into module xpath1_axes

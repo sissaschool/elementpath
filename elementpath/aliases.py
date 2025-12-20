@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from .datatypes import DateTimeStamp, Duration, UntypedAtomic  # noqa: F401
     from .datatypes import DayTimeDuration, YearMonthDuration  # noqa: F401
     from .schema_proxy import AbstractSchemaProxy  # noqa: F401
-    from .sequences import XSequence  # noqa: F401
     from .xpath_nodes import XPathNode, ElementNode, AttributeNode  # noqa: F401
     from .xpath_nodes import TextNode, DocumentNode, NamespaceNode  # noqa: F401
     from .xpath_nodes import CommentNode, ProcessingInstructionNode  # noqa: F401
@@ -73,9 +72,9 @@ ItemType = Union['XPathNode', AtomicType, 'XPathFunction']
 
 _T = TypeVar('_T', bound=ItemType)
 
-OneOrEmpty = Union[_T, 'XSequence[_T]', 'XSequence[NoReturn]']
-OneOrMore = Union[_T, 'XSequence[_T]']
-AnyOrEmpty = Union[_T, 'XSequence[_T]', 'XSequence[NoReturn]']
+OneOrEmpty = Union[_T, list[_T], list[NoReturn]]
+OneOrMore = Union[_T, list[_T]]
+AnyOrEmpty = Union[_T, list[_T], list[NoReturn]]
 
 SequenceArgType = Union[
     Iterator[_T], list[_T], list[NoReturn], tuple[_T, ...], tuple[_T], tuple[()]
@@ -96,9 +95,8 @@ AnyNumericOrEmpty = AnyOrEmpty[NumericType]
 AnyArithmeticOrEmpty = AnyOrEmpty[ArithmeticType]
 AnyItemsOrEmpty = AnyOrEmpty[ItemType]
 
-ValueType = Union[ItemType, 'XSequence[ItemType]', 'XSequence[NoReturn]',
-                  'XSequence[XPathNode]', 'XSequence[AttributeNode | ElementNode]',
-                  'XSequence[AtomicType]']
+ValueType = Union[ItemType, list[ItemType], list[NoReturn], list['XPathNode'],
+                  list[Union['AttributeNode', 'ElementNode']], list[AtomicType]]
 ListItemType = Union[ItemType, list[ItemType], list[NoReturn]]
 ResultType = Union[
     AtomicType, 'ElementProtocol', 'XsdAttributeProtocol', tuple[Optional[str], str],

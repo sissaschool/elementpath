@@ -13,7 +13,6 @@ import elementpath.aliases as ta
 
 from elementpath.exceptions import ElementPathError
 from elementpath.datatypes import AnyAtomicType, ListType, UntypedAtomic
-from elementpath.sequences import empty_sequence
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from .functions import XPathFunction
 
@@ -52,7 +51,7 @@ class XPathConstructor(XPathFunction):
 
         arg = self.data_value(self.get_argument(context))
         if arg is None:
-            return empty_sequence()
+            return []
         elif arg == '?' and self[0].symbol == '?':
             raise self.error('XPTY0004', "cannot evaluate a partial function")
 
@@ -64,5 +63,5 @@ class XPathConstructor(XPathFunction):
             raise
         except (TypeError, ValueError) as err:
             if isinstance(context, XPathSchemaContext):
-                return empty_sequence()
+                return []
             raise self.error('FORG0001', err) from None

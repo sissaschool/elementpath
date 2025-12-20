@@ -19,7 +19,7 @@ from elementpath.exceptions import ElementPathKeyError, xpath_error
 from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_DATETIME_STAMP, \
     XSD_NUMERIC, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, get_expanded_name
 from elementpath.helpers import collapse_white_spaces, Patterns
-from elementpath.sequences import XSequence, empty_sequence
+from elementpath.sequences import XSequence
 from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
 from elementpath.xpath_tokens import XPathToken
 
@@ -270,7 +270,7 @@ def match_sequence_type(value: Any,
     def match_st(v: Any, st: str, occurrence: str | None = None) -> bool:
         if st[-1] in ('*', '+', '?') and ') as ' not in st:
             return match_st(v, st[:-1], st[-1])
-        elif v is None or v == empty_sequence():
+        elif v is None or v == []:
             return st in ('empty-sequence()', 'none') or occurrence in ('?', '*')
         elif st in ('empty-sequence()', 'none'):
             return False

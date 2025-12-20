@@ -31,9 +31,7 @@ from elementpath.tdop import MultiLabel
 from elementpath.helpers import Patterns, is_xml_codepoint, node_position
 from elementpath.namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE
-from elementpath.datatypes import NumericProxy, QName, Date, DateTime, Time, \
-    AnyURI
-from elementpath.sequences import XSequence, empty_sequence
+from elementpath.datatypes import NumericProxy, QName, Date, DateTime, Time, AnyURI
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.etree import defuse_xml
 from elementpath.xpath_nodes import XPathNode, ElementNode, NamespaceNode, \
@@ -294,13 +292,13 @@ class _InlineFunction(XPathFunction):
 
         # A function test
         if not isinstance(context.item, XPathFunction):
-            return empty_sequence()
+            return []
         elif self.source == 'function(*)':
             return context.item
         elif context.item.match_function_test(self.sequence_types):
             return context.item
         else:
-            return empty_sequence()
+            return []
 
     def to_partial_function(self) -> None:
         assert self.label != 'function test', "an effective inline function required"
@@ -327,7 +325,7 @@ def evaluate__pi(self: XPathFunction, context: ta.ContextType = None) -> float:
 def evaluate__exp(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     return math.exp(arg)
 
 
@@ -335,7 +333,7 @@ def evaluate__exp(self: XPathFunction, context: ta.ContextType = None) -> ta.One
 def evaluate__exp10(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     return float(10 ** arg)
 
 
@@ -343,7 +341,7 @@ def evaluate__exp10(self: XPathFunction, context: ta.ContextType = None) -> ta.O
 def evaluate__log(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType | None = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     return float('-inf') if not arg else math.nan if arg <= -1 else math.log(arg)
 
 
@@ -351,7 +349,7 @@ def evaluate__log(self: XPathFunction, context: ta.ContextType = None) -> ta.One
 def evaluate__log10(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType | None = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     return float('-inf') if not arg else math.nan if arg <= -1 else math.log10(arg)
 
 
@@ -364,7 +362,7 @@ def evaluate__pow(self: XPathFunction, context: ta.ContextType = None) -> ta.One
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
     if x is None:
-        return empty_sequence()
+        return []
     elif not x and y < 0:
         return math.copysign(float('inf'), x) if (y % 2) == 1 else float('inf')
 
@@ -379,7 +377,7 @@ def evaluate__pow(self: XPathFunction, context: ta.ContextType = None) -> ta.One
 def evaluate__sqrt(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType | None = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     elif arg < 0:
         return math.nan
     return math.sqrt(arg)
@@ -390,7 +388,7 @@ def evaluate__sqrt(self: XPathFunction, context: ta.ContextType = None) -> ta.On
 def evaluate__sin(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType | None = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     elif math.isinf(arg):
         return math.nan
     return math.sin(arg)
@@ -401,7 +399,7 @@ def evaluate__sin(self: XPathFunction, context: ta.ContextType = None) -> ta.One
 def evaluate__cos(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType | None = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     elif math.isinf(arg):
         return math.nan
     return math.cos(arg)
@@ -412,7 +410,7 @@ def evaluate__cos(self: XPathFunction, context: ta.ContextType = None) -> ta.One
 def evaluate__tan(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType | None = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     elif math.isinf(arg):
         return math.nan
     return math.tan(arg)
@@ -423,7 +421,7 @@ def evaluate__tan(self: XPathFunction, context: ta.ContextType = None) -> ta.One
 def evaluate__asin(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType | None = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     elif arg < -1 or arg > 1:
         return math.nan
     return math.asin(arg)
@@ -434,7 +432,7 @@ def evaluate__asin(self: XPathFunction, context: ta.ContextType = None) -> ta.On
 def evaluate__acos(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType | None = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     elif arg < -1 or arg > 1:
         return math.nan
     return math.acos(arg)
@@ -445,7 +443,7 @@ def evaluate__acos(self: XPathFunction, context: ta.ContextType = None) -> ta.On
 def evaluate__atan(self: XPathFunction, context: ta.ContextType = None) -> ta.OneOrEmpty[float]:
     arg: ta.NumericType | None = self.get_argument(self.context or context, cls=NumericProxy)
     if arg is None:
-        return empty_sequence()
+        return []
     return math.atan(arg)
 
 
@@ -1067,19 +1065,19 @@ def evaluate__path(self: XPathFunction, context: ta.ContextType = None) -> ta.On
     else:
         item = self.get_argument(context)
         if item is None:
-            return empty_sequence()
+            return []
 
     if not isinstance(item, XPathNode):
-        return empty_sequence()
+        return []
     elif context.root is None or (root_node := item.root_node) is not context.root:
         # The context has no root or the root is not the root of the item node
-        return empty_sequence()
+        return []
     elif not isinstance(root_node, (DocumentNode, SchemaElementNode)):
         # It's a fragment: add fn:root() to select the root position
         path = item.path[len(root_node.path):]
         return f"Q{{{XPATH_FUNCTIONS_NAMESPACE}}}root(){path}"
     else:
-        return item.path or empty_sequence()
+        return item.path or []
 
 
 @method(function('has-children', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean')))
@@ -1152,7 +1150,7 @@ def evaluate__head(self: XPathFunction, context: ta.ContextType = None) \
     for item in self[0].select(self.context or context):
         return item
     else:
-        return empty_sequence()
+        return []
 
 
 @method(function('tail', nargs=1, sequence_types=('item()*', 'item()*')))
@@ -1180,7 +1178,7 @@ def evaluate__generate_id(self: XPathFunction, context: ta.ContextType = None) -
 @method(function('uri-collection', nargs=(0, 1),
                  sequence_types=('xs:string?', 'xs:anyURI*')))
 def evaluate__uri_collection(self: XPathFunction, context: ta.ContextType = None) \
-        -> XSequence[AnyURI] | XSequence[NoReturn]:
+        -> list[AnyURI] | list[NoReturn]:
     if self.context is not None:
         context = self.context
 
@@ -1188,7 +1186,7 @@ def evaluate__uri_collection(self: XPathFunction, context: ta.ContextType = None
     if context is None:
         raise self.missing_context()
     elif isinstance(context, XPathSchemaContext):
-        return empty_sequence()
+        return []
     elif not self or uri is None:
         if context.default_resource_collection is None:
             raise self.error('FODC0002', 'no default resource collection has been defined')
@@ -1215,7 +1213,7 @@ def evaluate__uri_collection(self: XPathFunction, context: ta.ContextType = None
     if not match_sequence_type(resource_collection, 'xs:anyURI*', self.parser):
         raise self.error('XPDY0050', "type does not match sequence type xs:anyURI*")
 
-    return XSequence(resource_collection)
+    return resource_collection
 
 
 @method(function('unparsed-text', nargs=(1, 2),
@@ -1229,7 +1227,7 @@ def evaluate__unparsed_text(self: XPathFunction, context: ta.ContextType = None)
 
     href: Optional[str] = self.get_argument(context, cls=str)
     if href is None:
-        return empty_sequence()
+        return []
     elif urlsplit(href).fragment:
         raise self.error('FOUT1170')
 
@@ -1281,7 +1279,7 @@ def evaluate__unparsed_text(self: XPathFunction, context: ta.ContextType = None)
 
     if self.symbol == 'unparsed-text-lines':
         lines = Patterns.xml_newlines.split(text)
-        return XSequence(lines[:-1] if lines[-1] == '' else lines)
+        return lines[:-1] if lines[-1] == '' else lines
 
     return text
 
@@ -1352,25 +1350,25 @@ def evaluate__environment_variable(self: XPathFunction, context: ta.ContextType 
     if context is None:
         raise self.missing_context()
     elif not context.allow_environment:
-        return empty_sequence()
+        return []
     else:
         value = os.environ.get(name)
-        return value if value is not None else empty_sequence()
+        return value if value is not None else []
 
 
 @method(function('available-environment-variables', nargs=0,
                  sequence_types=('xs:string*',)))
 def evaluate__available_env_vars(self: XPathFunction, context: ta.ContextType = None) \
-        -> XSequence[str] | XSequence[NoReturn]:
+        -> list[str] | list[NoReturn]:
     if self.context is not None:
         context = self.context
     elif context is None:
         raise self.missing_context()
 
     if not context.allow_environment:
-        return empty_sequence()
+        return []
     else:
-        return XSequence(list(os.environ))
+        return list(os.environ)
 
 
 ###
@@ -1385,7 +1383,7 @@ def evaluate__parse_xml(self: XPathFunction, context: ta.ContextType = None) \
 
     arg: Optional[str] = self.get_argument(context, cls=str)
     if arg is None:
-        return empty_sequence()
+        return []
     elif context is None:
         raise self.missing_context()
 
@@ -1410,7 +1408,7 @@ def evaluate__parse_xml_fragment(self: XPathFunction, context: ta.ContextType = 
 
     arg: Optional[str] = self.get_argument(context, cls=str)
     if arg is None or isinstance(context, XPathSchemaContext):
-        return empty_sequence()
+        return []
     elif context is None:
         raise self.missing_context()
 
@@ -1502,7 +1500,7 @@ def evaluate__function_lookup(self: XPathFunction, context: ta.ContextType = Non
     qname: QName = self.get_argument(context, cls=QName, required=True)
     arity: int = self.get_argument(context, index=1, cls=int, required=True)
     if qname.namespace == '':
-        return empty_sequence()
+        return []
 
     try:
         cls = self.parser.symbol_table[qname.expanded_name]
@@ -1510,13 +1508,13 @@ def evaluate__function_lookup(self: XPathFunction, context: ta.ContextType = Non
         try:
             cls = self.parser.symbol_table[qname.local_name]
         except KeyError:
-            return empty_sequence()
+            return []
 
     assert issubclass(cls, XPathFunction)
     try:
         func = cls(self.parser, nargs=arity)
     except TypeError:
-        return empty_sequence()
+        return []
 
     func.namespace = qname.namespace
     func.context = copy(context)
@@ -1538,7 +1536,7 @@ def evaluate__function_name(self: XPathFunction, context: ta.ContextType = None)
         raise self.error('XPTY0004', "argument is not a function")
     else:
         name = func.qname
-        return empty_sequence() if name is None else name
+        return [] if name is None else name
 
 
 @method(function('function-arity', nargs=1, sequence_types=('function(*)', 'xs:integer')))
@@ -1565,7 +1563,7 @@ def select__for_each(self: XPathFunction, context: ta.ContextType = None) \
 
     for item in self[0].select(context):
         result = func(item, context=context)
-        if isinstance(result, XSequence):
+        if isinstance(result, list):
             yield from result
         else:
             yield result
@@ -1610,7 +1608,7 @@ def select__fold_left(self: XPathFunction, context: ta.ContextType = None) \
     for item in self[0].select(context):
         result = func(result, item, context=context)
 
-    if isinstance(result, XSequence):
+    if isinstance(result, list):
         yield from result
     else:
         yield result
@@ -1637,7 +1635,7 @@ def select__fold_right(self: XPathFunction, context: ta.ContextType = None) \
     for item in reversed(sequence):
         result = func(item, result, context=context)
 
-    if isinstance(result, XSequence):
+    if isinstance(result, list):
         yield from result
     else:
         yield result
@@ -1659,7 +1657,7 @@ def select__for_each_pair(self: XPathFunction, context: ta.ContextType = None) \
 
     for item1, item2 in zip(self[0].select(context), self[1].select(context)):
         result = func(item1, item2, context=context)
-        if isinstance(result, XSequence):
+        if isinstance(result, list):
             yield from result
         else:
             yield result
@@ -1722,7 +1720,7 @@ def evaluate__document_uri(self: XPathFunction, context: ta.ContextType = None) 
                 for uri, doc in context.documents.items():
                     if doc and doc.document is context.root.document:
                         return AnyURI(uri)
-    return empty_sequence()
+    return []
 
 
 @method(function('nilled', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean?')))
@@ -1730,10 +1728,10 @@ def evaluate__nilled(self: XPathFunction, context: ta.ContextType = None) \
         -> ta.OneOrEmpty[bool]:
     arg: ta.NumericType | None = self.get_argument(self.context or context, default_to_context=True)
     if arg is None:
-        return empty_sequence()
+        return []
     elif isinstance(arg, XPathNode):
         result = arg.nilled
-        return result if result is not None else empty_sequence()
+        return result if result is not None else []
     else:
         raise self.error('XPTY0004', 'an XPath node required')
 
@@ -1744,11 +1742,11 @@ def evaluate__node_name(self: XPathFunction, context: ta.ContextType = None) \
     arg: ta.NumericType | None
     arg = self.get_argument(self.context or context, default_to_context=True)
     if arg is None:
-        return empty_sequence()
+        return []
     elif isinstance(arg, XPathNode):
         name = arg.name
         if name is None:
-            return empty_sequence()
+            return []
         elif name.startswith('{'):
             # name is a QName in extended format
             namespace, local_name = split_expanded_name(name)
@@ -1794,7 +1792,7 @@ def evaluate__round(self: XPathFunction, context: ta.ContextType = None) \
 
     arg: ta.NumericType | None = self.get_argument(context)
     if arg is None:
-        return empty_sequence()
+        return []
     elif isinstance(arg, XPathNode) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 
@@ -1814,15 +1812,15 @@ def evaluate__round(self: XPathFunction, context: ta.ContextType = None) \
             return type(arg)(number.quantize(exponent, rounding='ROUND_HALF_DOWN'))
     except TypeError as err:
         if isinstance(context, XPathSchemaContext):
-            return empty_sequence()
+            return []
         raise self.error('FORG0006', err) from None
     except decimal.InvalidOperation:
         if isinstance(arg, str):
             if isinstance(context, XPathSchemaContext):
-                return empty_sequence()
+                return []
             raise self.error('XPTY0004') from None
         return round(arg)
     except decimal.DecimalException as err:
         if isinstance(context, XPathSchemaContext):
-            return empty_sequence()
+            return []
         raise self.error('FOCA0002', err) from None

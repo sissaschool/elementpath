@@ -27,7 +27,6 @@ from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS
 from elementpath.namespaces import get_prefixed_name
 from elementpath.datatypes import QName, builtin_atomic_types
 from elementpath.collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
-from elementpath.sequences import empty_sequence
 from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathConstructor
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
@@ -298,14 +297,14 @@ class XPath2Parser(XPath1Parser):
                 -> ta.OneAtomicOrEmpty:
             arg = self_.get_argument(context)
             if arg is None or self_.parser.schema is None:
-                return empty_sequence()
+                return []
 
             value = self_.string_value(arg)
             try:
                 return self_.parser.schema.cast_as(value, atomic_type_name)
             except (TypeError, ValueError) as err:
                 if isinstance(context, XPathSchemaContext):
-                    return empty_sequence()
+                    return []
                 raise self_.error('FORG0001', err)
 
         symbol = get_prefixed_name(atomic_type_name, self.namespaces)

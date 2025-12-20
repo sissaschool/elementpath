@@ -115,7 +115,7 @@ class SequenceTypesTest(unittest.TestCase):
         self.assertRaises(KeyError, is_instance, 'foo', 'tst:unknown')
         self.assertRaises(KeyError, is_instance, 'foo', 'tst:unknown', parser)
 
-        self.assertTrue(is_instance(None, '{%s}error' % XSD_NAMESPACE))
+        self.assertFalse(is_instance(None, '{%s}error' % XSD_NAMESPACE))
         self.assertFalse(is_instance([], '{%s}error' % XSD_NAMESPACE))
         self.assertFalse(is_instance(1.0, '{%s}error' % XSD_NAMESPACE))
 

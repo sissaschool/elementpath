@@ -16,7 +16,7 @@ from typing import Any, Optional
 from collections.abc import Callable, Iterable, Iterator
 from elementpath.protocols import ElementProtocol
 from elementpath.exceptions import xpath_error
-from elementpath.sequences import empty_sequence, XSequence
+from elementpath.sequences import XSequence
 from elementpath.datatypes import UntypedAtomic, AnyURI, AbstractQName
 from elementpath.collations import UNICODE_CODEPOINT_COLLATION, CollationManager
 from elementpath.xpath_nodes import XPathNode, EtreeElementNode, TextAttributeNode, \
@@ -172,10 +172,6 @@ def deep_equal(seq1: Iterable[Any],
     return True
 
 
-def is_empty_sequence(x: Any) -> bool:
-    return not x != empty_sequence()
-
-
 def deep_compare(obj1: Any,
                  obj2: Any,
                  collation: Optional[str] = None,
@@ -242,11 +238,13 @@ def deep_compare(obj1: Any,
                     not isinstance(value2, XPathArray):
                 raise xpath_error('FOTY0013', token=token)
 
-            if (value1 is None) ^ (value2 is None):
-                return -1 if value1 is None else 1
+            if value1 is None or value1 == []:
+                if value2 is not None and value2 != []:
+                    return -1
 
-            if is_empty_sequence(value1) ^ is_empty_sequence(value2):
-                return -1 if is_empty_sequence(value1) else 1
+            if value2 is None or value2 == []:
+                if value1 is not None and value1 != []:
+                    return 1
 
             if isinstance(value1, XPathNode) ^ isinstance(value2, XPathNode):
                 msg = f"cannot compare {type(value1)} with {type(value2)}"

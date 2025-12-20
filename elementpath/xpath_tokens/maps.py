@@ -14,7 +14,7 @@ import elementpath.aliases as ta
 
 from elementpath.exceptions import ElementPathValueError
 from elementpath.datatypes import AnyAtomicType
-from elementpath.sequences import XSequence, empty_sequence
+from elementpath.sequences import XSequence
 from elementpath.helpers import split_function_test
 from elementpath.sequence_types import match_sequence_type
 from elementpath.xpath_context import XPathSchemaContext
@@ -138,7 +138,7 @@ class XPathMap(XPathFunction):
 
             v = value.evaluate(context)
             if isinstance(v, list):
-                _map[k] = v[0] if len(v) == 1 else v
+                _map[k] = XSequence(v)
             else:
                 _map[k] = v
 
@@ -151,7 +151,7 @@ class XPathMap(XPathFunction):
             args = args[0][0],
         if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
             if isinstance(context, XPathSchemaContext):
-                return empty_sequence()
+                return []
             raise self.error('XPST0003', 'exactly one atomic argument is expected')
 
         _map: ta.MapDictType
@@ -167,7 +167,7 @@ class XPathMap(XPathFunction):
             else:
                 return _map[key]
         except KeyError:
-            return empty_sequence()
+            return []
 
     def keys(self, context: ta.ContextType = None) -> list[ta.AtomicType]:
         if self._map is None:

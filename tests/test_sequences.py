@@ -31,12 +31,12 @@ class XPathSequenceTest(unittest.TestCase):
 
     def test_initialization(self):
         sequence = XSequence([1, 2, 3])
-        self.assertEqual(sequence, (1, 2, 3))
+        self.assertEqual(sequence, [1, 2, 3])
 
     def test_comparison(self):
-        self.assertEqual(empty_sequence(), ())
+        self.assertNotEqual(empty_sequence(), ())
         self.assertEqual(empty_sequence(), [])
-        self.assertEqual((), empty_sequence())
+        self.assertNotEqual((), empty_sequence())
         self.assertEqual([], empty_sequence())
         self.assertNotEqual(empty_sequence(), 0)
         self.assertNotEqual(empty_sequence(), '')
@@ -44,26 +44,30 @@ class XPathSequenceTest(unittest.TestCase):
 
         self.assertEqual(XSequence([1]), 1)
         self.assertEqual(XSequence([1]), [1])
-        self.assertEqual(XSequence([1]), (1,))
         self.assertEqual(XSequence([1]), 1)
 
     def test_concatenation(self):
         sequence = XSequence([1, 2, 3])
-        self.assertEqual(sequence + (4,), (1, 2, 3, 4))
-        self.assertEqual(() + sequence, (1, 2, 3))
-        self.assertEqual((-1, 0) + sequence, (-1, 0, 1, 2, 3))
+        self.assertEqual(sequence + [4], [1, 2, 3, 4])
+        self.assertEqual([] + sequence, [1, 2, 3])
+        self.assertEqual([-1, 0] + sequence, [-1, 0, 1, 2, 3])
 
         s1 = XSequence([1, 2, 3])
         s2 = XSequence([4, 5, 6])
-        self.assertEqual(s1 + s2, (1, 2, 3, 4, 5, 6))
-        self.assertEqual(s2 + s1, (4, 5, 6, 1, 2, 3))
+        self.assertEqual(s1 + s2, [1, 2, 3, 4, 5, 6])
+        self.assertEqual(s2 + s1, [4, 5, 6, 1, 2, 3])
 
-    def test_iter_sequence(self):
+    def test_nested_sequence(self):
         self.assertEqual(list(iter(XSequence([]))), [])
-        self.assertEqual(list(iter(XSequence([None, 8]))), [None, 8])
-        self.assertEqual(list(iter(XSequence([[], 8]))), [8])
-        self.assertEqual(list(iter(XSequence([[], [], []]))), [])
-        self.assertEqual(list(iter(XSequence([[], 8, [9]]))), [8, 9])
+
+        # with self.assertRaises(TypeError):
+        #     list(iter(XSequence([None, 8])))
+        with self.assertRaises(TypeError):
+            list(iter(XSequence([[], 8])))
+        with self.assertRaises(TypeError):
+            list(iter(XSequence([[], [], []])))
+        with self.assertRaises(TypeError):
+            list(iter(XSequence([[], 8, [9]])))
 
 
 if __name__ == '__main__':

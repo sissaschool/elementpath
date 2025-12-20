@@ -7,8 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from collections.abc import Callable, Iterable, Iterator, Sequence
-from itertools import zip_longest
+from collections.abc import Callable, Iterable
 from typing import Any, NoReturn, overload, TypeVar, Union
 
 from elementpath.aliases import ItemType
@@ -17,101 +16,54 @@ __all__ = ['XSequence', 'empty_sequence', 'sequence_concat', 'count', 'iterate_s
 
 
 T = TypeVar('T', bound=ItemType)
-S = TypeVar('S', bound=ItemType)
+S = TypeVar('S')
 
-SequenceArgItemType = Union[T, list[T], tuple[T, ...], 'XSequence[T]']
+SequenceArgItemType = Union[T, list[T], Iterable[T], tuple[T, ...]]
 
 
-class XSequence(Sequence[T]):
+class XSequence(list[T]):
     """
-    Class for representing XQuery/XPath sequences, as defined by XQuery and XPath Data Model 4.0.
-    Used for internal processing, results are converted to a list.
+    An extended list derived class for processing XQuery/XPath sequences.
 
     Ref: https://qt4cg.org/specifications/xpath-datamodel-40/Overview.html
     """
-    __slots__ = ('items',)
+    __slots__ = ()
 
-    items: tuple[T, ...] | tuple[T] | tuple[()]
-
-    def __init__(self, items: Iterable[SequenceArgItemType[T]] = ()) -> None:
-        if isinstance(items, (list, tuple, XSequence)) and \
-                all(not isinstance(x, (list, tuple, XSequence)) for x in items):
-            self.items = tuple(items)
-        else:
-            _items: list[T] = []
-            for item in items:
-                if isinstance(item, (list, tuple, XSequence)):
-                    _items.extend(item)
-                else:
-                    _items.append(item)
-            self.items = tuple(_items)
+    def __init__(self, items: Iterable[T] = ()) -> None:
+        super().__init__(items)
+        if any(isinstance(x, list) for x in self):
+            raise TypeError(f"{self!r} initialized with a nested sequence")
 
     def __str__(self) -> str:
-        return f'({", ".join(map(repr, self.items))})'
+        return f'({", ".join(map(repr, self))})'
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}([{", ".join(map(repr, self.items))}])'
-
-    def __hash__(self) -> int:
-        return hash(self.items)
+        return f'{self.__class__.__name__}([{", ".join(map(repr, self))}])'
 
     def __eq__(self, other: Any) -> bool:
-        if isinstance(other, XSequence):
-            return self.items == other.items
-        elif isinstance(other, tuple):
-            return self.items == other
-        elif isinstance(other, list):
-            return all(i1 == i2 for i1, i2 in zip_longest(self.items, other))
+        if isinstance(other, list):
+            return super().__eq__(other)
         return False if len(self) != 1 else not self[0] != other
 
     def __ne__(self, other: Any) -> bool:
-        if isinstance(other, XSequence):
-            return self.items != other.items
-        elif isinstance(other, tuple):
-            return self.items != other
-        elif isinstance(other, list):
-            return any(i1 != i2 for i1, i2 in zip_longest(self, other))
+        if isinstance(other, list):
+            return super().__ne__(other)
         return True if len(self) != 1 else not self[0] == other
 
     @overload
-    def __getitem__(self, item: int) -> T: ...
+    def __add__(self, other: list[T] | list[NoReturn]) -> list[T]: ...
 
     @overload
-    def __getitem__(self, item: slice) -> tuple[T, ...]: ...
+    def __add__(self, other: list[S] | list[NoReturn]) -> list[S | T]: ...
 
-    def __getitem__(self, item: int | slice) -> T | tuple[T, ...]:
-        return self.items[item]
-
-    def __iter__(self) -> Iterator[T]:
-        return iter(self.items)
-
-    def __len__(self) -> int:
-        return len(self.items)
-
-    @overload
-    def __add__(self, other: 'XSequence[S]') -> tuple[S | T, ...]: ...
-
-    @overload
-    def __add__(self, other: tuple[S, ...]) -> tuple[S | T, ...]: ...
-
-    @overload
-    def __add__(self, other: list[S]) -> list[S | T]: ...
-
-    def __add__(self, other: Union['XSequence[S]', tuple[S, ...], list[S]]) \
-            -> tuple[S | T, ...] | list[S | T]:
+    def __add__(self, other: list[S] | list[NoReturn]) -> list[S | T] | list[T]:
         if isinstance(other, list):
-            return list(self.items) + other
-        elif isinstance(other, tuple):
-            return self.items + other
-        elif isinstance(other, XSequence):
-            return self.items + other.items
+            return list(self) + other
         return NotImplemented
 
-    def __radd__(self, other: tuple[S, ...] | list[S]) -> tuple[S | T, ...] | list[S | T]:
+    def __radd__(self, other: list[S] | list[NoReturn]) -> list[S | T]:
         if isinstance(other, list):
-            return other + list(self.items)
-        elif isinstance(other, tuple):
-            return other + self.items
+            return other + list(self)
         return NotImplemented
 
     @property

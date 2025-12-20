@@ -9,12 +9,11 @@
 #
 import math
 from decimal import Decimal
-from typing import Any, NoReturn
+from typing import Any, cast, NoReturn
 
 from elementpath.aliases import XPath2ParserType
 from elementpath.helpers import BOOLEAN_VALUES, FloatArgType, LazyPattern, \
     collapse_white_spaces, get_double
-from elementpath.sequences import XSequence, empty_sequence
 from .any_types import AnyAtomicType
 from .untyped import UntypedAtomic
 from .numeric import Float, Integer
@@ -218,17 +217,13 @@ class ArithmeticProxy(metaclass=ArithmeticTypeMeta):
 class ErrorProxy(AnyAtomicType):
     name = 'error'
 
-    def __new__(cls, value: Any) -> XSequence[NoReturn]:  # type: ignore[misc]
-        if value is None or value == ():
-            return empty_sequence()
+    def __new__(cls, value: Any) -> list[NoReturn] | None:  # type: ignore[misc]
+        if value is None or value == []:
+            return cast(list[NoReturn] | None, value)
         msg = f"Cast {value!r} to xs:error is not possible"
         if isinstance(value, list):
             raise cls._invalid_value(msg)
         raise cls._invalid_type(msg)
 
-    def __init__(cls, value: Any) -> None:
+    def __init__(self, value: Any) -> None:
         pass
-
-    @classmethod
-    def __subclasshook__(cls, subclass: type) -> bool:
-        return subclass is type(None) or issubclass(subclass, XSequence)

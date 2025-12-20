@@ -52,7 +52,7 @@ class XPathContextTest(unittest.TestCase):
         self.assertRaises(TypeError, XPathContext, None)
 
         with self.assertRaises(TypeError):
-            XPathContext(item=[1])
+            XPathContext(item=(1,))
 
     def test_timezone_argument(self):
         context = XPathContext(self.root)

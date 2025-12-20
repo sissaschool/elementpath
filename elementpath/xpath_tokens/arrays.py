@@ -33,7 +33,7 @@ class XPathArray(XPathFunction):
                  items: Optional[Iterable[Any]] = None) -> None:
         if items is not None:
             self._array = [
-                x if not isinstance(x, (tuple, list)) else XSequence(x) for x in items
+                x if not isinstance(x, (tuple, list, XSequence)) else list(x) for x in items
             ]
         super().__init__(parser)
 
@@ -133,7 +133,7 @@ class XPathArray(XPathFunction):
         for item in items:
             if isinstance(item, XPathArray):
                 yield from item.iter_flatten(context)
-            elif isinstance(item, XSequence):
+            elif isinstance(item, (list, XSequence)):
                 yield from item
             else:
                 yield item

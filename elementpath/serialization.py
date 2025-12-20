@@ -69,7 +69,7 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 # TODO: doesn't work within element nodes
                 if isinstance(value, XPathArray):
                     value = value.items()
-                if not isinstance(value, (XSequence, list)) or \
+                if not isinstance(value, (list, XSequence)) or \
                         not all(isinstance(x, QName) for x in value):
                     raise xpath_error('XPTY0004', token=token)
                 kwargs['cdata_section'] = value
@@ -376,9 +376,6 @@ def serialize_to_json(elements: Iterable[Any],
                 else:
                     return f'<?{obj.name} {obj.string_value}?>'
             elif isinstance(obj, XPathMap):
-                if any(isinstance(v, list) and len(v) > 1 for v in obj.values()):
-                    raise xpath_error('SERE0023', token=token)
-
                 map_keys = set()
                 map_items = []
                 k: Any
@@ -399,7 +396,7 @@ def serialize_to_json(elements: Iterable[Any],
                 return str(obj)
             elif isinstance(obj, Decimal):
                 return float(Decimal(obj).quantize(Decimal("0.01"), ROUND_UP))
-            elif isinstance(obj, XSequence):
+            elif isinstance(obj, (list, XSequence)):
                 return [v for v in obj]
             else:
                 return super().default(obj)

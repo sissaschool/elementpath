@@ -17,7 +17,6 @@ from typing import Any, cast, Union
 import elementpath.aliases as ta
 import elementpath.namespaces as ns
 from elementpath.datatypes import QName
-from elementpath.sequences import empty_sequence, XSequence
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, \
     XPathMap, XPathArray
 
@@ -96,11 +95,11 @@ def led__parenthesized_expression(self: XPathToken, left: XPathToken) -> XPathTo
 def evaluate__parenthesized_expression(self: XPathToken, context: ta.ContextType = None) \
         -> ta.ValueType | XPathToken:
     if not self:
-        return empty_sequence()
+        return []
 
     value = self[0].evaluate(context)
 
-    if isinstance(value, XSequence) and len(value) == 1:
+    if isinstance(value, list) and len(value) == 1:
         value = value[0]
 
     if len(self) > 1:
@@ -126,7 +125,7 @@ def evaluate__parenthesized_expression(self: XPathToken, context: ta.ContextType
             return func(*arguments, context=context)
 
         elif self[0].symbol == '(':
-            if not isinstance(value, XSequence):
+            if not isinstance(value, list):
                 return value
             elif any(not isinstance(x, XPathFunction) for x in value):
                 return value

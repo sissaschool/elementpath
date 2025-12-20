@@ -33,7 +33,6 @@ from elementpath.datatypes import builtin_atomic_types, DateTime, Date, Date10, 
     Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.collations import get_locale_category
-from elementpath.sequences import XSequence
 from elementpath.sequence_types import is_instance
 from elementpath.xpath_tokens import ProxyToken
 
@@ -1424,7 +1423,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_external_function_arguments__issue_92(self):
 
         def select_first(nodes):
-            if not isinstance(nodes, XSequence):
+            if not isinstance(nodes, list):
                 return nodes
             return nodes[0]
 

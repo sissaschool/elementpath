@@ -18,7 +18,6 @@ from typing import Any, cast, ClassVar, SupportsFloat, TYPE_CHECKING, TypeVar
 
 import elementpath.aliases as ta
 
-from elementpath.sequences import XSequence, empty_sequence
 from elementpath.exceptions import xpath_error, ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError
 from elementpath.namespaces import XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
@@ -182,7 +181,7 @@ class XPathToken(Token[ta.XPathTokenType]):
 
         :param context: The XPath dynamic context.
         """
-        return XSequence([x for x in self.select(context)])
+        return [x for x in self.select(context)]
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         """
@@ -191,7 +190,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         :param context: The XPath dynamic context.
         """
         item = self.evaluate(context)
-        if isinstance(item, XSequence):
+        if isinstance(item, list):
             yield from item
         else:
             yield item
@@ -418,7 +417,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 except (TypeError, ValueError):
                     pass
 
-            if value == empty_sequence():
+            if value == []:
                 code = 'FOTY0012'
             else:
                 code = 'XPTY0004'
@@ -466,7 +465,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                     value = item.compat_string_value
                     yield value
 
-            case XSequence() | list():
+            case list():
                 for v in item:
                     yield from self.atomize_item(v)
 
@@ -714,7 +713,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         if len(self) == 1:
             item = self.get_argument(context, cls=cls)
             if item is None:
-                return empty_sequence()
+                return []
             timezone = getattr(context, 'timezone', None)
         else:
             item = self.get_argument(context, cls=cls)
@@ -729,7 +728,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                     else:
                         raise self.error('FODT0003', str(err)) from None
             if item is None:
-                return empty_sequence()
+                return []
 
         _item = copy(item)
         _tzinfo = _item.tzinfo
@@ -794,8 +793,8 @@ class XPathToken(Token[ta.XPathTokenType]):
             else:
                 return v
 
-        if isinstance(value, (XSequence, list)):
-            return XSequence([cast_value(x) for x in value])
+        if isinstance(value, list):
+            return [cast_value(x) for x in value]
         else:
             return cast_value(value)
 
@@ -805,7 +804,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         """
         The effective boolean value, as computed by fn:boolean().
         """
-        if isinstance(obj, (XSequence, list)):
+        if isinstance(obj, list):
             if not obj:
                 return False
             elif isinstance(obj[0], XPathNode):

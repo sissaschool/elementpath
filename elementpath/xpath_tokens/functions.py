@@ -14,7 +14,6 @@ from typing import Optional, cast, Union, Any
 import elementpath.aliases as ta
 
 from elementpath.protocols import ElementProtocol, DocumentProtocol
-from elementpath.sequences import XSequence, empty_sequence
 from elementpath.datatypes import QName, AnyAtomicType
 from elementpath.tdop import MultiLabel
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
@@ -156,10 +155,10 @@ class XPathFunction(XPathToken):
         if context is not None:
             return context.get_value(arg, context.namespaces, self.parser.base_uri, None)
         elif arg is None:
-            return empty_sequence()
+            return []
         elif not isinstance(arg, (list, tuple)):
             return get_arg_item(arg)
-        return XSequence([get_arg_item(x) for x in arg])
+        return [get_arg_item(x) for x in arg]
 
     def validated_result(self, result: ta.ValueType) -> ta.ValueType:
         if isinstance(result, XPathToken) and result.symbol == '?':
@@ -381,12 +380,12 @@ class XPathFunction(XPathToken):
         return wrapper
 
     def _partial_evaluate(self, context: ta.ContextType = None) -> Any:
-        return XSequence([x for x in self._partial_select(context)])
+        return [x for x in self._partial_select(context)]
 
     def _partial_select(self, context: ta.ContextType = None) -> Iterator[Any]:
         item = self._partial_evaluate(context)
         if item is not None:
-            if isinstance(item, XSequence):
+            if isinstance(item, list):
                 yield from item
             else:
                 if context is not None:

@@ -32,7 +32,6 @@ from elementpath.datatypes import AbstractBinary, AbstractDateTime, AnyAtomicTyp
     Base64Binary, BooleanProxy, DateTime, DoubleProxy, DoubleProxy10, Duration, \
     Language, NumericProxy, Timezone, UntypedAtomic
 from elementpath.namespaces import XML_BASE, XPATH_FUNCTIONS_NAMESPACE
-from elementpath.sequences import XSequence, empty_sequence
 from elementpath.helpers import collapse_white_spaces, is_xml_codepoint, \
     escape_json_string, unescape_json_string, not_equal
 from elementpath.etree import etree_iter_strings, is_etree_element
@@ -107,12 +106,12 @@ def evaluate__map_size(self: XPathFunction, context: ta.ContextType = None) -> i
 @method(function('keys', prefix='map', nargs=1,
                  sequence_types=('map(*)', 'xs:anyAtomicType*')))
 def evaluate__map_keys(self: XPathFunction, context: ta.ContextType = None) \
-        -> XSequence[ta.AtomicType]:
+        -> list[ta.AtomicType]:
     if self.context is not None:
         context = self.context
 
     map_: XPathMap = self.get_argument(context, required=True, cls=XPathMap)
-    return XSequence([x for x in map_.keys(context)])
+    return [x for x in map_.keys(context)]
 
 
 @method(function('contains', prefix='map', nargs=2,
@@ -182,7 +181,7 @@ def evaluate__map_remove(self: XPathFunction, context: ta.ContextType = None) ->
     keys = self[1].evaluate(context)
     if keys is None:
         return map_
-    elif isinstance(keys, XSequence):
+    elif isinstance(keys, list):
         items = (
             (k, v) for k, v in map_.items(context) if all(not_equal(k, x) for x in keys)
         )
@@ -305,7 +304,7 @@ def select__map_for_each(self: XPathFunction, context: ta.ContextType = None) \
 
     for k, v in map_.items(context):
         result = func(k, v, context=context)
-        if isinstance(result, XSequence):
+        if isinstance(result, list):
             yield from result
         else:
             yield result
@@ -413,7 +412,7 @@ def evaluate__array_remove(self: XPathFunction, context: ta.ContextType = None) 
         return array_
 
     positions: list[int] = []
-    for p in positions_ if isinstance(positions_, XSequence) else [positions_]:
+    for p in positions_ if isinstance(positions_, list) else [positions_]:
         if isinstance(p, int) and 0 < p <= len(array_):
             positions.append(p)
         elif isinstance(context, XPathSchemaContext):
@@ -610,7 +609,7 @@ def select__array_fold_left_right_functions(self: XPathFunction, context: ta.Con
         for item in reversed(array_.items(context)):
             result = func(item, result, context=context)
 
-    if isinstance(result, XSequence):
+    if isinstance(result, list):
         yield from result
     else:
         yield result
@@ -639,12 +638,12 @@ def evaluate__sort(self: XPathFunction, context: ta.ContextType = None) -> ta.Va
         key_function = get_key_function(collation, token=self)
 
     try:
-        return XSequence(sorted(self[0].select(context), key=key_function))
+        return sorted(self[0].select(context), key=key_function)
     except ElementPathTypeError:
         raise
     except TypeError:
         if isinstance(context, XPathSchemaContext):
-            return empty_sequence()
+            return []
         raise self.error('XPTY0004')
 
 
@@ -695,7 +694,7 @@ def evaluate__parse_json_functions(self: XPathFunction, context: ta.ContextType 
     if self.symbol == 'json-doc':
         href = self.get_argument(context, cls=str)
         if href is None:
-            return empty_sequence()
+            return []
 
         try:
             if urlsplit(href).scheme:
@@ -711,7 +710,7 @@ def evaluate__parse_json_functions(self: XPathFunction, context: ta.ContextType 
         href = None
         json_text = self.get_argument(context, cls=str)
         if json_text is None:
-            return empty_sequence()
+            return []
 
     def _fallback(*a: Any, **kw: Any) -> str:
         return '\uFFFD'
@@ -754,7 +753,7 @@ def evaluate__parse_json_functions(self: XPathFunction, context: ta.ContextType 
 
     def decode_value(value: ta.OneOrMore[ta.ItemType]) -> ta.OneOrEmpty[ta.ItemType]:
         if value is None:
-            return empty_sequence()
+            return []
         elif isinstance(value, list):
             return XPathArray(self.parser, [decode_value(x) for x in value])
         elif not isinstance(value, str):
@@ -877,18 +876,17 @@ def evaluate__random_number_generator(self: XPathFunction, context: ta.ContextTy
         nargs = 1
         sequence_types = ('item()*', 'item()*')
 
-        def __call__(self, *args: Any, **kwargs: Any) \
-                -> XSequence[ta.ItemType] | XSequence[NoReturn]:
+        def __call__(self, *args: Any, **kwargs: Any) -> list[ta.ItemType] | list[NoReturn]:
             if not args:
-                return empty_sequence()
+                return []
 
             try:
                 seq = [x for x in args[0]]
             except TypeError:
-                return XSequence([args[0]])
+                return [args[0]]
             else:
                 random.shuffle(seq)
-                return XSequence(seq)
+                return seq
 
     class NextRandom(XPathFunction):
         nargs = 0
@@ -936,7 +934,7 @@ def evaluate__parse_ietf_date(self: XPathFunction, context: ta.ContextType = Non
 
     value = self.get_argument(context, cls=str)
     if value is None:
-        return empty_sequence()
+        return []
 
     # Normalize the input
     value = collapse_white_spaces(value)
@@ -1123,7 +1121,7 @@ def evaluate__xml_to_json(self: XPathFunction, context: ta.ContextType = None) \
 
     input_node = self.get_argument(context, cls=XPathNode)
     if input_node is None:
-        return empty_sequence()
+        return []
 
     if len(self) > 1:
         options = self.get_argument(context, index=1, required=True, cls=XPathMap)
@@ -1263,7 +1261,7 @@ def evaluate__json_to_xml(self: XPathFunction, context: ta.ContextType = None) \
 
     json_text = self.get_argument(context, cls=str)
     if json_text is None or isinstance(context, XPathSchemaContext):
-        return empty_sequence()
+        return []
     elif context is not None:
         etree = context.etree
     else:

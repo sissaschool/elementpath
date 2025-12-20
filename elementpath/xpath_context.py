@@ -19,7 +19,7 @@ import elementpath.aliases as ta
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.tdop import Token
-from elementpath.sequences import XSequence, empty_sequence
+from elementpath.sequences import XSequence
 from elementpath.datatypes import AnyAtomicType, Timezone, Language
 from elementpath.etree import is_etree_element, is_etree_element_instance, is_etree_document
 from elementpath.xpath_nodes import XPathNode, AttributeNode, NamespaceNode, \
@@ -322,13 +322,13 @@ class XPathContext:
 
     def get_value(self, item: ta.FunctionArgType, *args: Any, **kwargs: Any) -> ta.ValueType:
         if item is None:
-            return empty_sequence()
+            return []
         elif not isinstance(item, (list, tuple, XSequence)):
             return self.get_context_item(item, *args, **kwargs)
         elif not item:
-            return empty_sequence()
+            return []
         else:
-            return XSequence([self.get_context_item(x, *args, **kwargs) for x in item])
+            return [self.get_context_item(x, *args, **kwargs) for x in item]
 
     def get_collection(self, items: ta.CollectionArgType) -> list[XPathNode]:
         if items is None:

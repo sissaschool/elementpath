@@ -17,7 +17,6 @@ import elementpath.aliases as ta
 
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XMLNS_NAMESPACE
 from elementpath.namespaces import get_expanded_name
-from elementpath.sequences import XSequence, empty_sequence
 from elementpath.datatypes import AnyAtomicType, AnyURI, UntypedAtomic, ArithmeticProxy, \
     YearMonthDuration, DayTimeDuration, Duration, AbstractDateTime
 from elementpath.helpers import collapse_white_spaces
@@ -43,7 +42,7 @@ class ValueToken(XPathToken):
         return self.value
 
     def select(self, context: ta.ContextType = None) -> Iterator[AnyAtomicType]:
-        if isinstance(self.value, XSequence):
+        if isinstance(self.value, list):
             yield from self.value
         else:
             yield self.value
@@ -115,14 +114,12 @@ class NameToken(XPathToken):
 
         return self
 
-    def evaluate(self, context: ta.ContextType = None) \
-            -> XSequence[AttributeNode | ElementNode]:
-        return XSequence(self.select(context))
+    def evaluate(self, context: ta.ContextType = None) -> list[AttributeNode | ElementNode]:
+        return list(self.select(context))
 
     def select(self, context: ta.ContextType = None) -> Iterator[AttributeNode | ElementNode]:
         if context is None:
             raise self.missing_context()
-
         yield from context.iter_matching_nodes(self.value, self.parser.default_namespace)
 
 
@@ -201,12 +198,12 @@ class PrefixedNameToken(XPathToken):
     def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
         if self[1].label.endswith('function'):
             return self[1].evaluate(context)
-        return XSequence([x for x in self.select(context)])
+        return [x for x in self.select(context)]
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):
             value = self[1].evaluate(context)
-            if isinstance(value, XSequence):
+            if isinstance(value, list):
                 yield from value
             elif value is not None:
                 yield value
@@ -268,12 +265,12 @@ class BracedNameToken(XPathToken):
     def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
         if self[1].label.endswith('function'):
             return self[1].evaluate(context)
-        return XSequence([x for x in self.select(context)])
+        return [x for x in self.select(context)]
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):
             result = self[1].evaluate(context)
-            if isinstance(result, XSequence):
+            if isinstance(result, list):
                 yield from result
             else:
                 yield result
@@ -327,7 +324,7 @@ class VariableToken(XPathToken):
                 try:
                     st = cast(dict[str, str], self.parser.variable_types)[varname]
                 except KeyError:
-                    return empty_sequence()
+                    return []
 
                 if st[-1] in ('*', '+', '?'):
                     st, occurs = st[:-1], st[-1]
@@ -345,14 +342,14 @@ class VariableToken(XPathToken):
                 if occurs in ('', '?') and len(result) == 1:
                     return result[0]
                 else:
-                    return XSequence(result)
+                    return list(result)
             else:
                 raise self.error('XPST0008', 'unknown variable %r' % str(varname))
 
         if isinstance(value, (tuple, list)):
-            return XSequence(value)
+            return list(value)
         elif value is None:
-            return empty_sequence()
+            return []
         else:
             return value
 
@@ -380,14 +377,14 @@ class AsteriskToken(XPathToken):
         if self:
             op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
             if op1 is None:
-                return empty_sequence()
+                return []
             try:
                 if isinstance(op2, (YearMonthDuration, DayTimeDuration)):
                     return op2 * op1
                 return op1 * op2  # type:ignore[operator]
             except TypeError as err:
                 if isinstance(context, XPathSchemaContext):
-                    return empty_sequence()
+                    return []
 
                 if isinstance(op1, (float, Decimal)):
                     if math.isnan(op1):
@@ -404,11 +401,11 @@ class AsteriskToken(XPathToken):
                 raise self.error('XPTY0004', err) from None
             except ValueError as err:
                 if isinstance(context, XPathSchemaContext):
-                    return empty_sequence()
+                    return []
                 raise self.error('FOCA0005', err) from None
             except OverflowError as err:
                 if isinstance(context, XPathSchemaContext):
-                    return empty_sequence()
+                    return []
                 elif isinstance(op1, AbstractDateTime):
                     raise self.error('FODT0001', err) from None
                 elif isinstance(op1, Duration):
@@ -417,13 +414,13 @@ class AsteriskToken(XPathToken):
                     raise self.error('FOAR0002', err) from None
         else:
             # This is not a multiplication operator but a wildcard select statement
-            return XSequence([x for x in self.select(context)])
+            return [x for x in self.select(context)]
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self:
             # Product operator
             item = self.evaluate(context)
-            if not isinstance(item, XSequence):
+            if not isinstance(item, list):
                 if context is not None:
                     context.item = item
                 yield item
@@ -463,14 +460,14 @@ class ParentShortcutToken(XPathToken):
         return self
 
     def evaluate(self, context: ta.ContextType = None) \
-            -> ta.ParentNodeType | XSequence[NoReturn]:
+            -> ta.ParentNodeType | list[NoReturn]:
         if context is None:
             raise self.missing_context()
 
         for value in context.iter_parent():
             return value
         else:
-            return empty_sequence()
+            return []
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ParentNodeType]:
         if context is None:
