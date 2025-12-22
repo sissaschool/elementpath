@@ -17,6 +17,7 @@ from itertools import product
 from typing import Any, cast, ClassVar, SupportsFloat, TYPE_CHECKING, TypeVar
 
 import elementpath.aliases as ta
+from elementpath import XSequence
 
 from elementpath.exceptions import xpath_error, ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError
@@ -181,7 +182,7 @@ class XPathToken(Token[ta.XPathTokenType]):
 
         :param context: The XPath dynamic context.
         """
-        return [x for x in self.select(context)]
+        return XSequence([x for x in self.select(context)])
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         """

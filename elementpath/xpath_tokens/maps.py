@@ -8,6 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import math
+from collections.abc import KeysView, ValuesView, ItemsView, Iterator
+from types import MappingProxyType
 from typing import Optional, Union, Any
 
 import elementpath.aliases as ta
@@ -19,6 +21,54 @@ from elementpath.helpers import split_function_test
 from elementpath.sequence_types import match_sequence_type
 from elementpath.xpath_context import XPathSchemaContext
 from .functions import XPathFunction
+
+
+class MapKeysView(KeysView[Optional[ta.AtomicType]]):
+    _mapping: MappingProxyType[Optional[ta.AtomicType], ta.ValueType]
+
+    __slots__ = ()
+
+    def __contains__(self, key: object) -> bool:
+        if key is None:
+            return False
+        elif isinstance(key, float) and math.isnan(key):
+            return None in self._mapping
+        return key in self._mapping
+
+    def __iter__(self) -> Iterator[ta.AtomicType]:
+        for k in self._mapping:
+            if k is None:
+                yield float('nan')
+            else:
+                yield k
+
+
+class MapsItemsView(ItemsView[Optional[ta.AtomicType], ta.ValueType]):
+    _mapping: MappingProxyType[Optional[ta.AtomicType], ta.ValueType]
+
+    __slots__ = ()
+
+    def __contains__(self, item: Any) -> bool:
+        key, value = item
+        if key is None:
+            return False
+
+        try:
+            if isinstance(key, float) and math.isnan(key):
+                v = self._mapping[None]
+            else:
+                v = self._mapping[key]
+        except KeyError:
+            return False
+        else:
+            return v is value or v == value
+
+    def __iter__(self) -> Iterator[tuple[ta.AtomicType, ta.ValueType]]:
+        for k in self._mapping:
+            if k is None:
+                yield float('nan'), self._mapping[k]
+            else:
+                yield k, self._mapping[k]
 
 
 class XPathMap(XPathFunction):
@@ -169,20 +219,20 @@ class XPathMap(XPathFunction):
         except KeyError:
             return []
 
-    def keys(self, context: ta.ContextType = None) -> list[ta.AtomicType]:
+    def keys(self, context: ta.ContextType = None) -> MapKeysView:
         if self._map is None:
             self._map = self._evaluate(context)
-        return [self._nan_key if k is None else k for k in self._map.keys()]
+        return MapKeysView(MappingProxyType(self._map))
 
-    def values(self, context: ta.ContextType = None) -> list[ta.ValueType]:
+    def values(self, context: ta.ContextType = None) -> ValuesView[ta.ValueType]:
         if self._map is None:
             self._map = self._evaluate(context)
-        return [v for v in self._map.values()]
+        return self._map.values()
 
-    def items(self, context: ta.ContextType = None) -> list[tuple[ta.AtomicType, ta.ValueType]]:
+    def items(self, context: ta.ContextType = None) -> MapsItemsView:
         if self._map is None:
             self._map = self._evaluate(context)
-        return [(self._nan_key, v) if k is None else (k, v) for k, v in self._map.items()]
+        return MapsItemsView(MappingProxyType(self._map))
 
     def match_function_test(self, function_test: ta.SequenceTypesType,
                             as_argument: bool = False) -> bool:
