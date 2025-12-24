@@ -1250,7 +1250,7 @@ class EtreeElementNode(ElementNode):
                 delattr(root_node, '_attributes')
 
         iterators: deque[Any] = deque()
-        element_match_cache: dict[str | None, XsdElementProtocol | None] = {}
+        element_match_cache: dict[Union[str, None], Union[XsdElementProtocol, None]] = {}
         while True:
             for node in children:
                 if not isinstance(node, EtreeElementNode):
