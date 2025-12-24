@@ -1250,6 +1250,7 @@ class EtreeElementNode(ElementNode):
                 delattr(root_node, '_attributes')
 
         iterators: deque[Any] = deque()
+        element_match_cache: dict[str|None, XsdElementProtocol|None] = {}
         while True:
             for node in children:
                 if not isinstance(node, EtreeElementNode):
@@ -1268,12 +1269,17 @@ class EtreeElementNode(ElementNode):
                         xsd_element = schema.get_element(node.name)
                     elif (content := xsd_types[-1].model_group) is None:
                         xsd_element = None
+                    elif node.name in element_match_cache:
+                        xsd_element = element_match_cache[node.name]
                     else:
                         for xsd_element in content.iter_elements():
                             if xsd_element.is_matching(node.name):
                                 if xsd_element.name != node.name:
                                     # a wildcard or a substitute
                                     xsd_element = schema.get_element(node.name)
+                                    element_match_cache[node.name] = xsd_element
+                                else:
+                                    element_match_cache[node.name] = None
                                 break
                         else:
                             xsd_element = None
