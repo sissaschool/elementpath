@@ -32,6 +32,7 @@ from elementpath.helpers import Patterns, is_xml_codepoint, node_position
 from elementpath.namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE
 from elementpath.datatypes import NumericProxy, QName, Date, DateTime, Time, AnyURI
+from elementpath.sequences import xlist
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.etree import defuse_xml
 from elementpath.xpath_nodes import XPathNode, ElementNode, NamespaceNode, \
@@ -1368,7 +1369,7 @@ def evaluate__available_env_vars(self: XPathFunction, context: ta.ContextType = 
     if not context.allow_environment:
         return []
     else:
-        return list(os.environ)
+        return xlist(os.environ)
 
 
 ###

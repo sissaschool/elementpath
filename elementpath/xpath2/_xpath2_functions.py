@@ -32,6 +32,7 @@ from elementpath.datatypes import DateTime10, DateTime, Date10, Date, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
 from elementpath.aliases import AtomicType, NumericType
 from elementpath.namespaces import get_namespace, split_expanded_name
+from elementpath.sequences import xlist
 from elementpath.compare import deep_equal
 from elementpath.sequence_types import match_sequence_type
 from elementpath.xpath_context import XPathSchemaContext
@@ -884,7 +885,7 @@ def evaluate__tokenize(self: XPathFunction, context: ta.ContextType = None) -> t
         re_pattern = re.compile(python_pattern, flags=flags)
     except (re.error, RegexError):
         if isinstance(context, XPathSchemaContext):
-            return [input_string]
+            return xlist([input_string])
         raise self.error('FORX0002', f"Invalid regular expression {pattern!r}") from None
     else:
         if re_pattern.search(''):
@@ -969,7 +970,7 @@ def evaluate__codepoints_to_string(
 def evaluate__string_to_codepoints(self: XPathFunction, context: ta.ContextType = None) \
         -> list[int] | list[NoReturn]:
     arg = self.get_argument(self.context or context, cls=str)
-    return [ord(c) for c in arg] if arg else []
+    return xlist([ord(c) for c in arg]) if arg else []
 
 
 @method(function('compare', nargs=(2, 3),

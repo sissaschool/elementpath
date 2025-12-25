@@ -34,6 +34,7 @@ from elementpath.datatypes import AbstractBinary, AbstractDateTime, AnyAtomicTyp
 from elementpath.namespaces import XML_BASE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.helpers import collapse_white_spaces, is_xml_codepoint, \
     escape_json_string, unescape_json_string, not_equal
+from elementpath.sequences import xlist
 from elementpath.etree import etree_iter_strings, is_etree_element
 from elementpath.collations import CollationManager
 from elementpath.compare import get_key_function, same_key
@@ -111,7 +112,7 @@ def evaluate__map_keys(self: XPathFunction, context: ta.ContextType = None) \
         context = self.context
 
     map_: XPathMap = self.get_argument(context, required=True, cls=XPathMap)
-    return [x for x in map_.keys(context)]
+    return xlist([x for x in map_.keys(context)])
 
 
 @method(function('contains', prefix='map', nargs=2,
@@ -521,7 +522,7 @@ def evaluate__array_flatten(self: XPathFunction, context: ta.ContextType = None)
     if self.context is not None:
         context = self.context
 
-    items: list[ta.ItemType] = []
+    items: xlist[ta.ItemType] = xlist()
     for obj in self[0].select(context):
         if isinstance(obj, XPathArray):
             items.extend(obj.iter_flatten(context))
@@ -638,7 +639,7 @@ def evaluate__sort(self: XPathFunction, context: ta.ContextType = None) -> ta.Va
         key_function = get_key_function(collation, token=self)
 
     try:
-        return sorted(self[0].select(context), key=key_function)
+        return xlist(sorted(self[0].select(context), key=key_function))
     except ElementPathTypeError:
         raise
     except TypeError:

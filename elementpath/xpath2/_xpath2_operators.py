@@ -28,6 +28,7 @@ from elementpath.namespaces import XSD_ERROR, get_namespace, get_expanded_name
 from elementpath.datatypes import UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
 from elementpath.xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
+from elementpath.sequences import xlist
 from elementpath.sequence_types import is_instance
 from elementpath.xpath_context import XPathSchemaContext
 from elementpath.xpath_tokens import XPathToken, XPathFunction, XPathConstructor
@@ -283,7 +284,7 @@ def evaluate__treat_expression(self: XPathToken, context: ta.ContextType = None)
         -> ta.ValueType:
     occurs = self[1].occurrence
     position = None
-    castable_expr = []
+    castable_expr: xlist[ta.ItemType] = xlist()
     if self[1].symbol == 'empty-sequence':
         for _ in self[0].select(context):
             raise self.error('XPDY0050')
@@ -625,7 +626,7 @@ def led__range_expression(self: XPathToken, left: XPathToken) -> XPathToken:
 def evaluate__range_expression(self: XPathToken, context: ta.ContextType = None) -> list[int]:
     start, stop = self.get_operands(context, cls=Integer)
     try:
-        return [x for x in range(start, stop + 1)]
+        return xlist(range(start, stop + 1))
     except TypeError:
         return []
 

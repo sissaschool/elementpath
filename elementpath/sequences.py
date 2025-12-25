@@ -12,13 +12,28 @@ from typing import Any, NoReturn, overload, TypeVar, Union
 
 from elementpath.aliases import ItemType
 
-__all__ = ['XSequence', 'empty_sequence', 'sequence_concat', 'count', 'iterate_sequence']
+__all__ = ['xlist', 'XSequence', 'empty_sequence', 'sequence_concat', 'count', 'iterate_sequence']
 
 
 T = TypeVar('T', bound=ItemType)
 S = TypeVar('S')
 
 SequenceArgItemType = Union[T, list[T], Iterable[T], tuple[T, ...]]
+
+
+class xlist(list[T]):
+    """An extended list type for processing XQuery/XPath sequences."""
+    __slots__ = ()
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, list):
+            return super().__eq__(other)
+        return False if len(self) != 1 else not self[0] != other
+
+    def __ne__(self, other: Any) -> bool:
+        if isinstance(other, list):
+            return super().__ne__(other)
+        return True if len(self) != 1 else not self[0] == other
 
 
 class XSequence(list[T]):

@@ -19,6 +19,7 @@ from elementpath.tdop import MultiLabel
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE
 from elementpath.helpers import split_function_test
+from elementpath.sequences import xlist
 from elementpath.etree import is_etree_document, is_etree_element
 from elementpath.sequence_types import match_sequence_type, is_sequence_type_restriction
 from elementpath.xpath_nodes import XPathNode
@@ -379,10 +380,10 @@ class XPathFunction(XPathToken):
         wrapper.__qualname__ = wrapper.__qualname__[:-7] + name
         return wrapper
 
-    def _partial_evaluate(self, context: ta.ContextType = None) -> Any:
-        return [x for x in self._partial_select(context)]
+    def _partial_evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
+        return xlist(self._partial_select(context))
 
-    def _partial_select(self, context: ta.ContextType = None) -> Iterator[Any]:
+    def _partial_select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         item = self._partial_evaluate(context)
         if item is not None:
             if isinstance(item, list):

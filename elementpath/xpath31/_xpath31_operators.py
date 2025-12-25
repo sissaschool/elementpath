@@ -18,6 +18,7 @@ import elementpath.aliases as ta
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, \
     XPathMap, XPathArray
+from elementpath.sequences import xlist
 
 from .xpath31_parser import XPath31Parser
 
@@ -168,7 +169,7 @@ class LookupOperatorToken(XPathToken):
     def evaluate(self, context: ta.ContextType = None) -> ta.OneOrMore[ta.ItemType]:
         if not self:
             return self.symbol  # a placeholder token
-        return [x for x in self.select(context)]
+        return xlist(self.select(context))
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
 

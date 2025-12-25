@@ -17,7 +17,6 @@ from itertools import product
 from typing import Any, cast, ClassVar, SupportsFloat, TYPE_CHECKING, TypeVar
 
 import elementpath.aliases as ta
-from elementpath import XSequence
 
 from elementpath.exceptions import xpath_error, ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError
@@ -30,6 +29,7 @@ from elementpath.tdop import Token, MultiLabel
 from elementpath.helpers import ordinal, get_double
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.xpath_nodes import XPathNode, NamespaceNode, DocumentNode, ElementNode
+from elementpath.sequences import xlist
 
 if TYPE_CHECKING:
     from . import XPathFunction, XPathArray, XPathConstructor  # noqa: F401
@@ -182,7 +182,7 @@ class XPathToken(Token[ta.XPathTokenType]):
 
         :param context: The XPath dynamic context.
         """
-        return XSequence([x for x in self.select(context)])
+        return xlist(self.select(context))
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         """
@@ -253,7 +253,7 @@ class XPathToken(Token[ta.XPathTokenType]):
         :param context: the XPath dynamic context.
         :return: a list of nodes, atomic items or functions or a single atomic item or function.
         """
-        results = [x for x in self.select_results(context)]
+        results = list(self.select_results(context))
         if len(results) == 1:
             if hasattr(results[0], 'tag') or hasattr(results[0], 'getroot'):
                 return results
@@ -795,7 +795,7 @@ class XPathToken(Token[ta.XPathTokenType]):
                 return v
 
         if isinstance(value, list):
-            return [cast_value(x) for x in value]
+            return xlist([cast_value(x) for x in value])
         else:
             return cast_value(value)
 

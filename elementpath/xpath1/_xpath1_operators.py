@@ -15,7 +15,7 @@ import decimal
 import operator
 from collections.abc import Iterator
 from copy import copy
-from typing import Any, cast
+from typing import cast
 
 import elementpath.aliases as ta
 
@@ -431,12 +431,14 @@ def nud__parenthesized_expr(self: XPathToken) -> XPathToken:
 
 
 @method('(')
-def evaluate__parenthesized_expr(self: XPathToken, context: ta.ContextType = None) -> Any:
+def evaluate__parenthesized_expr(self: XPathToken, context: ta.ContextType = None) \
+        -> ta.ValueType:
     return self[0].evaluate(context)
 
 
 @method('(')
-def select__parenthesized_expr(self: XPathToken, context: ta.ContextType = None) -> Iterator[Any]:
+def select__parenthesized_expr(self: XPathToken, context: ta.ContextType = None) \
+        -> Iterator[ta.ItemType]:
     return self[0].select(context)
 
 # XPath 1.0 definitions continue into module xpath1_functions

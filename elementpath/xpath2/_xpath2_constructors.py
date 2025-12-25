@@ -22,6 +22,7 @@ from elementpath.datatypes import AbstractDateTime, Duration, Date, DateTime, \
     BooleanProxy, AnyURI, Notation, NMToken, Idref, Entity, DateTime10, ErrorProxy
 from elementpath.xpath_context import XPathSchemaContext
 from elementpath.xpath_tokens import XPathConstructor
+from elementpath.sequences import xlist
 from ._xpath2_functions import XPath2Parser
 
 register = XPath2Parser.register
@@ -570,7 +571,7 @@ def cast__nmtokens(self: XPathConstructor, value: ta.AtomicType) -> list[NMToken
         raise self.error('FORG0001')
 
     try:
-        return [NMToken(x) for x in values]
+        return xlist([NMToken(x) for x in values])
     except ValueError as err:
         raise self.error('FORG0001', err) from None
 
@@ -585,7 +586,7 @@ def cast__idrefs(self: XPathConstructor, value: ta.AtomicType) -> list[Idref]:
         raise self.error('FORG0001')
 
     try:
-        return [Idref(x) for x in values]
+        return xlist([Idref(x) for x in values])
     except ValueError as err:
         raise self.error('FORG0001', err) from None
 
@@ -600,6 +601,6 @@ def cast__entities(self: XPathConstructor, value: ta.AtomicType) -> list[Entity]
         raise self.error('FORG0001')
 
     try:
-        return [Entity(x) for x in values]
+        return xlist([Entity(x) for x in values])
     except ValueError as err:
         raise self.error('FORG0001', err) from None

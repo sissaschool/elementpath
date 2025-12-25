@@ -20,6 +20,7 @@ from elementpath.namespaces import get_expanded_name
 from elementpath.datatypes import AnyAtomicType, AnyURI, UntypedAtomic, ArithmeticProxy, \
     YearMonthDuration, DayTimeDuration, Duration, AbstractDateTime
 from elementpath.helpers import collapse_white_spaces
+from elementpath.sequences import xlist
 from elementpath.xpath_nodes import AttributeNode, ElementNode
 from elementpath.xpath_context import XPathSchemaContext
 from elementpath.decoder import get_atomic_sequence
@@ -115,7 +116,7 @@ class NameToken(XPathToken):
         return self
 
     def evaluate(self, context: ta.ContextType = None) -> list[AttributeNode | ElementNode]:
-        return list(self.select(context))
+        return xlist(self.select(context))
 
     def select(self, context: ta.ContextType = None) -> Iterator[AttributeNode | ElementNode]:
         if context is None:
@@ -198,7 +199,7 @@ class PrefixedNameToken(XPathToken):
     def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
         if self[1].label.endswith('function'):
             return self[1].evaluate(context)
-        return [x for x in self.select(context)]
+        return xlist(self.select(context))
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):
@@ -265,7 +266,7 @@ class BracedNameToken(XPathToken):
     def evaluate(self, context: ta.ContextType = None) -> ta.ValueType:
         if self[1].label.endswith('function'):
             return self[1].evaluate(context)
-        return [x for x in self.select(context)]
+        return xlist(self.select(context))
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self[1].label.endswith('function'):
@@ -342,12 +343,12 @@ class VariableToken(XPathToken):
                 if occurs in ('', '?') and len(result) == 1:
                     return result[0]
                 else:
-                    return list(result)
+                    return xlist(result)
             else:
                 raise self.error('XPST0008', 'unknown variable %r' % str(varname))
 
         if isinstance(value, (tuple, list)):
-            return list(value)
+            return xlist(value)
         elif value is None:
             return []
         else:
@@ -414,7 +415,7 @@ class AsteriskToken(XPathToken):
                     raise self.error('FOAR0002', err) from None
         else:
             # This is not a multiplication operator but a wildcard select statement
-            return [x for x in self.select(context)]
+            return xlist(self.select(context))
 
     def select(self, context: ta.ContextType = None) -> Iterator[ta.ItemType]:
         if self:
