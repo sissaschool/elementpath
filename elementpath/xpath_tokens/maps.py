@@ -16,7 +16,7 @@ import elementpath.aliases as ta
 
 from elementpath.exceptions import ElementPathValueError
 from elementpath.datatypes import AnyAtomicType
-from elementpath.sequences import XSequence
+from elementpath.sequences import xlist
 from elementpath.helpers import split_function_test
 from elementpath.sequence_types import match_sequence_type
 from elementpath.xpath_context import XPathSchemaContext
@@ -103,7 +103,7 @@ class XPathMap(XPathFunction):
                     raise self.error('XQDY0137')
 
                 if isinstance(v, list):
-                    _map[k] = XSequence(v)
+                    _map[k] = xlist(v)
                 else:
                     _map[k] = v
 
@@ -188,7 +188,7 @@ class XPathMap(XPathFunction):
 
             v = value.evaluate(context)
             if isinstance(v, list):
-                _map[k] = XSequence(v)
+                _map[k] = xlist(v)
             else:
                 _map[k] = v
 

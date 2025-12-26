@@ -501,7 +501,9 @@ def cast__error_type(self: XPathConstructor, value: ta.AtomicType) -> list[NoRet
     except (TypeError, ValueError) as err:
         raise self.error('FORG0001', str(err)) from None
     else:
-        if not isinstance(result, list) or len(result):
+        if result is None:
+            return []
+        elif not isinstance(result, list) or len(result):
             raise self.error('FORG0001')
         return result
 

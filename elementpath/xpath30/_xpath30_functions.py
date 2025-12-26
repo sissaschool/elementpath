@@ -585,12 +585,13 @@ def evaluate__format_number(self: XPathFunction, context: ta.ContextType = None)
         raise self.error('FODF1310')
 
     decimal_separator = decimal_format['decimal-separator']
-    if any(p.count(decimal_separator) > 1 for p in sub_pictures):
+    if any(p.sequence_count(decimal_separator) > 1 for p in sub_pictures):
         raise self.error('FODF1310')
 
     percent_sign = decimal_format['percent']
     per_mille_sign = decimal_format['per-mille']
-    if any(p.count(percent_sign) + p.count(per_mille_sign) > 1 for p in sub_pictures):
+    if any(p.sequence_count(percent_sign) + p.sequence_count(per_mille_sign) > 1
+           for p in sub_pictures):
         raise self.error('FODF1310')
 
     zero_digit = decimal_format['zero-digit']

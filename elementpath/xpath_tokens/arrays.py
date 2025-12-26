@@ -13,7 +13,7 @@ from typing import Any, Optional
 import elementpath.aliases as ta
 
 from elementpath.exceptions import ElementPathValueError
-from elementpath.sequences import XSequence
+from elementpath.sequences import xlist, XSequence
 from elementpath.helpers import split_function_test
 
 from elementpath.sequence_types import match_sequence_type
@@ -33,7 +33,7 @@ class XPathArray(XPathFunction):
                  items: Optional[Iterable[Any]] = None) -> None:
         if items is not None:
             self._array = [
-                x if not isinstance(x, (tuple, list, XSequence)) else list(x) for x in items
+                x if not isinstance(x, (tuple, list, XSequence)) else xlist(x) for x in items
             ]
         super().__init__(parser)
 
@@ -133,7 +133,7 @@ class XPathArray(XPathFunction):
         for item in items:
             if isinstance(item, XPathArray):
                 yield from item.iter_flatten(context)
-            elif isinstance(item, (list, XSequence)):
+            elif isinstance(item, list):
                 yield from item
             else:
                 yield item

@@ -13,12 +13,9 @@ axes, maps, arrays). XPath's error creation and node helper functions are embedd
 XPathToken class, in order to raise errors related to token instances.
 """
 from dataclasses import dataclass
-from collections.abc import Callable
 from typing import Any
 
-import elementpath.aliases as _ta
 from elementpath.datatypes import UntypedAtomic, QName
-from elementpath.sequences import XSequence
 
 from .base import XPathToken
 from .axes import XPathAxis
@@ -33,8 +30,6 @@ __all__ = ['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor',
            'XPathMap', 'XPathArray', 'ValueToken', 'ProxyToken', 'NameToken',
            'PrefixedNameToken', 'BracedNameToken', 'VariableToken', 'AsteriskToken',
            'ParentShortcutToken', 'ContextItemToken', 'TokenRegistry']
-
-MakeSequenceType = Callable[[_ta.SequenceArgType[Any]], XSequence[Any]]
 
 
 @dataclass(frozen=True, slots=True)
