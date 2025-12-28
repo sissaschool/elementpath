@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import importlib
-from collections import deque
+from collections import defaultdict, deque
 from collections.abc import Iterator
 from urllib.parse import urljoin
 from typing import cast, Any, Optional
@@ -1232,6 +1232,9 @@ class EtreeElementNode(ElementNode):
                 delattr(root_node, '_attributes')
 
         iterators: deque[Any] = deque()
+        element_match_cache: defaultdict[
+            int, dict[str | None, XsdElementProtocol | None]
+        ] = defaultdict(dict)
         while True:
             for node in children:
                 if not isinstance(node, EtreeElementNode):
@@ -1250,12 +1253,15 @@ class EtreeElementNode(ElementNode):
                         xsd_element = schema.get_element(node.name)
                     elif (content := xsd_types[-1].model_group) is None:
                         xsd_element = None
+                    elif node.name in (sub_cache := element_match_cache[id(content)]):
+                        xsd_element = sub_cache[node.name]
                     else:
                         for xsd_element in content.iter_elements():
                             if xsd_element.is_matching(node.name):
                                 if xsd_element.name != node.name:
                                     # a wildcard or a substitute
                                     xsd_element = schema.get_element(node.name)
+                                sub_cache[node.name] = xsd_element
                                 break
                         else:
                             xsd_element = None
