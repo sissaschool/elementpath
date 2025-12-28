@@ -27,6 +27,9 @@ class NormalizedString(str, AnyAtomicType):
             return super().__new__(cls, obj)
 
     def __init__(self, obj: Any) -> None:
+        """
+        :param obj: a <class 'str'> instance.
+        """
         str.__init__(self)
 
 

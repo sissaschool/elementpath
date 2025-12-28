@@ -18,17 +18,15 @@ __all__ = ['AnyURI']
 
 
 class AnyURI(AnyAtomicType):
-    """
-    Class for xs:anyURI data.
-
-    :param value: a string or an untyped atomic instance.
-    """
     value: str
     name = 'anyURI'
 
     __slots__ = ('value',)
 
     def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AnyURI']) -> None:
+        """
+        :param value: string or an untyped atomic that represents a valid URI.
+        """
         match value:
             case str():
                 self.value = collapse_white_spaces(value)

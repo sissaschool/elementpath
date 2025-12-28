@@ -58,6 +58,12 @@ class AtomicTypeMeta(ABCMeta):
             extended_name = f'{{{namespace}}}{name}' if namespace else name
             prefixed_name = f'{prefix}:{name}' if prefix else name
 
+            if not cls.__doc__:
+                if ver := getattr(cls, '_xsd_version', ''):
+                    ver = ver + ' '
+                params = getattr(cls, '__init__', None).__doc__ or ''
+                cls.__doc__ = f"Class for XSD{ver} {prefixed_name} builtin datatype.\n{params}"
+
             if extended_name not in cls.types_map:
                 assert prefixed_name not in mcs.types_map, \
                     'prefix already used by another namespace'
@@ -68,7 +74,7 @@ class AtomicTypeMeta(ABCMeta):
 
 class AnyType(metaclass=ABCMeta):
     """
-    xs:anyType: the base class for all XSD types. Not applicable as concrete type by XPath.
+    xs:anyType: the root type for all XML Schema types. Not definable as a concrete type by XPath.
     """
 
     name: str | None = None          # Register the class if a name is provided.

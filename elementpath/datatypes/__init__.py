@@ -10,9 +10,10 @@
 """
 XSD atomic datatypes subpackage. Includes a class for UntypedAtomic data and
 classes for other XSD built-in types. This subpackage raises only built-in
-exceptions in order to be reusable in other packages.
+exceptions in order to be reusable by other packages.
 """
-from .any_types import builtin_atomic_types, AtomicTypeMeta, AnyAtomicType
+from .any_types import builtin_atomic_types, AtomicTypeMeta, AnyType, \
+    AnySimpleType, AnyAtomicType
 from .numeric import Float, Float10, Integer, Int, Long, \
     NegativeInteger, PositiveInteger, NonNegativeInteger, \
     NonPositiveInteger, Short, Byte, UnsignedByte, UnsignedInt, \
@@ -30,6 +31,7 @@ from .datetime import AbstractDateTime, DateTime10, DateTime, DateTimeStamp, \
     Duration, DayTimeDuration, YearMonthDuration
 from .proxies import ErrorProxy, BooleanProxy, DecimalProxy, DoubleProxy, \
     DoubleProxy10, StringProxy, NumericProxy, ArithmeticProxy
+from ..sequences import XSequence
 
 ###
 # Alias kept for backward compatibility, will be removed in v6.0.
@@ -47,5 +49,5 @@ __all__ = ['AbstractBinary', 'AbstractDateTime', 'ListType', 'AbstractQName',
            'NonPositiveInteger', 'NormalizedString', 'Notation', 'NumericProxy',
            'OrderedDateTime', 'PositiveInteger', 'QName', 'Short', 'StringProxy', 'Time',
            'Timezone', 'UnsignedByte', 'UnsignedInt', 'UnsignedLong', 'UnsignedShort',
-           'UntypedAtomic', 'XsdToken', 'YearMonthDuration', 'ListType',
-           'builtin_atomic_types', 'builtin_list_types']
+           'UntypedAtomic', 'XsdToken', 'YearMonthDuration', 'ListType', 'XSequence',
+           'builtin_atomic_types', 'builtin_list_types', 'AnyType', 'AnySimpleType']

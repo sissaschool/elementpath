@@ -7,6 +7,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""
+Type proxies for using builtin Python datatypes as primitive XSD datatypes.
+A proxy class creates and validates a Python datatype and can be used for
+checking instances of XSD primitive and derived types registered as virtual
+subclasses.
+"""
 import math
 from decimal import Decimal
 from typing import Any, cast, NoReturn
@@ -23,11 +29,10 @@ __all__ = ['BooleanProxy', 'DecimalProxy', 'DoubleProxy', 'DoubleProxy10',
            'StringProxy', 'NumericProxy', 'ArithmeticProxy', 'ErrorProxy']
 
 
-####
-# type proxies for basic Python datatypes: a proxy class creates
-# and validates its Python datatype and virtual registered types.
-
 class BooleanProxy(AnyAtomicType):
+    """
+    Proxy class for xs:boolean builtin datatype. Builds instances as <class 'bool'>.`.
+    """
     name = 'boolean'
     pattern = LazyPattern(r'^(?:true|false|1|0)$')
 
@@ -66,6 +71,9 @@ class BooleanProxy(AnyAtomicType):
 
 
 class DecimalProxy(AnyAtomicType):
+    """
+    Proxy class for xs:decimal builtin datatype. Builds instances as `decimal.Decimal`.
+    """
     name = 'decimal'
     pattern = LazyPattern(r'^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$')
 
@@ -108,6 +116,9 @@ class DecimalProxy(AnyAtomicType):
 
 
 class DoubleProxy(AnyAtomicType):
+    """
+    Proxy class for xs:double builtin datatype. Builds instances as <class 'float'>.`.
+    """
     name = 'double'
     pattern = LazyPattern(
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[+-]?INF|NaN)$'
@@ -151,6 +162,9 @@ class DoubleProxy10(DoubleProxy):
 
 
 class StringProxy(AnyAtomicType):
+    """
+    Proxy class for xs:string builtin datatype. Builds instances as <class 'str'>.`.
+    """
     name = 'string'
 
     def __new__(cls, *args: object, **kwargs: object) -> str:  # type: ignore[misc]
@@ -215,6 +229,7 @@ class ArithmeticProxy(metaclass=ArithmeticTypeMeta):
 
 
 class ErrorProxy(AnyAtomicType):
+    """Class for XPath xs:error datatype. Accepts `None` or an empty sequence."""
     name = 'error'
 
     def __new__(cls, value: Any) -> list[NoReturn] | None:  # type: ignore[misc]

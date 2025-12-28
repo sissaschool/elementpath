@@ -395,7 +395,7 @@ class AbstractDateTime(AnyAtomicType):
         Creates an XSD date/time instance from a string formatted value.
 
         :param datetime_string: a string containing an XSD formatted date/time specification.
-        :param tzinfo: optional implicit timezone information.
+        :param tzinfo: optional implicit timezone information (defaults to UTC).
         :return: an AbstractDateTime concrete subclass instance.
         """
         if not isinstance(datetime_string, str):
@@ -556,7 +556,6 @@ class AbstractDateTime(AnyAtomicType):
 
 
 class DateTime(AbstractDateTime):
-    """xs:dateTime builtin type for XSD 1.1"""
     name = 'dateTime'
     pattern = LazyPattern(
         r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
@@ -607,6 +606,16 @@ class DateTime(AbstractDateTime):
                  hour: int = 0, minute: int = 0, second: int = 0,
                  microsecond: int = 0,
                  tzinfo: datetime.tzinfo | None = None) -> None:
+        """
+        :param year: the year, between -9999 and 9999
+        :param month: the month, between 1 and 12
+        :param day: the day, between 1 and 31
+        :param hour: the hour, between 0 and 23
+        :param minute: the minute, between 0 and 59
+        :param second: the second, between 0 and 59
+        :param microsecond: the microsecond, between 0 and 999999
+        :param tzinfo: optional implicit timezone information (defaults to UTC)
+        """
         super().__init__(year, month, day, hour, minute, second, microsecond, tzinfo)
 
     def __str__(self) -> str:
@@ -622,7 +631,6 @@ class DateTime(AbstractDateTime):
 
 
 class DateTime10(DateTime):
-    """xs:dateTime builtin type for XSD 1.0"""
     name = 'dateTime'
     _xsd_version = '1.0'
 
@@ -632,7 +640,6 @@ class DateTime10(DateTime):
 
 
 class DateTimeStamp(DateTime):
-    """xs:dateTimeStamp builtin type for XSD 1.1"""
     name = 'dateTimeStamp'
     pattern = LazyPattern(
         r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
@@ -643,7 +650,6 @@ class DateTimeStamp(DateTime):
 
 
 class Date(AbstractDateTime):
-    """xs:date builtin type for XSD 1.1+"""
     name = 'date'
     pattern = LazyPattern(
         r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
@@ -685,6 +691,12 @@ class Date(AbstractDateTime):
 
     def __init__(self, year: int, month: int, day: int,
                  tzinfo: datetime.tzinfo | None = None) -> None:
+        """
+        :param year: the year, between -9999 and 9999
+        :param month: the month, between 1 and 12
+        :param day: the day, between 1 and 31
+        :param tzinfo: optional implicit timezone information (defaults to UTC)
+        """
         super().__init__(year, month, day, tzinfo=tzinfo)
 
     def __str__(self) -> str:
@@ -694,7 +706,6 @@ class Date(AbstractDateTime):
 
 
 class Date10(Date):
-    """xs:date builtin type for XSD 1.0."""
     name = 'date'
     _xsd_version = '1.0'
 
@@ -704,7 +715,6 @@ class Date10(Date):
 
 
 class GregorianDay(AbstractDateTime):
-    """xs:gDay builtin type"""
     name = 'gDay'
     pattern = LazyPattern(
         r'^---(?P<day>[0-9]{2})'
@@ -724,6 +734,10 @@ class GregorianDay(AbstractDateTime):
                 return cls.fromstring(value)
 
     def __init__(self, day: int, tzinfo: datetime.tzinfo | None = None) -> None:
+        """
+        :param day: the day, between 1 and 31
+        :param tzinfo: optional implicit timezone information (defaults to UTC)
+        """
         super().__init__(day=day, tzinfo=tzinfo)
 
     def __str__(self) -> str:
@@ -731,7 +745,6 @@ class GregorianDay(AbstractDateTime):
 
 
 class GregorianMonth(AbstractDateTime):
-    """xs:gMonth builtin type"""
     name = 'gMonth'
     pattern = LazyPattern(
         r'^--(?P<month>[0-9]{2})'
@@ -751,6 +764,10 @@ class GregorianMonth(AbstractDateTime):
                 return cls.fromstring(value)
 
     def __init__(self, month: int, tzinfo: datetime.tzinfo | None = None) -> None:
+        """
+        :param month: the month, between 1 and 12
+        :param tzinfo: optional implicit timezone information (defaults to UTC)
+        """
         super().__init__(month=month, tzinfo=tzinfo)
 
     def __str__(self) -> str:
@@ -758,7 +775,6 @@ class GregorianMonth(AbstractDateTime):
 
 
 class GregorianMonthDay(AbstractDateTime):
-    """xs:gMonthDay builtin type"""
     name = 'gMonthDay'
     pattern = LazyPattern(
         r'^--(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
@@ -778,6 +794,11 @@ class GregorianMonthDay(AbstractDateTime):
                 return cls.fromstring(value)
 
     def __init__(self, month: int, day: int, tzinfo: datetime.tzinfo | None = None) -> None:
+        """
+        :param month: the month, between 1 and 12
+        :param day: the day, between 1 and 31
+        :param tzinfo: optional implicit timezone information (defaults to UTC)
+        """
         super().__init__(month=month, day=day, tzinfo=tzinfo)
 
     def __str__(self) -> str:
@@ -785,7 +806,6 @@ class GregorianMonthDay(AbstractDateTime):
 
 
 class GregorianYear(AbstractDateTime):
-    """xs:gYear builtin type"""
     name = 'gYear'
     pattern = LazyPattern(
         r'^(?P<year>-?[0-9]*[0-9]{4})'
@@ -826,6 +846,10 @@ class GregorianYear(AbstractDateTime):
                 return dt_class.fromstring(value)
 
     def __init__(self, year: int, tzinfo: datetime.tzinfo | None = None) -> None:
+        """
+        :param year: the year, between -9999 and 9999
+        :param tzinfo: optional implicit timezone information (defaults to UTC)
+        """
         super().__init__(year, tzinfo=tzinfo)
 
     def __str__(self) -> str:
@@ -833,7 +857,6 @@ class GregorianYear(AbstractDateTime):
 
 
 class GregorianYear10(GregorianYear):
-    """xs:gYear builtin type for XSD 1.0"""
     name = 'gYear'
     _xsd_version = '1.0'
 
@@ -843,7 +866,6 @@ class GregorianYear10(GregorianYear):
 
 
 class GregorianYearMonth(AbstractDateTime):
-    """xs:gYearMonth builtin type"""
     name = 'gYearMonth'
     pattern = LazyPattern(
         r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})'
@@ -884,6 +906,11 @@ class GregorianYearMonth(AbstractDateTime):
                 return dt_class.fromstring(value)
 
     def __init__(self, year: int, month: int, tzinfo: datetime.tzinfo | None = None) -> None:
+        """
+        :param year: the year, between -9999 and 9999
+        :param month: the month, between 1 and 12
+        :param tzinfo: optional implicit timezone information (defaults to UTC)
+        """
         super().__init__(year, month, tzinfo=tzinfo)
 
     def __str__(self) -> str:
@@ -891,7 +918,6 @@ class GregorianYearMonth(AbstractDateTime):
 
 
 class GregorianYearMonth10(GregorianYearMonth):
-    """xs:gYearMonth builtin type for XSD 1.0"""
     name = 'gYearMonth'
     _xsd_version = '1.0'
 
@@ -901,7 +927,6 @@ class GregorianYearMonth10(GregorianYearMonth):
 
 
 class Time(AbstractDateTime):
-    """xs:time builtin type"""
     name = 'time'
     pattern = LazyPattern(
         r'^(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
@@ -925,6 +950,13 @@ class Time(AbstractDateTime):
     def __init__(self, hour: int = 0, minute: int = 0,
                  second: int = 0, microsecond: int = 0,
                  tzinfo: datetime.tzinfo | None = None) -> None:
+        """
+        :param hour: the hour, between 0 and 23
+        :param minute: the minute, between 0 and 59
+        :param second: the second, between 0 and 59
+        :param microsecond: the microsecond, between 0 and 999999
+        :param tzinfo: optional implicit timezone information (defaults to UTC)
+        """
         if hour == 24 and minute == second == microsecond == 0:
             hour = 0
         super().__init__(
@@ -969,13 +1001,6 @@ _D = TypeVar('_D', bound='Duration')
 
 
 class Duration(AnyAtomicType):
-    """
-    Base class for the XSD duration types.
-
-    :param months: an integer value that represents years and months.
-    :param seconds: a decimal or an integer instance that represents \
-    days, hours, minutes, seconds and fractions of seconds.
-    """
     name = 'duration'
     pattern = LazyPattern(
         r'^(-)?P(?=[0-9]|T)(?:([0-9]+)Y)?(?:([0-9]+)M)?(?:([0-9]+)D)?'
@@ -995,6 +1020,11 @@ class Duration(AnyAtomicType):
     __slots__ = ('months', 'seconds')
 
     def __init__(self, months: int = 0, seconds: Union[Decimal, int] = 0) -> None:
+        """
+        :param months: an integer value that represents years and months.
+        :param seconds: a decimal or an integer instance that represents \
+        days, hours, minutes, seconds and fractions of seconds.
+        """
         if seconds < 0 < months or months < 0 < seconds:
             raise ValueError('signs differ: (months=%d, seconds=%d)' % (months, seconds))
         elif abs(months) > 2 ** 31:
@@ -1158,6 +1188,9 @@ class YearMonthDuration(Duration):
                 return YearMonthDuration.fromstring(value)
 
     def __init__(self, months: int = 0) -> None:
+        """
+        :param months: an integer value that represents years and months.
+        """
         super().__init__(months, 0)
 
     def __repr__(self) -> str:
@@ -1225,6 +1258,10 @@ class DayTimeDuration(Duration):
         ))
 
     def __init__(self, seconds: Union[Decimal, int] = 0) -> None:
+        """
+        :param seconds: a decimal or an integer instance that represents \
+        days, hours, minutes, seconds and fractions of seconds.
+        """
         super().__init__(0, seconds)
 
     def get_timedelta(self) -> datetime.timedelta:

@@ -21,10 +21,7 @@ __all__ = ['AbstractBinary', 'Base64Binary', 'HexBinary']
 
 class AbstractBinary(AnyAtomicType):
     """
-    Abstract class for xs:base64Binary data.
-
-    :param value: a string or a binary data or an untyped atomic instance.
-    :param ordered: a boolean that enable total ordering for the instance, `False` for default.
+    Abstract base class for xs:base64Binary/xs:hexBinary datatypes.
     """
     value: bytes
 
@@ -43,6 +40,10 @@ class AbstractBinary(AnyAtomicType):
 
     def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AbstractBinary'],
                  ordered: bool = False) -> None:
+        """
+        :param value: a string or a binary data or an untyped atomic instance.
+        :param ordered: a boolean that enable total ordering for the instance, `False` for default.
+        """
         self.ordered = ordered
 
         match value:

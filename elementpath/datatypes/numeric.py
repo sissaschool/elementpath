@@ -173,7 +173,6 @@ float_nan = Float('NaN')
 
 
 class Integer(int, AnyAtomicType):
-    """A wrapper for emulating xs:integer and limited integer types."""
     name = 'integer'
     pattern = LazyPattern(r'^[\-+]?[0-9]+$')
 
@@ -181,6 +180,9 @@ class Integer(int, AnyAtomicType):
     _higher_bound: Optional[int] = None
 
     def __init__(self, value: Union[str, SupportsInt]) -> None:
+        """
+        :param value: a string or an integer compatible value.
+        """
         if self._lower_bound is not None and self < self._lower_bound:
             raise ValueError("value {} is too low for {!r}".format(value, self.__class__))
         elif self._higher_bound is not None and self >= self._higher_bound:

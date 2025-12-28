@@ -171,3 +171,104 @@ There are also other exceptions, multiple derived from the base exception
 .. autoexception:: elementpath.ElementPathTypeError
 .. autoexception:: elementpath.ElementPathValueError
 .. autoexception:: elementpath.ElementPathZeroDivisionError
+
+
+XPath datatypes
+===============
+
+XPath datatypes include XSD datatypes and other datatype specific for XPath, like untyped atomic
+type and sequences.
+
+XSD special types
+-----------------
+.. autoclass:: elementpath.datatypes.AnyType
+.. autoclass:: elementpath.datatypes.AnySimpleType
+.. autoclass:: elementpath.datatypes.AnyAtomicType
+
+Proxy classes for primitive datatypes
+-------------------------------------
+.. automodule:: elementpath.datatypes.proxies
+.. autoclass:: elementpath.datatypes.StringProxy
+.. autoclass:: elementpath.datatypes.BooleanProxy
+.. autoclass:: elementpath.datatypes.DecimalProxy
+.. autoclass:: elementpath.datatypes.DoubleProxy
+
+XPath specific types
+--------------------
+.. autoclass:: elementpath.datatypes.UntypedAtomic
+.. autoclass:: elementpath.sequences.XSequence
+.. autoclass:: elementpath.datatypes.ErrorProxy
+
+Numeric types
+-------------
+.. autoclass:: elementpath.datatypes.Float
+.. autoclass:: elementpath.datatypes.Integer
+.. autoclass:: elementpath.datatypes.NonPositiveInteger
+.. autoclass:: elementpath.datatypes.NegativeInteger
+.. autoclass:: elementpath.datatypes.Long
+.. autoclass:: elementpath.datatypes.Int
+.. autoclass:: elementpath.datatypes.Short
+.. autoclass:: elementpath.datatypes.Byte
+.. autoclass:: elementpath.datatypes.NonNegativeInteger
+.. autoclass:: elementpath.datatypes.PositiveInteger
+.. autoclass:: elementpath.datatypes.UnsignedLong
+.. autoclass:: elementpath.datatypes.UnsignedInt
+.. autoclass:: elementpath.datatypes.UnsignedShort
+.. autoclass:: elementpath.datatypes.UnsignedByte
+
+String based types
+------------------
+.. autoclass:: elementpath.datatypes.NormalizedString
+.. autoclass:: elementpath.datatypes.XsdToken
+.. autoclass:: elementpath.datatypes.Language
+.. autoclass:: elementpath.datatypes.Name
+.. autoclass:: elementpath.datatypes.NCName
+.. autoclass:: elementpath.datatypes.Id
+.. autoclass:: elementpath.datatypes.Idref
+.. autoclass:: elementpath.datatypes.Entity
+.. autoclass:: elementpath.datatypes.NMToken
+
+List types
+----------
+.. autoclass:: elementpath.datatypes.NMTokens
+.. autoclass:: elementpath.datatypes.Idrefs
+.. autoclass:: elementpath.datatypes.Entities
+
+QName types
+-----------
+.. autoclass:: elementpath.datatypes.QName
+.. autoclass:: elementpath.datatypes.Notation
+
+Binary types
+------------
+.. autoclass:: elementpath.datatypes.Base64Binary
+.. autoclass:: elementpath.datatypes.HexBinary
+
+URI types
+---------
+.. autoclass:: elementpath.datatypes.AnyURI
+
+Date and time types
+-------------------
+.. autoclass:: elementpath.datatypes.DateTime
+.. autoclass:: elementpath.datatypes.DateTime10
+.. autoclass:: elementpath.datatypes.DateTimeStamp
+.. autoclass:: elementpath.datatypes.Date
+.. autoclass:: elementpath.datatypes.Date10
+.. autoclass:: elementpath.datatypes.GregorianDay
+.. autoclass:: elementpath.datatypes.GregorianMonth
+.. autoclass:: elementpath.datatypes.GregorianMonthDay
+.. autoclass:: elementpath.datatypes.GregorianYear
+.. autoclass:: elementpath.datatypes.GregorianYear10
+.. autoclass:: elementpath.datatypes.GregorianYearMonth
+.. autoclass:: elementpath.datatypes.GregorianYearMonth10
+.. autoclass:: elementpath.datatypes.Time
+.. autoclass:: elementpath.datatypes.Timezone
+
+Duration types
+--------------
+
+.. autoclass:: elementpath.datatypes.Duration
+.. autoclass:: elementpath.datatypes.YearMonthDuration
+.. autoclass:: elementpath.datatypes.DayTimeDuration
+

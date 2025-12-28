@@ -22,10 +22,6 @@ T = TypeVar('T', bound='AbstractQName')
 class AbstractQName(AnyAtomicType):
     """
     XPath compliant QName, bound with a prefix and a namespace.
-
-    :param uri: the bound namespace URI, must be a not empty \
-    URI if a prefixed name is provided for the 2nd argument.
-    :param qname: the prefixed name or a local name.
     """
     pattern = LazyPattern(
         r'^(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
@@ -61,6 +57,11 @@ class AbstractQName(AnyAtomicType):
         return super().__new__(cls)
 
     def __init__(self, uri: Optional[str], qname: str) -> None:
+        """
+        :param uri: the bound namespace URI, must be a not empty \
+        URI if a prefixed name is provided for the 2nd argument.
+        :param qname: a prefixed name or a local name.
+        """
         if uri is None:
             self.uri = ''
         elif isinstance(uri, str):
