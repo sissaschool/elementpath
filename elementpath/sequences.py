@@ -72,7 +72,7 @@ class xlist(list[T]):
 
     def __add__(self, other: list[T] | list[_S]) -> list[T] | list[_S | T]:
         if isinstance(other, list):
-            return xlist(chain(self, other))
+            return xlist(chain(self, cast(list[T], other)))
         elif len(self) == 1:
             return xlist([self[0] + other])
         return NotImplemented

@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v5.1.0`_ (2025-12-28)
+======================
+* Drop Python 3.9 compatibility and add Pyton 3.15 support
+* Improve XPath sequence internal processing with a list derived type `xlist'
+* Extensions and fixes for XSD datatypes
+* Add `XSequence` datatype for external representation of XPath sequences
+
 `v5.0.4`_ (2025-08-16)
 ======================
 * Fix default/fixed values processing of schema annotated XML data (issue #94)
@@ -523,3 +530,4 @@ CHANGELOG
 .. _v5.0.2: https://github.com/sissaschool/elementpath/compare/v5.0.1...v5.0.2
 .. _v5.0.3: https://github.com/sissaschool/elementpath/compare/v5.0.2...v5.0.3
 .. _v5.0.4: https://github.com/sissaschool/elementpath/compare/v5.0.3...v5.0.4
+.. _v5.1.0: https://github.com/sissaschool/elementpath/compare/v5.0.4...v5.1.0
