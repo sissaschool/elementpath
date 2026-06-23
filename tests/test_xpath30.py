@@ -312,6 +312,21 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(int_to_words(1), 'one')
         self.assertEqual(int_to_words(4), 'four')
 
+        # "and" before a trailing sub-hundred remainder after thousand/million/
+        # billion scales, consistent with "one hundred and one".
+        self.assertEqual(int_to_words(1001), 'one thousand and one')
+        self.assertEqual(int_to_words(8054), 'eight thousand and fifty-four')
+        self.assertEqual(int_to_words(1000001), 'one million and one')
+        self.assertEqual(int_to_words(1000000005), 'one billion and five')
+        self.assertEqual(int_to_words(100001), 'one hundred thousand and one')
+
+        # No spurious "and" for round numbers or when a hundreds word follows.
+        self.assertEqual(int_to_words(1000), 'one thousand')
+        self.assertEqual(int_to_words(1100), 'one thousand one hundred')
+        self.assertEqual(
+            int_to_words(1234), 'one thousand two hundred and thirty-four'
+        )
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath30ParserTest(XPath30ParserTest):

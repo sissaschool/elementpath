@@ -312,6 +312,11 @@ def int_to_words(num: int, lang: Optional[str] = None, fmt_modifier: str = '') -
                 elif base == 100:
                     if lang == 'en':
                         yield ' and '
+                elif lang == 'en' and value < 100:
+                    # British convention: "and" before a trailing sub-hundred
+                    # remainder when no hundreds word follows to carry it,
+                    # e.g. "one thousand and one" like "one hundred and one".
+                    yield ' and '
                 else:
                     yield ' '
 
