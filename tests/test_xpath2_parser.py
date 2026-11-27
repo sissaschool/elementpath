@@ -235,6 +235,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.wrong_syntax("xs:(: invalid QName :)string")
 
+        self.check_value("concat('test',(: ' :) 'test') eq 'testtest'", True)
+
     def test_comma_operator(self):
         self.check_value("1, 2", [1, 2])
         self.check_value("(1, 2)", [1, 2])
