@@ -10,6 +10,7 @@
 """
 XPath 2.0 implementation - part 1 (parser class and symbols)
 """
+import re
 import copy
 from abc import ABCMeta
 import locale
@@ -93,6 +94,10 @@ class XPath2Parser(XPath1Parser):
         'if', 'item', 'node', 'processing-instruction', 'schema-attribute',
         'schema-element', 'text', 'typeswitch',
     }
+
+    literals_pattern = re.compile(
+        r"""(?:'[^']*?)\:\)|'(?:[^']|'')*'|"(?:[^"]|"")*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?""" # noqa E501
+    )
 
     function_signatures: dict[tuple[QName, int], str] = XPath1Parser.function_signatures.copy()
     namespaces: dict[str, str]

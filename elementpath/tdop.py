@@ -594,7 +594,12 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                 self.next_token = self.symbol_table['(end)'](self)
                 break
             else:
-                symbol = self.next_match.group(2)
+                if (":)" in stop_symbols and
+                        (symbol_1 := self.next_match.group(1)) is not None and
+                        symbol_1.endswith(":)")):
+                    symbol = ":)"
+                else:
+                    symbol = self.next_match.group(2)
                 if symbol is not None:
                     symbol = symbol.strip()
                     if symbol not in stop_symbols:
